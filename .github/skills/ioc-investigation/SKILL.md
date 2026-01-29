@@ -54,7 +54,7 @@ The investigation correlates IoCs with Microsoft Defender Threat Intelligence, i
 - Use the `SELECTED_WORKSPACE_IDS` passed from the parent skill
 
 ### When invoked standalone (direct user request):
-1. **ALWAYS call `mcp_stefanpe-sent2_list_sentinel_workspaces()` FIRST**
+1. **ALWAYS call `list_sentinel_workspaces` MCP tool FIRST**
 2. **If 1 workspace exists:** Auto-select, display to user, proceed
 3. **If multiple workspaces exist:**
    - Display all workspaces with Name and ID
@@ -667,7 +667,7 @@ AlertInfo
 
 **Get Alerts for IP:**
 ```
-Tool: mcp_stefanpe-sent3_GetDefenderIpAlerts
+Tool: GetDefenderIpAlerts (MCP)
 Parameter: ipAddress = "<IP_ADDRESS>"
 Returns: All security alerts associated with the IP
 ```
@@ -681,7 +681,7 @@ Returns: Organization prevalence, device count, communication stats
 
 **Find Devices by IP:**
 ```
-Tool: mcp_stefanpe-sent3_FindDefenderMachinesByIp
+Tool: FindDefenderMachinesByIp (MCP)
 Parameters: 
   ipAddress = "<IP_ADDRESS>"
   timestamp = "<DATETIME>" (ISO 8601 format)
@@ -706,14 +706,14 @@ Returns: Organization statistics, device count, global stats
 
 **Get File Alerts:**
 ```
-Tool: mcp_stefanpe-sent3_GetDefenderFileAlerts
+Tool: GetDefenderFileAlerts (MCP)
 Parameter: fileHash = "<SHA1_OR_SHA256>"
 Returns: All alerts associated with the file
 ```
 
 **Get Devices with File:**
 ```
-Tool: mcp_stefanpe-sent3_GetDefenderFileRelatedMachines
+Tool: GetDefenderFileRelatedMachines (MCP)
 Parameter: fileHash = "<SHA1_OR_SHA256>"
 Returns: All devices where file was observed
 ```
@@ -722,14 +722,14 @@ Returns: All devices where file was observed
 
 **List Devices Affected by CVE:**
 ```
-Tool: mcp_stefanpe-sent3_ListDefenderMachinesByVulnerability
+Tool: ListDefenderMachinesByVulnerability (MCP)
 Parameter: cveId = "CVE-YYYY-NNNNN"
 Returns: All devices vulnerable to the CVE with exposure details
 ```
 
 **Get Device Vulnerabilities:**
 ```
-Tool: mcp_stefanpe-sent3_GetDefenderMachineVulnerabilities
+Tool: GetDefenderMachineVulnerabilities (MCP)
 Parameter: id = "<DEVICE_ID>"
 Returns: All CVEs affecting the specific device
 ```
@@ -738,7 +738,7 @@ Returns: All CVEs affecting the specific device
 
 **Search Existing IOCs:**
 ```
-Tool: mcp_stefanpe-sent3_ListDefenderIndicators
+Tool: ListDefenderIndicators (MCP)
 Parameters (all optional):
   indicatorType = "IpAddress" | "DomainName" | "Url" | "FileSha1" | "FileSha256" | "FileMd5"
   indicatorValue = "<IOC_VALUE>"

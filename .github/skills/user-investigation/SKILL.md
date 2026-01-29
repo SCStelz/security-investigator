@@ -47,7 +47,7 @@ This skill performs comprehensive security investigations on Entra ID user accou
 - Use the `SELECTED_WORKSPACE_IDS` passed from the parent skill
 
 ### When invoked standalone (direct user request):
-1. **ALWAYS call `mcp_stefanpe-sent2_list_sentinel_workspaces()` FIRST**
+1. **ALWAYS call `list_sentinel_workspaces` MCP tool FIRST**
 2. **If 1 workspace exists:** Auto-select, display to user, proceed
 3. **If multiple workspaces exist:**
    - Display all workspaces with Name and ID

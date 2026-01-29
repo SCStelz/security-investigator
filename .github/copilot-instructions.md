@@ -46,7 +46,7 @@ This workspace contains a security investigation automation system. GitHub Copil
 
 **This rule applies to ALL skills and ALL Sentinel queries. Follow STRICTLY.**
 
-When executing ANY Sentinel query (via `mcp_stefanpe-sent2_query_lake`, `mcp_microsoft_sen_query_lake`, etc.):
+When executing ANY Sentinel query (via the Sentinel Data Lake `query_lake` MCP tool):
 
 ### Workspace Selection Flow
 

@@ -53,7 +53,7 @@ This skill performs comprehensive security investigations on Windows, macOS, and
 - Use the `SELECTED_WORKSPACE_IDS` passed from the parent skill
 
 ### When invoked standalone (direct user request):
-1. **ALWAYS call `mcp_stefanpe-sent2_list_sentinel_workspaces()` FIRST**
+1. **ALWAYS call `list_sentinel_workspaces` MCP tool FIRST**
 2. **If 1 workspace exists:** Auto-select, display to user, proceed
 3. **If multiple workspaces exist:**
    - Display all workspaces with Name and ID
@@ -161,7 +161,7 @@ When a user requests a computer security investigation:
    # First, find the device and get both Entra ID and Defender ID
    mcp_microsoft_mcp_microsoft_graph_get("/v1.0/devices?$filter=displayName eq '<DEVICE_NAME>'&$select=id,deviceId,displayName,operatingSystem,trustType,isCompliant,isManaged")
    # Then get Defender device ID from MDE
-   mcp_stefanpe-sent3_ListDefenderMachines (or use Advanced Hunting to find by device name)
+   Use Defender `ListDefenderMachines` or Advanced Hunting to find by device name
    ```
 
 2. **Run Parallel Queries:**
@@ -289,14 +289,14 @@ Provide comprehensive summary including:
 - `isCompliant` and `isManaged` indicate MDM status
 
 ### Defender Machine Details
-Use `mcp_stefanpe-sent3_GetDefenderMachine` with Defender Device ID:
+Use the Defender `GetDefenderMachine` MCP tool with Defender Device ID:
 - Returns: healthStatus, riskScore, exposureLevel, onboardingStatus, lastSeen, osPlatform, osVersion
 
 ---
 
 ## Sample KQL Queries
 
-Use these exact patterns with `mcp_stefanpe-sent2_query_lake` for Sentinel or Advanced Hunting tools for Defender XDR tables. Replace `<DEVICE_NAME>`, `<DEVICE_ID>`, `<StartDate>`, `<EndDate>`.
+Use these exact patterns with the Sentinel Data Lake `query_lake` MCP tool for Sentinel or Advanced Hunting tools for Defender XDR tables. Replace `<DEVICE_NAME>`, `<DEVICE_ID>`, `<StartDate>`, `<EndDate>`.
 
 **⚠️ CRITICAL: START WITH THESE EXACT QUERY PATTERNS**
 **These queries have been tested and validated. Use them as your PRIMARY reference.**
@@ -684,31 +684,31 @@ mcp_microsoft_mcp_microsoft_graph_get("/v1.0/deviceManagement/managedDevices?$fi
 
 ### Get Machine Details
 ```
-mcp_stefanpe-sent3_GetDefenderMachine(id="<DEFENDER_DEVICE_ID>")
+GetDefenderMachine(id="<DEFENDER_DEVICE_ID>")
 ```
 Returns: id, computerDnsName, osPlatform, osVersion, healthStatus, onboardingStatus, riskScore, exposureLevel, lastSeen, lastIpAddress, lastExternalIpAddress, rbacGroupName
 
 ### Get Logged-On Users
 ```
-mcp_stefanpe-sent3_GetDefenderMachineLoggedOnUsers(id="<DEFENDER_DEVICE_ID>")
+GetDefenderMachineLoggedOnUsers(id="<DEFENDER_DEVICE_ID>")
 ```
 Returns: Array of users with accountName, accountDomain, firstSeen, lastSeen, logonTypes
 
 ### Get Machine Alerts (via API)
-Use the `ListAlerts` tool filtered by device:
+Use the `ListAlerts` MCP tool filtered by device:
 ```
-mcp_stefanpe-sent3_ListAlerts with machineId filter
+ListAlerts with machineId filter
 ```
 
 ### Get Automated Investigations
 ```
-mcp_stefanpe-sent3_ListDefenderInvestigations
+ListDefenderInvestigations
 ```
 Filter results by machineId to find investigations related to the device
 
 ### Get Remediation Activities
 ```
-mcp_stefanpe-sent3_ListDefenderRemediationActivities
+ListDefenderRemediationActivities
 ```
 Filter results by machineId to find remediation tasks for the device
 

@@ -38,7 +38,7 @@ This skill performs comprehensive security investigations on incidents from **Mi
 **Before starting ANY incident investigation:**
 
 1. **ALWAYS complete Phase 1 first** - Retrieve full incident description before any deep investigation
-2. **ALWAYS list Sentinel workspaces at the START of Phase 2** - Call `mcp_stefanpe-sent2_list_sentinel_workspaces()` BEFORE presenting the investigation menu
+2. **ALWAYS list Sentinel workspaces at the START of Phase 2** - Call `list_sentinel_workspaces` MCP tool BEFORE presenting the investigation menu
 3. **⛔ ALWAYS complete workspace selection BEFORE any investigation** - This is a MANDATORY CHECKPOINT:
    - If 1 workspace: auto-select and display to user
    - If multiple workspaces: ASK USER to select and WAIT for response
@@ -64,7 +64,7 @@ This skill performs comprehensive security investigations on incidents from **Mi
 | Pattern | Source | Tool to Use |
 |---------|--------|-------------|
 | Numeric (e.g., `12345`, `98765`) | Defender XDR / Sentinel | `GetIncidentById` |
-| GUID format | Sentinel (internal) | `mcp_stefanpe-sent2_query_lake` |
+| GUID format | Sentinel (internal) | Sentinel `query_lake` MCP tool |
 | `INxx-xxxxx` format | Defender XDR | `GetIncidentById` |
 
 **Date Range Rules:**
@@ -205,7 +205,7 @@ Retrieve evidences classified as **malicious or suspicious** only:
 **ALWAYS execute this step first, regardless of any other considerations:**
 
 ```
-mcp_stefanpe-sent2_list_sentinel_workspaces()
+list_sentinel_workspaces (MCP tool)
 ```
 
 Store the result. This determines the workflow for Step 2.3.
@@ -480,7 +480,7 @@ When a user requests an incident investigation:
    - List filtered evidences (processes, files, IPs, URLs, domains)
 
 2. **⛔ Phase 2 - Mandatory Workspace Selection:**
-   - Call `mcp_stefanpe-sent2_list_sentinel_workspaces()` FIRST
+   - Call `list_sentinel_workspaces` MCP tool FIRST
    - Present entity summary from Phase 1
    - If 1 workspace: auto-select and display
    - If multiple workspaces: ASK USER to select before proceeding
@@ -617,7 +617,7 @@ When a user requests an incident investigation:
 | **User Object ID not found** | Verify UPN is correct; check if user exists in Entra ID |
 | **analyze_user_entity returns error** | Check userId is GUID format; verify time window ≤ 30 days |
 | **get_entity_analysis still processing** | Poll again after 5-10 seconds; max 2 minutes |
-| **No workspace found** | Use `mcp_stefanpe-sent2_list_sentinel_workspaces` to get workspace ID |
+| **No workspace found** | Use `list_sentinel_workspaces` MCP tool to get workspace ID |
 | **Device investigation fails** | Verify device exists in Defender; check device ID type |
 | **IoC investigation timeout** | Reduce date range; check IoC format |
 
@@ -625,7 +625,7 @@ When a user requests an incident investigation:
 
 If workspace ID is unknown, retrieve it first:
 ```
-mcp_stefanpe-sent2_list_sentinel_workspaces()
+list_sentinel_workspaces (MCP tool)
 ```
 
 Returns: List of workspace name/ID pairs
@@ -633,7 +633,7 @@ Returns: List of workspace name/ID pairs
 
 ### Workspace ID Selection
 
-If there is more than one Sentinel workspace (as retrieved from mcp_stefanpe-sent2_list_sentinel_workspaces()), present the list - in terms of workspace names and IDs - to the user so that the user can select which workspace to use for the investigation. 
+If there is more than one Sentinel workspace (as retrieved from `list_sentinel_workspaces` MCP tool), present the list - in terms of workspace names and IDs - to the user so that the user can select which workspace to use for the investigation. 
 Offer also to the user the possibility to use all existing workspaces. 
 
 If only one workspace is selected by the user, use the workspaceId of that workspace when calling investigation tools.
