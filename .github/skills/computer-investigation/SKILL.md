@@ -212,7 +212,7 @@ Use Advanced Hunting or Defender API to find the MDE device ID:
 ```kql
 DeviceInfo
 | where DeviceName startswith '<DEVICE_NAME>'  // Use startswith to match both hostname and FQDN
-| summarize arg_max(Timestamp, *) by DeviceId
+| summarize arg_max(TimeGenerated, *) by DeviceName
 | project DeviceId, DeviceName, OSPlatform, OSVersion, MachineGroup, OnboardingStatus, ExposureLevel, SensorHealthState
 ```
 **Note:** RiskScore is NOT in DeviceInfo - use `GetDefenderMachine` API to get riskScore and exposureLevel.
@@ -440,7 +440,7 @@ let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
 let deviceName = '<DEVICE_NAME>';
 DeviceProcessEvents
-| where Timestamp between (start .. end)
+| where TimeGenerated between (start .. end)
 | where DeviceName startswith deviceName  // Use startswith to match both hostname and FQDN
 | where ActionType in ("ProcessCreated", "ProcessCreatedUsingWmiQuery")
 | extend CommandLineLength = strlen(ProcessCommandLine)
@@ -455,8 +455,8 @@ DeviceProcessEvents
     ProcessCount = count(),
     SuspiciousCount = countif(IsSuspicious),
     UniqueProcesses = dcount(FileName),
-    FirstSeen = min(Timestamp),
-    LastSeen = max(Timestamp),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
     SampleCommands = make_set(ProcessCommandLine, 5)
     by FileName, FolderPath, AccountName, AccountDomain
 | where SuspiciousCount > 0 or ProcessCount > 50
@@ -470,7 +470,7 @@ let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
 let deviceName = '<DEVICE_NAME>';
 DeviceNetworkEvents
-| where Timestamp between (start .. end)
+| where TimeGenerated between (start .. end)
 | where DeviceName startswith deviceName  // Use startswith to match both hostname and FQDN
 | where ActionType == "ConnectionSuccess"
 | where RemoteIPType != "Private" // Focus on public IPs
@@ -478,12 +478,10 @@ DeviceNetworkEvents
     ConnectionCount = count(),
     UniqueRemoteIPs = dcount(RemoteIP),
     UniqueRemotePorts = dcount(RemotePort),
-    BytesSent = sum(tolong(SentBytes)),
-    BytesReceived = sum(tolong(ReceivedBytes)),
     Protocols = make_set(Protocol, 5),
     InitiatingProcesses = make_set(InitiatingProcessFileName, 10),
-    FirstSeen = min(Timestamp),
-    LastSeen = max(Timestamp)
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
     by RemoteIP, RemotePort, RemoteUrl
 | order by ConnectionCount desc
 | take 30
@@ -495,7 +493,7 @@ let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
 let deviceName = '<DEVICE_NAME>';
 DeviceFileEvents
-| where Timestamp between (start .. end)
+| where TimeGenerated between (start .. end)
 | where DeviceName startswith deviceName  // Use startswith to match both hostname and FQDN
 | where ActionType in ("FileCreated", "FileModified", "FileDeleted", "FileRenamed")
 | extend FileExtension = tostring(split(FileName, ".")[-1])
@@ -511,8 +509,8 @@ DeviceFileEvents
     DeletedCount = countif(ActionType == "FileDeleted"),
     UniqueFiles = dcount(FileName),
     FileExtensions = make_set(FileExtension, 10),
-    FirstSeen = min(Timestamp),
-    LastSeen = max(Timestamp)
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
     by FolderPath, InitiatingProcessFileName
 | where SuspiciousCount > 0 or FileEventCount > 100
 | order by SuspiciousCount desc, FileEventCount desc
@@ -525,7 +523,7 @@ let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
 let deviceName = '<DEVICE_NAME>';
 DeviceRegistryEvents
-| where Timestamp between (start .. end)
+| where TimeGenerated between (start .. end)
 | where DeviceName startswith deviceName  // Use startswith to match both hostname and FQDN
 | where ActionType in ("RegistryValueSet", "RegistryKeyCreated")
 | extend IsPersistence = case(
@@ -538,8 +536,8 @@ DeviceRegistryEvents
     RegistryEventCount = count(),
     PersistenceCount = countif(IsPersistence),
     UniqueKeys = dcount(RegistryKey),
-    FirstSeen = min(Timestamp),
-    LastSeen = max(Timestamp)
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
     by RegistryKey, RegistryValueName, InitiatingProcessFileName
 | where PersistenceCount > 0
 | order by PersistenceCount desc, RegistryEventCount desc
@@ -591,11 +589,11 @@ let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
 let deviceName = '<DEVICE_NAME>';
 DeviceInfo
-| where Timestamp between (start .. end)
+| where TimeGenerated between (start .. end)
 | where DeviceName startswith deviceName  // Use startswith to match both hostname and FQDN
-| summarize arg_max(Timestamp, *) by DeviceId
+| summarize arg_max(TimeGenerated, *) by DeviceId
 | project 
-    Timestamp,
+    TimeGenerated,
     DeviceId,
     DeviceName,
     OSPlatform,
@@ -616,7 +614,7 @@ DeviceInfo
 
 ### 9. Software Inventory on Device
 
-**Note:** TVM tables use snapshot ingestion - no Timestamp filtering. Query via **Advanced Hunting only** using `RunAdvancedHuntingQuery` with parameter `kqlQuery`.
+**⚠️ DO NOT use Sentinel Data Lake MCP (`query_lake`) for this query.** The `DeviceTvmSoftwareInventory` table is NOT available in the Sentinel Data Lake. Use Advanced Hunting MCP (`RunAdvancedHuntingQuery`) only. TVM tables use snapshot ingestion with no TimeGenerated filtering.
 
 ```kql
 let deviceName = '<DEVICE_NAME>';
@@ -628,16 +626,15 @@ DeviceTvmSoftwareInventory
     SoftwareName,
     SoftwareVersion,
     EndOfSupportStatus,
-    EndOfSupportDate,
-    NumberOfWeaknesses
-| summarize by SoftwareVendor, SoftwareName, SoftwareVersion, EndOfSupportStatus, EndOfSupportDate, NumberOfWeaknesses
+    EndOfSupportDate
+| summarize by SoftwareVendor, SoftwareName, SoftwareVersion, EndOfSupportStatus, EndOfSupportDate
 | order by NumberOfWeaknesses desc
 | take 30
 ```
 
 ### 10. Vulnerabilities on Device
 
-**Note:** TVM tables use snapshot ingestion - no Timestamp filtering. Query via **Advanced Hunting only** using `RunAdvancedHuntingQuery` with parameter `kqlQuery`.
+**⚠️ DO NOT use Sentinel Data Lake MCP (`query_lake`) for this query.** The `DeviceTvmSoftwareVulnerabilities` table is NOT available in the Sentinel Data Lake. Use Advanced Hunting MCP (`RunAdvancedHuntingQuery`) only. TVM tables use snapshot ingestion with no TimeGenerated filtering.
 
 ```kql
 let deviceName = '<DEVICE_NAME>';
@@ -662,7 +659,7 @@ let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
 let deviceName = '<DEVICE_NAME>';
 DeviceLogonEvents
-| where Timestamp between (start .. end)
+| where TimeGenerated between (start .. end)
 | where DeviceName startswith deviceName  // Use startswith to match both hostname and FQDN
 | summarize 
     LogonCount = count(),
@@ -670,8 +667,8 @@ DeviceLogonEvents
     FailureCount = countif(ActionType == "LogonFailed"),
     UniqueAccounts = dcount(AccountName),
     LogonTypes = make_set(LogonType, 5),
-    FirstSeen = min(Timestamp),
-    LastSeen = max(Timestamp),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
     RemoteIPs = make_set(RemoteIP, 10)
     by AccountName, AccountDomain, LogonType
 | order by LogonCount desc
@@ -684,7 +681,7 @@ let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
 let deviceName = '<DEVICE_NAME>';
 let device_ips = DeviceNetworkEvents
-| where Timestamp between (start .. end)
+| where TimeGenerated between (start .. end)
 | where DeviceName startswith deviceName  // Use startswith to match both hostname and FQDN
 | where RemoteIPType != "Private"
 | distinct RemoteIP;
@@ -707,6 +704,7 @@ ThreatIntelIndicators
 | order by Confidence desc
 | take 20
 ```
+
 
 ---
 

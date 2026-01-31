@@ -324,9 +324,12 @@ For each CVE_ID found:
 
 **For IP Address IoCs:**
 ```kql
+let start = datetime(<StartDate>);
+let end = datetime(<EndDate>);
+let IPAddress = '<IP_ADDRESS>';
 DeviceNetworkEvents
-| where Timestamp > ago(7d)
-| where RemoteIP == '<IP_ADDRESS>' or LocalIP == '<IP_ADDRESS>'
+| where Timestamp between (start .. end)
+| where RemoteIP == IPAddress or LocalIP == IPAddress
 | summarize 
     ConnectionCount = count(),
     UniqueDevices = dcount(DeviceId),
@@ -340,9 +343,12 @@ DeviceNetworkEvents
 
 **For Domain IoCs:**
 ```kql
+let start = datetime(<StartDate>);
+let end = datetime(<EndDate>);
+let Domain = '<DOMAIN>';
 DeviceNetworkEvents
-| where Timestamp > ago(7d)
-| where RemoteUrl has '<DOMAIN>'
+| where Timestamp between (start .. end)
+| where RemoteUrl has Domain
 | summarize 
     ConnectionCount = count(),
     UniqueDevices = dcount(DeviceId),
@@ -355,9 +361,12 @@ DeviceNetworkEvents
 
 **For File Hash IoCs:**
 ```kql
-DeviceFileEvents
-| where Timestamp > ago(7d)
-| where SHA1 == '<HASH>' or SHA256 == '<HASH>' or MD5 == '<HASH>'
+let start = datetime(<StartDate>);
+let end = datetime(<EndDate>);
+let Hash = '<HASH>';
+union withsource=SourceTable DeviceProcessEvents, DeviceNetworkEvents, DeviceFileEvents, DeviceRegistryEvents, DeviceLogonEvents, DeviceImageLoadEvents, DeviceEvents
+| where Timestamp between (start .. end)
+| where SHA1 =~ Hash or SHA256 =~ Hash or MD5 =~ Hash or InitiatingProcessSHA256 =~ Hash
 | summarize 
     EventCount = count(),
     UniqueDevices = dcount(DeviceId),
@@ -403,12 +412,15 @@ Use these exact patterns with appropriate MCP tools. Replace `<IOC_VALUE>`, `<St
 
 ---
 
-### 1. Threat Intelligence Indicator Match (Sentinel)
+### 1. Threat Intelligence Indicator Match (Sentinel - limited to first 20 IoCs)
 ```kql
+let start = datetime(<StartDate>);
+let end = datetime(<EndDate>);
 let ioc_value = '<IOC_VALUE>';
 ThreatIntelIndicators
-| where TimeGenerated > ago(90d)
-| where IsActive == true and Revoked == false
+| where TimeGenerated between (start .. end)
+| where IsActive == true and IsDeleted == false
+| summarize arg_max(TimeGenerated, *) by Id
 | where ObservableValue =~ ioc_value
     or Pattern has ioc_value
 | project 
@@ -434,6 +446,7 @@ let end = datetime(<EndDate>);
 DeviceNetworkEvents
 | where Timestamp between (start .. end)
 | where RemoteIP == target_ip or LocalIP == target_ip
+| extend Direction = iff(RemoteIP == target_ip, "Outbound", "Inbound")
 | summarize 
     TotalConnections = count(),
     UniqueDevices = dcount(DeviceId),
@@ -444,11 +457,11 @@ DeviceNetworkEvents
     Ports = make_set(RemotePort, 20),
     Protocols = make_set(Protocol),
     ActionTypes = make_set(ActionType),
-    InitiatingProcesses = make_set(InitiatingProcessFileName, 10)
-| extend Direction = iff(RemoteIP == target_ip, "Outbound", "Inbound")
+    InitiatingProcesses = make_set(InitiatingProcessFileName, 10),
+    Direction = make_set(Direction,2)
 ```
 
-### 3. IP Address - Detailed Connection Timeline
+### 3. IP Address - Detailed Connection Timeline (limited to first 20 events)
 ```kql
 let target_ip = '<IP_ADDRESS>';
 let start = datetime(<StartDate>);
@@ -471,7 +484,7 @@ DeviceNetworkEvents
     InitiatingProcessCommandLine,
     InitiatingProcessAccountName
 | order by Timestamp desc
-| take 100
+| take 20
 ```
 
 ### 4. Domain - DNS and HTTP Connection Activity
@@ -494,7 +507,7 @@ DeviceNetworkEvents
     InitiatingProcesses = make_set(InitiatingProcessFileName, 10)
 ```
 
-### 5. Domain - Detailed Connection Timeline
+### 5. Domain - Detailed Connection Timeline (limited to first 20 events)
 ```kql
 let target_domain = '<DOMAIN>';
 let start = datetime(<StartDate>);
@@ -514,7 +527,7 @@ DeviceNetworkEvents
     InitiatingProcessFileName,
     InitiatingProcessCommandLine
 | order by Timestamp desc
-| take 100
+| take 20
 ```
 
 ### 6. URL - Email Delivery Analysis
@@ -541,9 +554,9 @@ EmailUrlInfo
 let target_hash = '<HASH>';
 let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
-DeviceFileEvents
+union withsource=SourceTable DeviceProcessEvents, DeviceNetworkEvents, DeviceFileEvents, DeviceRegistryEvents, DeviceLogonEvents, DeviceImageLoadEvents, DeviceEvents
 | where Timestamp between (start .. end)
-| where SHA1 =~ target_hash or SHA256 =~ target_hash or MD5 =~ target_hash
+| where SHA1 =~ target_hash or SHA256 =~ target_hash or MD5 =~ target_hash or InitiatingProcessSHA256 =~ target_hash
 | summarize 
     EventCount = count(),
     UniqueDevices = dcount(DeviceId),
@@ -560,7 +573,7 @@ DeviceFileEvents
     "Unknown")
 ```
 
-### 8. Alert Evidence - IoC in Alerts
+### 8. Alert Evidence - IoC in Alerts (limited to first 20 alerts)
 ```kql
 let ioc_value = '<IOC_VALUE>';
 let start = datetime(<StartDate>);
@@ -572,6 +585,8 @@ AlertEvidence
     or SHA1 =~ ioc_value 
     or SHA256 =~ ioc_value
     or FileName has ioc_value
+    or Title has ioc_value
+    or Category has ioc_value
 | project 
     Timestamp,
     AlertId,
@@ -589,7 +604,7 @@ AlertEvidence
     DeviceName,
     AccountName
 | order by Timestamp desc
-| take 50
+| take 20
 ```
 
 ### 9. Security Alerts Mentioning IoC
@@ -597,23 +612,27 @@ AlertEvidence
 let ioc_value = '<IOC_VALUE>';
 let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
-AlertInfo
+AlertEvidence
 | where Timestamp between (start .. end)
-| where Title has ioc_value or Category has ioc_value
-| join kind=inner (
-    AlertEvidence
-    | where RemoteIP == ioc_value 
-        or RemoteUrl has ioc_value 
-        or SHA1 =~ ioc_value 
-        or SHA256 =~ ioc_value
-) on AlertId
+| where RemoteIP == ioc_value 
+    or RemoteUrl has ioc_value 
+    or SHA1 =~ ioc_value 
+    or SHA256 =~ ioc_value
+    or FileName has ioc_value
+    or Title has ioc_value
+    or Category has ioc_value
+| join AlertInfo on AlertId
+| extend HostFullName = strcat(parse_json(parse_json(AdditionalFields).Host).HostName,".", parse_json(parse_json(AdditionalFields).Host).DnsDomain)
+| extend OS = strcat(parse_json(parse_json(AdditionalFields).Host).OSFamily," ", parse_json(parse_json(AdditionalFields).Host).OSVersion)
+| extend IsDomainJoined = parse_json(parse_json(AdditionalFields).Host).IsDomainJoined
+| extend AffectedDevice = strcat(HostFullName,",", OS, ",IsDomainJoined: ", IsDomainJoined)
 | summarize 
     AlertCount = dcount(AlertId),
     Alerts = make_set(Title, 10),
     Severities = make_set(Severity),
     Categories = make_set(Category),
     AttackTechniques = make_set(AttackTechniques),
-    AffectedDevices = make_set(DeviceName, 10)
+    AffectedDevices = make_set(AffectedDevice, 10)
 ```
 
 ### 10. Defender Custom IOC List Match
@@ -647,8 +666,15 @@ union isfuzzy=true SigninLogs, AADNonInteractiveUserSignInLogs
 ### 12. CVE Extraction from Alerts
 ```kql
 let ioc_value = '<IOC_VALUE>';
-AlertInfo
-| where Title has ioc_value or Category has ioc_value
+AlertEvidence
+| where Timestamp between (start .. end)
+| where RemoteIP == ioc_value 
+    or RemoteUrl has ioc_value 
+    or SHA1 =~ ioc_value 
+    or SHA256 =~ ioc_value
+    or FileName has ioc_value
+    or Title has ioc_value
+    or Category has ioc_value
 | extend CVEs = extract_all(@"(CVE-\d{4}-\d{4,})", tostring(AttackTechniques))
 | mv-expand CVE = CVEs
 | where isnotempty(CVE)
