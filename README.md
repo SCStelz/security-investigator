@@ -140,7 +140,7 @@ This system **requires five MCP servers** to be installed and configured in VS C
 
 ```powershell
 # Create virtual environment
-python -m venv .venv
+python -m venv .ven
 
 # Activate virtual environment
 .\.venv\Scripts\Activate.ps1  # PowerShell
@@ -149,6 +149,21 @@ python -m venv .venv
 
 # Install packages
 pip install -r requirements.txt
+```
+
+**MCP Apps Setup (for visualization skills):**
+
+> ⚠️ **VS Code Insiders Required:** MCP Apps currently require [VS Code Insiders](https://code.visualstudio.com/insiders/) to function. This feature will be available in the stable VS Code release soon, but for now, calling MCP Apps from the standard VS Code version is not supported.
+
+```
+# Build MCP Apps (for visualization skills)
+cd mcp-apps/sentinel-geomap-server
+npm install
+npm run build
+cd ../sentinel-heatmap-server
+npm install
+npm run build
+cd ../..
 ```
 
 #### 2. Configure Environment
@@ -165,6 +180,31 @@ Edit `config.json` with your settings:
   "output_dir": "reports"
 }
 ```
+
+**MCP Apps Configuration (for visualization skills):**
+
+> ⚠️ **VS Code Insiders Required:** MCP Apps currently require [VS Code Insiders](https://code.visualstudio.com/insiders/) to function. This feature will be available in the stable VS Code release soon, but for now, calling MCP Apps from the standard VS Code version is not supported.
+
+Create or update `.vscode/mcp.json` in your workspace root to register the heatmap and geomap servers:
+
+```json
+{
+  "servers": {
+    "sentinel-geomap": {
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp-apps/sentinel-geomap-server/dist/main.js", "--stdio"],
+      "type": "stdio"
+    },
+    "sentinel-heatmap": {
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp-apps/sentinel-heatmap-server/dist/main.js", "--stdio"],
+      "type": "stdio"
+    }
+  }
+}
+```
+
+After adding this configuration, restart VS Code Insiders. The tools `mcp_sentinel-geom_show-attack-map` and `mcp_sentinel-heat_show-signin-heatmap` will then be available.
 
 **Optional API Tokens:**
 - **ipinfo.io** - Increases rate limit from 1,000/day to 50,000/month (free tier)
