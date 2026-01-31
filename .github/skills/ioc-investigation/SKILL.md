@@ -268,13 +268,15 @@ SHA256: r'^[a-fA-F0-9]{64}$'
 
 | Query | Tool/API | IoC Types |
 |-------|----------|-----------|
-| Defender IOC List | `ListDefenderIndicators` | IP, Domain, URL |
+| Defender IOC List | `ListDefenderIndicators` ⚠️ | IP, Domain, URL |
 | Defender IP Alerts | `GetDefenderIpAlerts` | IP |
 | Defender IP Statistics | `GetDefenderIpStatistics` | IP |
 | Defender File Alerts | `GetDefenderFileAlerts` | Hash |
 | Defender File Info | `GetDefenderFileInfo` | Hash |
 | Defender File Statistics | `GetDefenderFileStatistics` | Hash |
 | Defender File Machines | `GetDefenderFileRelatedMachines` | Hash |
+
+> ⚠️ **ListDefenderIndicators Note:** If result is written to file (>50KB), you MUST read and filter the file manually. See [Custom IOC Management](#custom-ioc-management) for required processing steps.
 
 #### Batch 2: Sentinel KQL Queries (Run ALL in parallel)
 
@@ -579,7 +581,7 @@ let ioc_value = '<IOC_VALUE>';
 let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
 AlertEvidence
-| where Timestamp between (start .. end)
+| where TimeGenerated between (start .. end)
 | where RemoteIP == ioc_value 
     or RemoteUrl has ioc_value 
     or SHA1 =~ ioc_value 
@@ -588,7 +590,7 @@ AlertEvidence
     or Title has ioc_value
     or Category has ioc_value
 | project 
-    Timestamp,
+    TimeGenerated,
     AlertId,
     Title,
     Severity,
@@ -603,7 +605,7 @@ AlertEvidence
     SHA256,
     DeviceName,
     AccountName
-| order by Timestamp desc
+| order by TimeGenerated desc
 | take 20
 ```
 
@@ -613,7 +615,7 @@ let ioc_value = '<IOC_VALUE>';
 let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
 AlertEvidence
-| where Timestamp between (start .. end)
+| where TimeGenerated between (start .. end)
 | where RemoteIP == ioc_value 
     or RemoteUrl has ioc_value 
     or SHA1 =~ ioc_value 
@@ -666,8 +668,10 @@ union isfuzzy=true SigninLogs, AADNonInteractiveUserSignInLogs
 ### 12. CVE Extraction from Alerts
 ```kql
 let ioc_value = '<IOC_VALUE>';
+let start = datetime(<StartDate>);
+let end = datetime(<EndDate>);
 AlertEvidence
-| where Timestamp between (start .. end)
+| where TimeGenerated between (start .. end)
 | where RemoteIP == ioc_value 
     or RemoteUrl has ioc_value 
     or SHA1 =~ ioc_value 
@@ -771,6 +775,40 @@ Parameters (all optional):
   action = "Alert" | "Block" | "Allow"
   severity = "Informational" | "Low" | "Medium" | "High"
 Returns: Matching custom indicators in tenant
+```
+
+**⚠️ CRITICAL: Processing Large ListDefenderIndicators Results**
+
+The `ListDefenderIndicators` API may return ALL custom indicators in the tenant regardless of filter parameters. When results are large (>50KB), they are written to a temporary file instead of returned inline.
+
+**MANDATORY Processing Steps:**
+1. **If result says "Large tool result written to file":**
+   - Use `read_file` tool to read the content file path provided
+   - Parse the JSON response to extract the `value` array
+   - **Manually filter** for the target IoC using case-insensitive matching:
+     ```python
+     # Filter logic for IP address
+     matches = [ind for ind in indicators["value"] 
+                if ind.get("indicatorValue", "").lower() == target_ioc.lower()]
+     ```
+   - Report: "Found X custom indicator(s) matching [IOC]" or "No custom indicators match [IOC]"
+
+2. **If result is inline JSON with empty `value` array:**
+   - Report: "No custom indicators found for [IOC]"
+
+**🔴 PROHIBITED:**
+- ❌ Assuming "large result = no match" without reading and filtering the file
+- ❌ Reporting "Not in IOC list" without verifying the actual content
+- ❌ Skipping file processing due to result size
+
+**Example - Correct Processing:**
+```
+1. Call: ListDefenderIndicators(indicatorType: "IpAddress", indicatorValue: "203.0.113.42")
+2. Result: "Large tool result (69KB) written to file: /path/to/content.json"
+3. Action: read_file(/path/to/content.json)
+4. Parse: Extract value array from JSON
+5. Filter: Search for indicatorValue == "203.0.113.42" (case-insensitive)
+6. Report: "No custom indicators match 203.0.113.42" OR "Found 1 custom indicator: [details]"
 ```
 
 ---
@@ -880,6 +918,7 @@ Create file: `temp/ioc_investigation_{ioc_type}_{ioc_normalized}_{timestamp}.jso
 | **CVE not found in vulnerability DB** | CVE may be too new or not applicable to org assets |
 | **Multiple IoC types detected** | Investigate each separately, correlate results |
 | **Rate limiting on API calls** | Add delays between API calls, batch where possible |
+| **ListDefenderIndicators returns large file** | Read file with `read_file`, parse JSON, manually filter for target IoC value |
 
 ### Required Field Defaults
 
