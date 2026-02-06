@@ -72,6 +72,10 @@ security-investigator/
 │       │   └── SKILL.md         # Schema-validated KQL query generation
 │       └── user-investigation/
 │           └── SKILL.md         # Comprehensive user security analysis
+├── mcp-apps/                    # Local MCP servers (visualization, automation)
+│   ├── sentinel-geomap-server/  # World map visualization
+│   ├── sentinel-heatmap-server/ # Heatmap visualization
+│   └── sentinel-incident-comment/ # Add comments to Sentinel incidents
 ├── docs/
 │   ├── Signinlogs_Anomalies_KQL_CL.md  # Anomaly table setup (for user-investigation skill)
 │   ├── IDENTITY_PROTECTION.md          # Graph Identity Protection integration
@@ -151,20 +155,26 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-**MCP Apps Setup (for visualization skills):**
+**MCP Apps Setup (for visualization and automation skills):**
 
 > ⚠️ **VS Code Insiders Required:** MCP Apps currently require [VS Code Insiders](https://code.visualstudio.com/insiders/) to function. This feature will be available in the stable VS Code release soon, but for now, calling MCP Apps from the standard VS Code version is not supported.
 
-```
-# Build MCP Apps (for visualization skills)
+```bash
+# Build MCP Apps
 cd mcp-apps/sentinel-geomap-server
-npm install
-npm run build
+npm install && npm run build
 cd ../sentinel-heatmap-server
-npm install
-npm run build
+npm install && npm run build
+cd ../sentinel-incident-comment
+npm install && npm run build
 cd ../..
 ```
+
+**Sentinel Incident Comment (Additional Setup Required):**
+
+The `sentinel-incident-comment` MCP App adds comments to Sentinel incidents and requires an Azure Logic App backend. See [mcp-apps/sentinel-incident-comment/README.md](mcp-apps/sentinel-incident-comment/README.md) for full setup instructions.
+
+Based on: [stefanpems/mcp-add-comment-to-sentinel-incident](https://github.com/stefanpems/mcp-add-comment-to-sentinel-incident)
 
 #### 2. Configure Environment
 
@@ -181,14 +191,22 @@ Edit `config.json` with your settings:
 }
 ```
 
-**MCP Apps Configuration (for visualization skills):**
+**MCP Apps Configuration:**
 
 > ⚠️ **VS Code Insiders Required:** MCP Apps currently require [VS Code Insiders](https://code.visualstudio.com/insiders/) to function. This feature will be available in the stable VS Code release soon, but for now, calling MCP Apps from the standard VS Code version is not supported.
 
-Create or update `.vscode/mcp.json` in your workspace root to register the heatmap and geomap servers:
+Create or update `.vscode/mcp.json` in your workspace root to register the MCP App servers:
 
 ```json
 {
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "sentinel-webhook-url",
+      "description": "Sentinel Incident Comment Webhook URL (Logic App)",
+      "password": true
+    }
+  ],
   "servers": {
     "sentinel-geomap": {
       "command": "node",
@@ -199,500 +217,164 @@ Create or update `.vscode/mcp.json` in your workspace root to register the heatm
       "command": "node",
       "args": ["${workspaceFolder}/mcp-apps/sentinel-heatmap-server/dist/main.js", "--stdio"],
       "type": "stdio"
+    },
+    "sentinel-incident-comment": {
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp-apps/sentinel-incident-comment/dist/index.js", "--stdio"],
+      "type": "stdio",
+      "env": {
+        "SENTINEL_COMMENT_WEBHOOK_URL": "${input:sentinel-webhook-url}"
+      }
     }
   }
 }
 ```
 
-After adding this configuration, restart VS Code Insiders. The tools `mcp_sentinel-geom_show-attack-map` and `mcp_sentinel-heat_show-signin-heatmap` will then be available.
+The `${input:sentinel-webhook-url}` pattern securely prompts for the webhook URL when the MCP server starts, avoiding hardcoded secrets.
+
+After adding this configuration, restart VS Code Insiders. Available tools:
+- `mcp_sentinel-geom_show-attack-map` - Geographic attack visualization
+- `mcp_sentinel-heat_show-signin-heatmap` - Time-based heatmap visualization
+- `mcp_sentinel-inci_add_comment_to_sentinel_incident` - Add comments to Sentinel incidents
 
 **Optional API Tokens:**
 - **ipinfo.io** - Increases rate limit from 1,000/day to 50,000/month (free tier)
 - **vpnapi.io** - VPN detection (included in ipinfo.io paid plans)
 - **AbuseIPDB** - IP reputation scoring (free tier: 1,000/day)
 
-#### 3. Run Your First Investigation
-
-**Option A: Natural Language via GitHub Copilot (Recommended)**
-
-Just ask Copilot:
-```
-Investigate john.doe@contoso.com for the last 7 days
-```
-
-Copilot will automatically:
-1. Query Microsoft Graph for user ID
-2. Run parallel Sentinel KQL queries (anomalies, sign-ins, audit logs, incidents)
-3. Run parallel Graph queries (MFA, devices, Identity Protection)
-4. Extract and enrich IPs (threat intel, geolocation, VPN detection, abuse scores)
-5. Export data to JSON (temp/investigation_*.json)
-6. Generate HTML report (reports/Investigation_Report_*.html)
-7. Clean up old investigations (3+ days)
-
-**Option B: Direct Python Execution**
-
-```powershell
-# Set Python path
-$env:PYTHONPATH = "c:\path\to\security-investigator"
-
-# Generate report from JSON (after manual data collection)
-.\.venv\Scripts\python.exe generate_report_from_json.py temp\investigation_user_20251201_120000.json
-```
-
-**Option C: Manual Investigation JSON Creation**
-
-See `.github/copilot-instructions.md` for the complete MCP workflow with sample KQL queries.
-
 ---
 
-## 📊 Investigation Workflow
+## 💬 Working with Agent Skills
 
-The system uses a **parallel MCP-based workflow** for maximum performance:
+Skills are self-documenting workflows that Copilot loads automatically based on keywords in your prompts. Each skill contains:
+- Specialized KQL queries and data collection steps
+- Risk assessment criteria and severity thresholds
+- Output formats (HTML reports, Markdown reports, visualizations)
+- Follow-up analysis patterns
 
-### Phase 1: User Identification (3 seconds)
-- Query Microsoft Graph: `/v1.0/users/<UPN>?$select=id,onPremisesSecurityIdentifier`
-- Extract Azure AD Object ID (for incident correlation)
-- Extract Windows SID (for on-premises incident correlation)
+### Discovering Available Skills
 
-### Phase 2: Parallel Data Collection (60-90 seconds)
-
-**Batch 1: Sentinel KQL Queries (run in parallel)**
-1. **Anomalies** - Query `Signinlogs_Anomalies_KQL_CL` (baseline vs recent comparison)
-2. **Sign-in by Application** - Top 5 apps (Interactive + Non-Interactive)
-3. **Sign-in by Location** - Top 5 locations with success/failure counts
-4. **Sign-in Failures** - Detailed breakdown by error code
-5. **Audit Logs** - Aggregated by category (RoleManagement, UserManagement, Policy changes)
-6. **Office 365 Activity** - Email, Teams, SharePoint operations
-7. **DLP Events** - CloudAppEvents with sensitive data violations (limit 10)
-8. **Security Incidents** - SecurityIncident + Alert join (deduplicated by ProviderIncidentId)
-
-**Batch 2: IP Extraction and Enrichment**
-1. **IP Selection Query** - Deterministic prioritization (8 anomaly + 4 risky + 3 frequent = 15 IPs max)
-2. **Threat Intelligence** - ThreatIntelIndicators query (bulk IP lookup)
-3. **IP Frequency** - Sign-in counts per IP with authentication patterns
-
-**Batch 3: Microsoft Graph Queries (run in parallel)**
-1. **User Profile** - displayName, jobTitle, department, officeLocation, accountEnabled
-2. **MFA Methods** - All registered authentication methods
-3. **Registered Devices** - Top 5 devices with compliance status, trust type, last sign-in
-4. **User Risk Profile** - Identity Protection risk level and state
-5. **Risk Detections** - Top 5 risk events (unlikelyTravel, anonymizedIPAddress, etc.)
-6. **Risky Sign-ins** - Top 5 risky authentications (beta endpoint)
-
-### Phase 3: IP Enrichment (built into report generation)
-- **ipinfo.io** - Geolocation (city, region, country, org, ASN)
-- **vpnapi.io** - VPN/proxy/Tor detection
-- **AbuseIPDB** - Reputation scoring (0-100) and abuse report counts
-- **Sentinel Threat Intel** - Match against ThreatIntelIndicators (from Batch 2)
-- **Authentication Pattern** - MFA vs token reuse detection (from IP frequency query)
-
-### Phase 4: Risk Assessment (automated)
-- Calculate risk score from: anomalies, risk detections, threat intel matches, device compliance
-- Identify mitigating factors: MFA enabled, compliant devices, no failures
-- Generate prioritized recommendations: Critical (immediate) / High (24h) / Monitoring (14d)
-
-### Phase 5: Report Generation (3-5 minutes)
-- Export investigation data to JSON (temp/investigation_*.json)
-- Run `generate_report_from_json.py` (handles IP enrichment API calls)
-- Generate HTML report with dark theme, interactive timeline, Copy KQL buttons
-- Auto-cleanup old investigations (3+ days) to save disk space
-
-**Total Time: ~5-6 minutes** (most time spent on IP enrichment API calls)
-
----
-
-## 📄 Report Output
-
-Each investigation generates a **professional, dark-themed HTML report** with:
-
-### Report Sections:
-1. **Header** - User identity, job title, department, primary locations, account status
-2. **Key Metrics Dashboard** - Anomalies, total sign-ins, DLP events, failures
-3. **MFA Status** - Registered authentication methods with phishing-resistant detection
-4. **Identity Protection** - Risk level, risk state, active risk detections, dropdown details
-5. **Risk Assessment** - Overall risk level with expandable risk/mitigating factors
-6. **Critical Actions** - Top 3 critical + top 2 high priority alerts
-7. **Registered Devices** - Device name, OS, compliance status, last seen, stale device warnings
-8. **Top Locations** - Sign-in counts by country with success/failure breakdown (paginated)
-9. **Top Applications** - Sign-in counts by app (paginated)
-10. **IP Intelligence** - Risk-scored IP cards with enrichment data (VPN, threat intel, abuse scores, auth patterns)
-    - Category badges: THREAT (red), RISKY (orange), ANOMALY (yellow), PRIMARY/ACTIVE (blue)
-    - IP type detection: Cloud (Azure/AWS/GCP), Residential ISP, VPN/Proxy, Hosting/Datacenter
-    - Combined threat detection: Sentinel threat intel + AbuseIPDB reputation
-    - MFA badges: 🔒 MFA, 🎫 Token, 🔑 Interactive, ❌ Failed
-    - Expandable details: Organization, ASN, IP type, threat matches
-    - Sortable by: Default (risk level) or Last Seen Date
-    - Copy KQL button per IP (extracts all activity from that IP across all log sources)
-11. **Security Incidents** - Deduplicated incidents with alert counts, severity, status, owner (links to Defender XDR)
-12. **Office 365 Activity** - Email accessed, Teams messages, card actions, SharePoint access (5-column grid)
-13. **DLP Events** - File copy operations to network shares/cloud with sensitivity rule names
-14. **Sign-in Failures** - Error codes, descriptions, counts, affected apps/locations
-15. **Azure AD Audit Log Activity** - Aggregated by category with sensitive operation highlighting (password reset, role changes, policy modifications)
-16. **Recommendations** - 3-column layout (Critical/High/Monitoring) with actionable remediation steps
-17. **Investigation Timeline** - Modal popup with chronological event visualization (date separators, color-coded severity, IP badges, DLP grouping)
-
-### Report Features:
-- ✅ **Dark Theme** - Microsoft brand colors (#00a1f1, #f65314, #7cbb00, #ffbb00)
-- ✅ **Interactive Tables** - Pagination for long datasets (anomalies, incidents, audit logs)
-- ✅ **Copy KQL Buttons** - One-click query copying for follow-up investigation in Sentinel
-- ✅ **Gradient Cards** - Visual hierarchy with color-coded risk badges
-- ✅ **Timeline Visualization** - Grouped DLP events, date separators, PST timezone conversion
-- ✅ **Defender XDR Links** - Direct links to user profile, devices, incidents
-- ✅ **Responsive Layout** - Two-column design with resizable splitter
-- ✅ **Confidentiality Header** - Fixed header bar with generator name, machine, timestamp
-- ✅ **Print-Ready** - Optimized for PDF export and stakeholder distribution
-- ✅ **Browser-Optimized** - Opens directly in default browser, no external dependencies
-
-**Example Output:** `Investigation_Report_Compact_username_2025-12-01_105405.html`
-
-**Sample Timeline Events:**
+**Ask Copilot what skills are available:**
 ```
-2025-11-23
-  18:45 PST - 🚨 Sign-in Anomaly: NewInteractiveIP: 203.0.113.42 from Singapore, SG 🚨 THREAT ⚠️ RISKY
-  14:23 PST - ⚠️ Identity Protection: unlikelyTravel (MEDIUM) - Tokyo, JP (198.51.100.10) - atRisk
-  12:15 PST - 📁 DLP Events (3 files): FileCopiedToNetworkShare - Sensitive.docx, Financial.xlsx...
+What investigation skills do you have access to?
+List all available skills in this workspace
+What types of investigations can you perform?
 ```
 
----
-
-## 🎯 Usage Examples
-
-### Standard Investigation (7 days)
-**Via GitHub Copilot:**
+**Get details about a specific skill:**
 ```
-Investigate john.doe@contoso.com for the last 7 days
+Explain the high-level workflow of the user-investigation skill
+What does the incident-investigation skill do?
+How does the authentication-tracing skill work?
+What data sources does the ioc-investigation skill use?
 ```
 
-**Via Python (manual workflow):**
-```powershell
-# 1. Collect data using MCP tools (see copilot-instructions.md for KQL queries)
-# 2. Export to JSON (temp/investigation_johndoe_20251201_120000.json)
-# 3. Generate report
-$env:PYTHONPATH = "c:\path\to\security-investigator"
-.\.venv\Scripts\python.exe generate_report_from_json.py temp\investigation_johndoe_20251201_120000.json
-```
+### Triggering Skills with Natural Language
 
-### Quick Investigation (1-2 days)
-**Via GitHub Copilot:**
-```
-Quick investigate suspicious.user@domain.com
-```
-**Date range:** Current date - 1 day to current date + 2 days (includes timezone buffer)
+Skills are automatically detected based on keywords. You don't need to mention the skill name:
 
-### Comprehensive Investigation (30 days)
-**Via GitHub Copilot:**
-```
-Full investigation for compromised.account@company.com
-```
-**Date range:** Current date - 30 days to current date + 2 days
+| What you say | Skill triggered |
+|--------------|-----------------|
+| "Investigate user@domain.com for the last 7 days" | user-investigation |
+| "Analyze incident 12345" | incident-investigation |
+| "Is this IP malicious? 203.0.113.42" | ioc-investigation |
+| "Check the device WORKSTATION-01 for threats" | computer-investigation |
+| "Show attack patterns on a heatmap" | heatmap-visualization |
+| "Map the geographic origins of these attacks" | geomap-visualization |
+| "Write a KQL query to find failed sign-ins" | kql-query-authoring |
+| "Trace this authentication back to the original MFA" | authentication-tracing |
 
-### Custom Date Range
-**Via GitHub Copilot:**
-```
-Investigate user@company.com from 2025-11-01 to 2025-11-21
-```
+### Following Up on Investigations
 
----
-
-## 🎣 Honeypot Investigation Agent
-
-The system includes a **specialized agent** for analyzing honeypot servers to assess attack patterns, threat intelligence, and defensive effectiveness. Honeypots are decoy systems designed to attract attackers and provide early warning of emerging threats.
-
-### When to Use Honeypot Investigation
-
-Use this agent when you need to:
-- **Analyze attack patterns** targeting your honeypot infrastructure
-- **Extract threat intelligence** from failed connection attempts and exploit probes
-- **Assess honeypot effectiveness** at detecting and logging malicious activity
-- **Identify novel attack techniques** not yet cataloged in threat intelligence feeds
-- **Generate executive reports** on threat landscape and attacker behavior
-
-### Triggering Honeypot Investigation
-
-**Via GitHub Copilot:**
-```
-Investigate honeypot-server for the last 48 hours
-Run honeypot security analysis for HONEYPOT-01 from Dec 10-12
-Generate honeypot report for honeypot-server last 7 days
-```
-
-Copilot automatically detects honeypot investigations using these keywords:
-- "honeypot"
-- "attack analysis"
-- "threat actor"
-
-When detected, Copilot reads the specialized workflow from [`agents/honeypotInvestigation/AGENTS.md`](agents/honeypotInvestigation/AGENTS.md) and follows the honeypot-specific investigation pattern.
-
-### Honeypot Investigation Workflow
-
-#### Phase 1: Query Failed Connections (PARALLEL)
-Execute 3 queries simultaneously:
-- **SecurityEvent** - Windows failed logon attempts (EventID 4625, 4771, 4776)
-- **W3CIISLog** - IIS web server HTTP errors (4xx/5xx status codes)
-- **DeviceNetworkEvents** - Defender network traffic (inbound connections to common ports: 3389, 80, 443, 445, 22, etc.)
-
-Extract unique IP addresses → Save to `temp/honeypot_ips_<timestamp>.json`
-
-#### Phase 2: IP Enrichment & Threat Intelligence (PARALLEL)
-- **Run IP enrichment script** - `enrich_ips.py --file temp/honeypot_ips_*.json`
-  - Geolocation (city, region, country)
-  - ISP/Organization (ASN, org name)
-  - VPN/Proxy/Tor detection
-  - Abuse reputation (AbuseIPDB confidence scores)
-- **Query Sentinel Threat Intelligence** - ThreatIntelIndicators bulk IP lookup
-  - Known malicious IPs
-  - APT group attribution
-  - Threat descriptions and confidence levels
-
-#### Phase 3: Query Security Incidents
-- Get Device ID from Sentinel DeviceInfo table
-- Query SecurityIncident + SecurityAlert (joined for full context)
-- **Critical filtering:** Only report incidents with Status="New" or "Active"
-  - Status="Closed" + Classification="BenignPositive" = expected honeypot activity (not a threat)
-
-#### Phase 4: Vulnerability Assessment
-- Activate Advanced Hunting tools (`mcp_sentinel-tria`)
-- Get MDE Machine ID via Advanced Hunting
-- Query vulnerabilities using `GetDefenderMachineVulnerabilities`
-- Cross-reference CVEs with observed attack patterns (were attackers targeting known vulnerabilities?)
-
-#### Phase 5: Generate Executive Report
-Create comprehensive markdown report with:
-- **Executive Summary** - Attack overview, threat intelligence correlation, vulnerability context
-- **Attack Surface Analysis** - Failed connections by IP, service, exploit type (with CVE references)
-- **Threat Intelligence Correlation** - Known malicious IPs, APT groups, abuse confidence scores
-- **Security Incidents** - Active vs closed incidents with benign positive filtering
-- **Attack Pattern Analysis** - Targeted services, credential attacks, web exploits, port scanning
-- **Vulnerability Status** - Current CVEs with exploitation risk assessment
-- **Key Detection Insights** - MITRE ATT&CK mapping, novel indicators, attacker sophistication assessment
-- **Honeypot Effectiveness** - Detection rate, threat intelligence value, recommendations
-
-### Honeypot Report Output
-
-**Example:** `reports/Honeypot_Executive_Report_HONEYPOT-01_20251213_150229.md`
-
-**Report includes:**
-- Attack timeline with peak attack times and attacker timezone estimation
-- Geographic distribution (top 10 source countries with ASN/org details)
-- Threat intelligence hit rate (e.g., "67% of attacking IPs matched threat intel at 100% confidence")
-- CVE targeting analysis (PHPUnit RCE CVE-2017-9841, Struts2 CVE-2017-5638, etc.)
-- MITRE ATT&CK tactic/technique mapping with evidence
-- Honeypot effectiveness metrics (incident detection rate, novel IOC discovery)
-- Actionable recommendations (immediate/short-term/long-term)
-
-### Honeypot-Specific Features
-
-**IP Enrichment with JSON Format:**
-- Honeypot investigations use **simple JSON format** for IP lists: `{"ips": ["1.2.3.4", "5.6.7.8"]}`
-- Script automatically detects format (simple vs full investigation JSON)
-- Backward compatible with standard user investigation format
-
-**Attack Pattern Detection:**
-- Automatically identifies exploit patterns (SQL injection, XSS, path traversal, webshells)
-- CVE correlation (cross-references targeted URIs with known vulnerabilities)
-- Post-exploitation indicators (internal port scanning, C2 communication)
-
-**Threat Intelligence Matching:**
-- Bulk IP lookup in Sentinel ThreatIntelIndicators (single query for multiple IPs)
-- AbuseIPDB integration with comment extraction (shows attack types and reporter comments)
-- APT group attribution when available
-
-**Benign Positive Filtering:**
-- Automatically filters out expected honeypot incidents (Status="Closed" + Classification="BenignPositive")
-- Only reports active threats requiring investigation
-- Distinguishes between successful honeypot deception vs actual security concerns
-
-### Configuration for Honeypot Investigations
-
-**Required data sources:**
-- **SecurityEvent** - Windows Security logs forwarded to Sentinel
-- **W3CIISLog** - IIS web server logs (if honeypot runs web services)
-- **DeviceNetworkEvents** - Microsoft Defender for Endpoint network logs
-- **SecurityIncident/SecurityAlert** - Defender XDR incidents
-- **DeviceInfo** - Defender device inventory
-
-**Optional enhancements:**
-- **AbuseIPDB API token** - Increases rate limit to 10,000/day, provides abuse report comments
-- **ipinfo.io paid tier** - Includes VPN detection without separate vpnapi.io token
-
-### Sample Honeypot Investigation
+After running an investigation, you can ask follow-up questions without re-running the entire workflow:
 
 ```
-================================================================================
-🎣 HONEYPOT INVESTIGATION AGENT
-================================================================================
-
-Investigation Target: CONTOSO-ADMIN (honeypot-server)
-Date Range: 2025-12-11 to 2025-12-13 (48 hours)
-Investigation Date: 2025-12-13
-
-[00:15] ✓ Failed connection queries completed (15 seconds)
-   - SecurityEvent: 1,234 failed logon attempts from 45 IPs
-   - W3CIISLog: 567 HTTP errors from 32 IPs
-   - DeviceNetworkEvents: 89 connection attempts from 28 IPs
-   - Total unique IPs: 55
-
-[02:30] ✓ IP enrichment completed (135 seconds)
-   - 37 VPNs detected
-   - 2 proxies detected
-   - 40 high-confidence abuse IPs (100% score)
-   - 4 clean residential IPs
-   - Threat intelligence: 12 IPs matched Sentinel indicators
-
-[02:45] ✓ Security incidents query completed (15 seconds)
-   - 4 incidents found (3 closed benign positive, 1 active HIGH severity)
-   - Active incident: Multi-stage attack chain (CommandAndControl + Persistence)
-
-[03:10] ✓ Vulnerability scan completed (25 seconds)
-   - 12 CVEs found (3 CRITICAL, 5 HIGH, 4 MEDIUM)
-   - 2 CVEs actively targeted by attackers (PHPUnit RCE, Struts2 exploit)
-
-[05:45] ✓ Report generated (155 seconds)
-   - Report: reports/Honeypot_Executive_Report_honeypot-server_20251213_150229.md
-   - Attack patterns: 67% opportunistic scanning, 33% targeted exploitation
-   - Threat intelligence value: HIGH (12 novel malicious IPs discovered)
-
-Total elapsed time: 5 minutes 45 seconds (345 seconds)
-
-================================================================================
-KEY FINDINGS
-================================================================================
-🚨 ACTIVE THREATS: 1 HIGH severity incident (Incident #2325)
-   - Multi-stage attack: Reconnaissance → Exploitation → Persistence
-   - Attacker IP: 93.174.93.12 (Amsterdam, NL) - 100% abuse confidence (7,238 reports)
-   
-🌍 ATTACK LANDSCAPE:
-   - 55 unique attackers from 12 countries
-   - Top sources: Netherlands (18 IPs), China (12 IPs), Russia (8 IPs)
-   - 67% using VPN/proxy infrastructure (bulletproof hosting)
-   
-⚠️ EXPLOITS DETECTED:
-   - PHPUnit RCE (CVE-2017-9841): 234 attempts from 15 IPs
-   - Struts2 exploit (CVE-2017-5638): 89 attempts from 8 IPs
-   - Webshell uploads: 45 attempts (SystemBC backdoor, upl.php)
-   
-🎯 HONEYPOT EFFECTIVENESS:
-   - Incident detection rate: 7.3% (4 incidents / 55 attackers)
-   - Novel IOCs: 12 malicious IPs not in threat intel feeds
-   - Value proposition: HIGH - early warning for emerging attack patterns
-
-================================================================================
+Is that IP a VPN?
+What's the abuse score for the Hong Kong IP?
+Trace authentication for that suspicious location
+Show me details about that risk detection
+Was MFA used for those sign-ins?
 ```
 
-### Advanced Honeypot Features
+Copilot uses existing investigation data from `temp/investigation_*.json` when available.
 
-**SessionId Authentication Tracing:**
-- Honeypot agent inherits authentication analysis patterns from main copilot-instructions
-- Can trace token reuse vs interactive MFA for sophisticated attackers
-- Identifies geographic anomalies (impossible travel, VPN switching)
+### Combining Skills
 
-**Custom Attack Pattern Detection:**
-- Modify KQL queries in `agents/honeypotInvestigation/AGENTS.md` to add custom patterns
-- Example: Weekend activity detection, specific malware family checks, router exploit targeting
+Skills can be chained together for comprehensive analysis:
 
-**Integration with SOC Workflows:**
-- Export IOCs from honeypot investigations to organizational threat intelligence platforms
-- Share novel indicators with Microsoft Sentinel watchlists
-- Correlate honeypot findings with production incident investigations
-
-**Performance:**
-- Parallel query execution: ~60 seconds for all data collection
-- IP enrichment: ~2-3 minutes for 50-100 IPs
-- Total investigation time: 5-6 minutes end-to-end
-
-**For complete honeypot workflow details, see:** [`agents/honeypotInvestigation/AGENTS.md`](agents/honeypotInvestigation/AGENTS.md)
-
----
-
-### Follow-Up Analysis (using existing investigation JSON)
-**Via GitHub Copilot:**
 ```
-Trace authentication for that Singapore IP
+1. "Investigate incident 12345" → incident-investigation extracts entities
+2. "Now investigate the user from that incident" → user-investigation runs on extracted UPN
+3. "Check if that IP is malicious" → ioc-investigation analyzes the suspicious IP
+4. "Show me a heatmap of the attack patterns" → heatmap-visualization
 ```
-Copilot will:
-1. Locate most recent investigation JSON for that user
-2. Read `ip_enrichment` array for Singapore IP details (VPN status, abuse score, threat intel)
-3. Read `signin_ip_counts` for authentication patterns (MFA vs token reuse)
-4. Search copilot-instructions.md for authentication tracing workflow
-5. Provide risk assessment based on enrichment context
 
-**Common follow-up prompts:**
-- "Is that a VPN?" → Reads `is_vpn` field from IP enrichment
-- "What's the abuse score?" → Reads `abuse_confidence_score` field
-- "Show me all authentication details for that IP" → Runs SessionId trace query
-- "Was MFA used?" → Checks `last_auth_result_detail` field
+### Understanding Skill Output
+
+**Ask about results after an investigation:**
+```
+Summarize the key findings from that investigation
+What are the critical actions I should take?
+Explain the risk assessment
+What would you recommend for next steps?
+```
+
+**Request different output formats:**
+```
+Generate an HTML report for that user investigation
+Create a markdown summary of the incident
+Show the attack origins on a world map
+```
 
 ---
 
 ## 🤖 GitHub Copilot Integration
 
-This system is **designed for GitHub Copilot MCP integration** using **[VS Code Agent Skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills)**. Investigation workflows are modularized into 10 specialized skills in `.github/skills/`, with universal patterns and skill detection logic in `.github/copilot-instructions.md`.
+This system is **designed for GitHub Copilot MCP integration** using **[VS Code Agent Skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills)**. 
 
-### Natural Language Investigation Prompts:
+### Architecture Overview
 
-**Standard Investigations:**
 ```
-Investigate user@domain.com for anomalies in the last 7 days
-Run a security investigation on admin@contoso.com for the last 7 days
-```
-
-**Quick Investigations (1-2 days):**
-```
-Quick investigate suspicious.user@domain.com
-Run quick security check on external.user@partner.com
-```
-
-**Comprehensive Investigations (30 days):**
-```
-Full investigation for compromised.user@domain.com
-Do a deep dive investigation on user@vendor.com from Nov 1 to Nov 21
-```
-
-**Follow-Up Analysis (uses existing investigation JSON):**
-```
-Trace authentication for that Hong Kong IP
-Is that Singapore IP a VPN?
-What's the risk level for 203.0.113.42?
-Show me all sign-ins from that IP
-Was MFA used for those authentications?
+┌────────────────────────────────────────────────────────────────────┐
+│                     GitHub Copilot (VS Code)                       │
+├────────────────────────────────────────────────────────────────────┤
+│                  .github/copilot-instructions.md                   │
+│            (Skill detection, universal patterns, routing)          │
+├────────────────────────────────────────────────────────────────────┤
+│                     .github/skills/*.md                            │
+│      (11 specialized workflows with KQL, risk assessment)          │
+├────────────────────────────────────────────────────────────────────┤
+│                        MCP Servers                                 │
+│  ┌─────────────┐  ┌──────────────┐  ┌───────────────────────────┐  │
+│  │ Sentinel    │  │ Graph API    │  │ Sentinel Triage (XDR)     │  │
+│  │ Data Lake   │  │ (Identity)   │  │ (Advanced Hunting)        │  │
+│  └─────────────┘  └──────────────┘  └───────────────────────────┘  │
+│  ┌─────────────┐  ┌──────────────┐                                 │
+│  │ KQL Search  │  │ Microsoft    │                                 │
+│  │ (Schema)    │  │ Learn (Docs) │                                 │
+│  └─────────────┘  └──────────────┘                                 │
+├────────────────────────────────────────────────────────────────────┤
+│                      Python Utilities                              │
+│  generate_report_from_json.py  │  enrich_ips.py  │  report_generator│
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-### What Copilot Automatically Does:
+### Key Features
 
-1. **Retrieves User ID** - Queries Microsoft Graph for Azure AD Object ID and Windows SID
-2. **Runs Parallel Queries** - Executes 10+ Sentinel queries + 6 Graph queries simultaneously
-3. **Extracts and Prioritizes IPs** - Selects top 15 IPs (8 anomaly + 4 risky + 3 frequent)
-4. **Enriches IPs** - Queries threat intel, geolocation, VPN detection, abuse scores
-5. **Exports to JSON** - Saves all data to temp/investigation_*.json (uses `create_file` tool)
-6. **Generates Report** - Runs `generate_report_from_json.py` with proper PYTHONPATH
-7. **Tracks Performance** - Reports timing after each phase (User ID: 3s, Data: 88s, JSON: 1s, Report: 334s)
-8. **Cleans Up Old Files** - Automatically deletes investigations older than 3 days
+- **Automatic skill detection** - Keywords in your prompts route to specialized workflows
+- **Parallel data collection** - Multiple Sentinel + Graph queries execute simultaneously
+- **Follow-up analysis** - Uses cached JSON from previous investigations
+- **Token management** - Efficient context handling for large datasets
+- **Report generation** - HTML and Markdown reports with interactive elements
 
-### Critical Workflow Features:
+### Reference Files
 
-- **Follow-up question handling** - Checks existing JSON before re-querying Sentinel/Graph
-- **IP enrichment reading** - Parses `ip_enrichment` array for VPN status, abuse scores, threat intel
-- **Authentication tracing** - Uses SessionId-based workflow from copilot-instructions.md
-- **Risk assessment** - Quotes specific instruction criteria for HIGH/MEDIUM/LOW classifications
-- **Token management** - Never echoes JSON in chat (avoids token limits)
-
-**See `.github/copilot-instructions.md` for:**
-- Skill detection keywords and routing logic
-- Universal patterns (date ranges, token management, follow-up analysis)
-- Available skills table with trigger keywords
-- Troubleshooting guide (common errors and solutions)
-
-**See `.github/skills/` for specialized workflows:**
-- `incident-investigation/SKILL.md` - Incident triage with entity extraction and deep investigation
-- `user-investigation/SKILL.md` - Complete user security investigation workflow (Phase 1-5)
-- `computer-investigation/SKILL.md` - Device security analysis for Entra/Hybrid/Registered devices
-- `ioc-investigation/SKILL.md` - IoC analysis for IPs, domains, URLs, file hashes
-- `honeypot-investigation/SKILL.md` - Attack pattern analysis and threat intel correlation
-- `kql-query-authoring/SKILL.md` - Schema-validated KQL query generation
-- `authentication-tracing/SKILL.md` - SessionId forensics, token reuse vs MFA analysis
-- `ca-policy-investigation/SKILL.md` - Conditional Access policy bypass detection
-- `heatmap-visualization/SKILL.md` - Interactive heatmap for time-based pattern visualization
-- `geomap-visualization/SKILL.md` - Interactive world map for geographic attack visualization
+| File | Purpose |
+|------|---------|
+| `.github/copilot-instructions.md` | Skill detection keywords, universal patterns, MCP server integration, troubleshooting |
+| `.github/skills/<name>/SKILL.md` | Specialized investigation workflows with KQL queries and risk assessment criteria |
+| `generate_report_from_json.py` | HTML report generation with IP enrichment |
+| `enrich_ips.py` | Standalone IP enrichment (ipinfo, AbuseIPDB, VPN detection) |
 
 ---
 
@@ -1079,101 +761,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 ---
 
-## 📝 Sample Investigation Output
-
-```
-================================================================================
-🔒 SECURITY INVESTIGATION SYSTEM - MCP WORKFLOW
-================================================================================
-
-Investigation Target: user@domain.com
-Date Range: 2025-11-29 to 2025-12-03 (48 hours + timezone buffer)
-Investigation Date: 2025-12-01
-
-[00:03] ✓ User ID retrieved (3 seconds)
-   - Azure AD Object ID: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
-   - Windows SID: S-1-5-21-1234567890-1234567890-1234567890-1234
-
-[01:31] ✓ All data collected in parallel (88 seconds)
-   
-   Batch 1 - Sentinel KQL Queries:
-   - Anomalies: 0 results
-   - Sign-in Apps: 5 applications (706-153 sign-ins each)
-   - Sign-in Locations: 2 locations (US: 1712, CA: 1552)
-   - Sign-in Failures: 1 error type (50207)
-   - Audit Events: 2 categories (UserManagement, ApplicationManagement)
-   - Office Activity: 5 operation types (MailItemsAccessed, MessageRead, etc.)
-   - DLP Events: 0 results
-   - Security Incidents: 4 incidents (all high severity, all closed benign positive)
-   
-   Batch 2 - IP Extraction & Enrichment:
-   - IP Selection: 3 IPs extracted (20.236.10.66, 50.92.91.237, 50.92.88.234)
-   - Threat Intel: 0 malicious IPs found
-   - IP Frequency: 1655, 1437, 96 sign-ins per IP
-   
-   Batch 3 - Microsoft Graph Queries:
-   - User Profile: John Doe, SecOps Analyst, IT Security
-   - MFA Methods: 5 methods (Windows Hello, Phone, Authenticator, Email, Password)
-   - Devices: 5 registered (3 compliant, 2 non-compliant)
-   - Risk Profile: Low risk, atRisk state
-   - Risk Detections: 5 events (4 anonymizedIPAddress remediated, 1 anomalousToken at-risk)
-   - Risky Sign-ins: 2 risky authentications from Vancouver
-
-[01:32] ✓ Investigation data exported to JSON (72 seconds)
-   - File: temp/investigation_user_20251201_184900.json
-   - Size: 4,425 lines
-
-[05:54] ✓ Report generated (308 seconds)
-   - IP Enrichment: 3 IPs enriched (ipinfo.io, vpnapi.io, AbuseIPDB)
-   - Report: reports/Investigation_Report_Compact_user_2025-12-01_105405.html
-   - Cleanup: 5 old files deleted (0.70 MB freed)
-
-Total elapsed time: 5 minutes 54 seconds (354 seconds)
-
-================================================================================
-INVESTIGATION SUMMARY
-================================================================================
-User: user@domain.com (John Doe)
-Job Title: SecOps Analyst
-Department: IT Security
-Period: 2025-11-29 to 2025-12-03 (48 hours)
-
-📊 KEY METRICS:
-- Total Sign-ins: 3,264 (1,655 + 1,437 + 96 across 3 IPs)
-- Sign-in Failures: 1 (error 50207)
-- Anomalies Detected: 0
-- DLP Events: 0
-- Security Incidents: 4 (all closed benign positive)
-
-🛡️ IDENTITY PROTECTION:
-- Risk Level: LOW
-- Risk State: atRisk
-- Risk Detections: 5 (4 remediated, 1 at-risk)
-  - 4x anonymizedIPAddress (remediated) - VPN usage
-  - 1x anomalousToken (at-risk) - Requires investigation
-
-🌐 IP INTELLIGENCE:
-- 20.236.10.66 (US) - 1,655 sign-ins, Azure Cloud, MFA satisfied
-- 50.92.91.237 (CA) - 1,437 sign-ins, TELUS (Residential ISP), MFA satisfied
-- 50.92.88.234 (CA) - 96 sign-ins, TELUS (Residential ISP), MFA satisfied
-
-📋 RECOMMENDATIONS:
-🔴 CRITICAL: None
-🟡 HIGH PRIORITY:
-  1. Investigate anomalousToken risk detection (at-risk state)
-  2. Enforce compliance on 2 non-compliant devices
-🔵 MONITORING:
-  1. Continue monitoring sign-in patterns for anomalies
-
-Overall Risk Assessment: LOW
-Disposition: Normal user activity with isolated risk detection requiring investigation
-
-================================================================================
-```
-
----
-
-## 👨‍💻 Contributing
+## ‍💻 Contributing
 
 This system is designed to be extended and customized for your organization's specific needs.
 
@@ -1288,3 +876,4 @@ pip install -r requirements.txt
 # 3. Ask GitHub Copilot
 # "Investigate user@domain.com for the last 7 days"
 ```
+
