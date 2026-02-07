@@ -161,6 +161,14 @@ What data sources does the ioc-investigation skill use?
 
 **📖 Reference:** [GitHub Agent Skills Documentation](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills)
 
+### Authoring New Skills from Investigations
+
+One of the most powerful aspects of this project is that **ad-hoc threat hunting and investigations naturally evolve into reusable skills**. After completing an investigation — chasing a novel attack pattern, triaging an unfamiliar alert type, or building a new KQL query chain — you can ask Copilot to codify that workflow into a new SKILL.md file. This captures the verified queries, schema pitfalls, enrichment steps, and analytical logic so that any SOC analyst on the team can repeat the same high-quality investigation with a single natural-language prompt.
+
+This extends beyond your own investigations. When new threat research drops — a blog post detailing an [AiTM phishing campaign](https://www.microsoft.com/en-us/security/blog/2022/07/12/from-cookie-theft-to-bec-attackers-use-aitm-phishing-sites-as-entry-point-to-further-financial-fraud/), a write-up on a novel [scope drift detection technique](https://techcommunity.microsoft.com/blog/microsoftsentinelblog/the-agentic-soc-era-how-sentinel-mcp-enables-autonomous-security-reasoning/4491003), or an emerging ransomware TTP — you can feed the article URL to Copilot and ask it to extract the attacker behaviors, map them to relevant Sentinel tables, build the detection queries, validate them against your environment, and then package the entire workflow as a new skill. What used to be a manual process of reading a threat intel report, translating IOCs and TTPs into KQL, and documenting runbooks becomes a single conversational workflow.
+
+It brings a DevOps mindset to Security Engineering: every investigation and every piece of external threat research becomes an opportunity to improve the shared knowledge base, drive collaboration across the team, and raise the overall quality bar — turning tribal knowledge into version-controlled, peer-reviewable, continuously improving automation.
+
 ---
 
 ## 📁 Project Structure
