@@ -494,43 +494,7 @@ python enrich_ips.py 8.8.8.8
 
 ---
 
-## 💻 Contributing
-
-### Add Custom Risk Factors
-
-Edit `report_generator.py` (search for `_assess_risk`):
-
-```python
-if 'VPN' not in ip_intel.org and ip_intel.country != 'US':
-    risk_factors.append("Non-VPN international access detected")
-    risk_score += 3
-```
-
-### Add New KQL Queries
-
-Create a new file in `queries/` using the [standardized metadata header format](#query-library-queries). Write and test the query in Sentinel first, then document it with `Tables:`, `Keywords:`, and `MITRE:` metadata.
-
-### Custom Anomaly Rules
-
-Modify the KQL job in Sentinel (see `docs/Signinlogs_Anomalies_KQL_CL.md`):
-
-```kql
-| extend IsWeekend = dayofweek(TimeGenerated) in (0, 6)
-| where IsWeekend
-| extend AnomalyType = "WeekendActivity"
-```
-
-### Customize Report Styling
-
-Edit `_get_styles()` in `report_generator.py` to change brand colors.
-
-### Extend IP Enrichment
-
-Edit `generate_report_from_json.py` to add custom threat feed lookups.
-
----
-
-## 📜 License
+##  License
 
 **Internal use only.** Designed for Microsoft Sentinel customers. Modify freely for internal SOC operations.
 
