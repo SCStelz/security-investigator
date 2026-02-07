@@ -121,11 +121,14 @@ This skill supports two output modes. **ASK the user which they prefer** if not 
 - Best for quick review and interactive follow-up questions
 
 ### Mode 2: Markdown File Report
-- Save a comprehensive report to `reports/scope_drift_<timestamp>.md`
+- Save a comprehensive report to `reports/scope_drift_<entity>_<timestamp>.md`
 - All ASCII visualizations render correctly inside markdown code fences (` ``` `)
 - Includes all data from inline mode plus additional detail sections
 - Use `create_file` tool — NEVER use terminal commands for file output
-- **Filename pattern:** `reports/scope_drift_YYYYMMDD_HHMMSS.md`
+- **Filename pattern:** `reports/scope_drift_<entity>_YYYYMMDD_HHMMSS.md`
+  - **User:** `scope_drift_<username>_YYYYMMDD_HHMMSS.md` (extract username from UPN, e.g., `officechris` from `officechris@stelznet.com`)
+  - **SPN (single):** `scope_drift_<spn_short_name>_YYYYMMDD_HHMMSS.md` (use display name, sanitized: lowercase, spaces/special chars replaced with hyphens)
+  - **SPN (all):** `scope_drift_all_spns_YYYYMMDD_HHMMSS.md` (tenant-wide scan of all service principals)
 
 ### Markdown Rendering Notes
 - ✅ ASCII tables, box-drawing characters, and bar charts render perfectly in markdown code blocks
@@ -277,7 +280,7 @@ This is the primary query that computes per-entity behavioral profiles and drift
 ### Phase 3: Corroborating Signal Collection (Run in Parallel)
 
 **All entity types:**
-- **SecurityAlert:** Check for alerts referencing entity IDs or names
+- **SecurityAlert + SecurityIncident:** Check for alerts referencing entity IDs or names, joined with SecurityIncident for real status/classification. **Never read SecurityAlert.Status directly** — it's always "New". Queries 4 (SPN) and 11 (User).
 - **DeviceNetworkEvents:** Check for anomalous network activity (SPN: service accounts; User: user-associated devices)
 
 **User accounts only (additional sources):**
@@ -411,24 +414,60 @@ AuditLogs
 | order by TimeGenerated desc
 ```
 
-### Query 4: SecurityAlert Correlation
+### Query 4: SecurityAlert + SecurityIncident Correlation
 
 ```kql
-// Security alerts referencing any of the service principals
+// Security alerts referencing any of the service principals, joined with SecurityIncident for real status
+// IMPORTANT: SecurityAlert.Status is immutable (always "New") — MUST join SecurityIncident for real Status/Classification
 // Substitute <SPN_IDS> and <SPN_NAMES> with values from Query 1
-SecurityAlert
+let relevantAlerts = SecurityAlert
 | where TimeGenerated > ago(97d)
 | where Entities has_any (<SPN_IDS>) or Entities has_any (<SPN_NAMES>)
     or CompromisedEntity has_any (<SPN_NAMES>)
+| summarize arg_max(TimeGenerated, *) by SystemAlertId
+| project SystemAlertId, AlertName, AlertSeverity, ProviderName, Tactics, TimeGenerated;
+SecurityIncident
+| where CreatedTime > ago(97d)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber
+| mv-expand AlertId = AlertIds
+| extend AlertId = tostring(AlertId)
+| join kind=inner relevantAlerts on $left.AlertId == $right.SystemAlertId
 | summarize
     AlertCount = count(),
-    AlertNames = make_set(AlertName, 10),
+    AlertNames = make_set(AlertName, 15),
     Severities = make_set(AlertSeverity, 5),
     Tactics = make_set(Tactics, 10),
-    LatestAlert = max(TimeGenerated)
-    by ProviderName
+    LatestAlert = max(TimeGenerated1),
+    IncidentStatuses = make_set(Status, 5),
+    Classifications = make_set(Classification, 5),
+    IncidentCount = dcount(IncidentNumber)
+    by ProductName
 | order by AlertCount desc
 ```
+
+**Interpreting Incident Status in Drift Context:**
+| Incident Status | Classification | Impact on Drift Assessment |
+|-----------------|----------------|----------------------------|
+| Closed | TruePositive | 🔴 Confirmed threat — significantly increases drift risk |
+| Closed | FalsePositive | 🟢 False alarm — discount from drift risk, note as noise |
+| Closed | BenignPositive | 🟡 Expected behavior — note but don't escalate |
+| Active/New | Any | 🟠 Unresolved — flag for attention, may indicate ongoing threat |
+
+**Product Name Mapping (Legacy → Current Branding):**
+
+The `ProductName` field in `SecurityAlert` uses legacy names. When rendering reports, translate to current Microsoft branding:
+
+| SecurityAlert.ProductName (raw) | Report Display Name |
+|--------------------------------|---------------------|
+| Microsoft Defender Advanced Threat Protection | **Microsoft Defender for Endpoint** |
+| Microsoft Cloud App Security | **Microsoft Defender for Cloud Apps** |
+| Microsoft Data Loss Prevention | **Microsoft Purview Data Loss Prevention** |
+| Azure Sentinel | **Microsoft Sentinel** |
+| Microsoft 365 Defender | **Microsoft Defender XDR** |
+| Office 365 Advanced Threat Protection | **Microsoft Defender for Office 365** |
+| Azure Advanced Threat Protection | **Microsoft Defender for Identity** |
+
+Group alerts by product in the report, using the current name as the section header, with individual alert names as rows within each product section.
 
 ### Query 5: DeviceNetworkEvents Correlation
 
@@ -580,6 +619,44 @@ SigninLogs
 
 **Note:** Identity Protection events supplement the drift analysis. Any `atRisk` or `confirmedCompromised` risk states in the recent window should be flagged prominently, regardless of drift score.
 
+### Query 11: User SecurityAlert + SecurityIncident Correlation
+
+```kql
+// Security alerts and incidents referencing the user
+// IMPORTANT: SecurityAlert.Status is immutable (always "New") — MUST join SecurityIncident for real Status/Classification
+// Substitute <UPN> with user's UPN
+let relevantAlerts = SecurityAlert
+| where TimeGenerated > ago(97d)
+| where Entities has '<UPN>' or CompromisedEntity has '<UPN>'
+| summarize arg_max(TimeGenerated, *) by SystemAlertId
+| project SystemAlertId, AlertName, AlertSeverity, ProviderName, Tactics, TimeGenerated;
+SecurityIncident
+| where CreatedTime > ago(97d)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber
+| mv-expand AlertId = AlertIds
+| extend AlertId = tostring(AlertId)
+| join kind=inner relevantAlerts on $left.AlertId == $right.SystemAlertId
+| summarize
+    AlertCount = count(),
+    AlertNames = make_set(AlertName, 15),
+    Severities = make_set(AlertSeverity, 5),
+    Tactics = make_set(Tactics, 10),
+    LatestAlert = max(TimeGenerated1),
+    IncidentStatuses = make_set(Status, 5),
+    Classifications = make_set(Classification, 5),
+    IncidentCount = dcount(IncidentNumber)
+    by ProductName
+| order by AlertCount desc
+```
+
+**Interpreting Incident Status in Drift Context:**
+| Incident Status | Classification | Impact on Drift Assessment |
+|-----------------|----------------|----------------------------|
+| Closed | TruePositive | 🔴 Confirmed threat — significantly increases drift risk |
+| Closed | FalsePositive | 🟢 False alarm — discount from drift risk, note as noise |
+| Closed | BenignPositive | 🟡 Expected behavior — note but don't escalate |
+| Active/New | Any | 🟠 Unresolved — flag for attention, may indicate ongoing threat |
+
 ---
 
 ## Report Template
@@ -643,12 +720,12 @@ When outputting to markdown file, include everything from the inline format PLUS
 
 ## Correlated Signals
 
-| Data Source | Finding |
-|-------------|---------|
-| AADServicePrincipalSignInLogs | ... |
-| AuditLogs | ... |
-| DeviceNetworkEvents | ... |
-| SecurityAlert | ... |
+| Data Source | Finding | Incident Status |
+|-------------|---------|-----------------|
+| AADServicePrincipalSignInLogs | ... | N/A |
+| AuditLogs | ... | N/A |
+| DeviceNetworkEvents | ... | N/A |
+| SecurityAlert / SecurityIncident | <Group by ProductName, translate to current branding> | <Status: New/Active/Closed, Classification: TP/FP/BP> |
 
 ---
 
@@ -676,6 +753,10 @@ When outputting to markdown file, include everything from the inline format PLUS
 ## Known Pitfalls
 
 ### Pitfalls for All Entity Types
+
+#### SecurityAlert.Status Is Immutable — Always Join SecurityIncident
+**Problem:** The `Status` field on `SecurityAlert` is set to `"New"` at creation time and **never changes**. It does NOT reflect whether the alert has been investigated, closed, or classified. Reading `SecurityAlert.Status` as current investigation status will always show "New" regardless of actual state.  
+**Solution:** MUST join with `SecurityIncident` to get real `Status` (New/Active/Closed) and `Classification` (TruePositive/FalsePositive/BenignPositive). See Queries 4 and 11 which implement this join. When assessing drift risk from alerts, differentiate: Closed-FalsePositive alerts are noise (discount), Closed-TruePositive alerts are confirmed threats (escalate), Active/New incidents need attention (flag).
 
 #### Low-Volume Statistical Inflation
 **Problem:** Entities with very low baseline activity (e.g., 1 sign-in/day) will show extreme volume ratios even with minor changes.  
@@ -754,6 +835,8 @@ Before presenting results, verify:
 - [ ] Corroborating evidence was checked for every flagged entity
 - [ ] Empty results are explicitly reported with ✅ (not silently omitted)
 - [ ] The report includes the drift score formula and threshold for transparency
+- [ ] SecurityAlert was joined with SecurityIncident for real Status/Classification (never read SecurityAlert.Status directly)
+- [ ] Incident classifications (TP/FP/BP) were factored into risk assessment — FalsePositive alerts discounted, TruePositive alerts escalated
 
 **Service Principal:**
 - [ ] IPv6 `fd00:` addresses were identified as Microsoft fabric (not adversary infrastructure)
