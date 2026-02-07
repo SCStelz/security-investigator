@@ -92,28 +92,35 @@ Without these MCP servers, this skill cannot access schema information or offici
    - **Defender XDR**: Uses `Timestamp` for timestamp
    - **Other differences**: See [Schema Differences](#critical-schema-differences) section
 
-3. **ALWAYS use multiple sources** - Combine for best results:
+3. **ALWAYS check local query library FIRST** - Before writing from scratch:
+   - Search `queries/` and `.github/skills/` for existing verified queries (these are battle-tested and pitfall-aware)
+   - See the **KQL Pre-Flight Checklist** in `copilot-instructions.md` for the full priority order
+   - If a suitable query exists locally, adapt it instead of building from scratch
+
+4. **ALWAYS use multiple sources** - Combine for best results:
    - Schema validation (authoritative column names)
    - Microsoft Learn code samples (official patterns)
    - Community queries (real-world examples)
 
-4. **ALWAYS test queries against Sentinel** - Use `mcp_sentinel-data_query_lake` to:
-   - Validate query syntax against real environment
-   - Verify columns exist and data is present
-   - Test aggregations and calculations work correctly
-   - Provide real results to show user what to expect
+5. **ALWAYS test queries using the correct execution tool** - Follow the **Tool Selection Rule** in `copilot-instructions.md`:
+   - **Sentinel-native tables** (SigninLogs, AuditLogs, SecurityAlert, etc.) → Data Lake
+   - **XDR tables** (Device*, Email*, Identity*, etc.) ≤ 30d → Advanced Hunting (free); > 30d → Data Lake
+   - **XDR-only tables** (DeviceTvm*, Exposure*, etc.) → Advanced Hunting only
+   - Adapt timestamp column when switching tools (`Timestamp` ↔ `TimeGenerated`)
    - **This is the MOST IMPORTANT validation step**
 
-5. **ALWAYS validate syntax** (if live testing unavailable) - Use `mcp_kql-search_validate_kql_query` as fallback
+6. **ALWAYS validate syntax** (if live testing unavailable) - Use `mcp_kql-search_validate_kql_query` as fallback
 
-6. **ALWAYS provide context** - Include:
+7. **ALWAYS provide context** - Include:
    - What the query does
    - Expected results
    - Any limitations or notes
 
-7. **ALWAYS read the complete ## Query Authoring Workflow**
+8. **ALWAYS read the complete ## Query Authoring Workflow**
    - Read all the steps of the workflow
    - Understand the process and actions you need to take
+
+> **📋 Inherited rules:** This skill inherits the **KQL Pre-Flight Checklist**, **Tool Selection Rule (Data Lake vs Advanced Hunting)**, and **Known Table Pitfalls** from `copilot-instructions.md`. Those rules are authoritative — do not contradict them here.
 
 ---
 
@@ -128,9 +135,19 @@ Without these MCP servers, this skill cannot access schema information or offici
 - **Output**: Statistics, detailed records, time series, aggregations?
 - **Platform**: Sentinel or Defender XDR? (affects column names)
 
-### Step 2: Get Table Schema (MANDATORY)
+### Step 2: Check Local Query Library
 
-**Always start here to validate table and columns exist:**
+**Before writing from scratch, search for existing verified queries:**
+
+1. `grep_search` in `queries/` for the table name or keyword
+2. `grep_search` in `.github/skills/` for related investigation patterns
+3. Check the **Ad-Hoc Query Examples** appendix in `copilot-instructions.md`
+
+If a suitable query exists, adapt it (substituting entity values) and skip to Step 6. These queries encode known pitfalls and schema quirks.
+
+### Step 3: Get Table Schema (MANDATORY)
+
+**If no local query found, start here to validate table and columns exist:**
 
 ```
 mcp_kql-search_get_table_schema("<table_name>")
@@ -150,7 +167,7 @@ mcp_kql-search_get_table_schema("<table_name>")
 3. Understand data types (string, datetime, int, etc.)
 4. See example query patterns
 
-### Step 3: Get Official Code Samples
+### Step 4: Get Official Code Samples
 
 **Query Microsoft Learn for official patterns:**
 
@@ -172,7 +189,7 @@ mcp_microsoft-lea_microsoft_code_sample_search(
 - Links to full documentation
 - Best practice implementations
 
-### Step 4: Get Community Examples
+### Step 5: Get Community Examples
 
 **⚠️ NOTE:** The `search_favorite_repos` tool has a known bug (see [Known Issues](#-known-issues)). Use the fallback tool instead.
 
@@ -198,7 +215,7 @@ mcp_kql-search_search_kql_repositories(
 - Advanced techniques and optimizations
 - Context from surrounding documentation
 
-### Step 5: Generate Query
+### Step 6: Generate Query
 
 **Combine insights from all sources:**
 
@@ -244,7 +261,7 @@ mcp_kql-search_search_kql_repositories(
 | take 100
 ```
 
-### Step 6: Validate and Test (MANDATORY - Do This FIRST!)
+### Step 7: Validate and Test (MANDATORY - Do This FIRST!)
 
 **⚠️ TEST QUERIES BEFORE USER SEES THEM - NOT AFTER THEY ASK**
 
@@ -336,7 +353,7 @@ mcp_kql-search_validate_kql_query("<your_query>")
 ```
 **Note:** This only validates syntax and schema, not against live data. Prefer `mcp_sentinel-data_query_lake` when available.
 
-### Step 7: Format and Deliver Output
+### Step 8: Format and Deliver Output
 
 **⚠️ CRITICAL: Output Format Based on Query Count**
 
