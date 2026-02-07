@@ -7,15 +7,19 @@ An investigation automation framework that combines **GitHub Copilot**, **VS Cod
 ### Quick Start (TL;DR)
 
 ```powershell
-# 1. Install dependencies
+# 1. Clone this repo and open in VS Code (required for Agent Skills)
+git clone https://github.com/SCStelz/security-investigator.git
+code security-investigator
+
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# 2. Edit config.json with your workspace ID, tenant ID, and API keys
+# 3. Edit config.json with your workspace ID, tenant ID, and API keys
 #    (see config.json.template for the full list)
 
-# 3. Install the 5 required MCP servers (see MCP Server Setup below)
+# 4. Install the 5 required MCP servers (see MCP Server Setup below)
 
-# 4. Ask GitHub Copilot:
+# 5. Ask GitHub Copilot:
 "What skills do you have access to?"
 "Investigate user@domain.com for the last 7 days"
 ```
