@@ -169,6 +169,24 @@ This extends beyond your own investigations. When new threat research drops — 
 
 It brings a DevOps mindset to Security Engineering: every investigation and every piece of external threat research becomes an opportunity to improve the shared knowledge base, drive collaboration across the team, and raise the overall quality bar — turning tribal knowledge into version-controlled, peer-reviewable, continuously improving automation.
 
+**Sample prompts for creating a new skill:**
+
+```
+Based on the investigation we just completed, create a new reusable skill.
+Review the queries we ran, the enrichment steps, and the analytical logic,
+then package it all into a SKILL.md file following the existing skill format
+in .github/skills/. Include the verified KQL queries, known schema pitfalls,
+and a step-by-step workflow that another analyst could follow.
+```
+
+```
+Read this threat intelligence article: <URL>
+Extract the attacker TTPs — initial access, persistence mechanisms, lateral
+movement, and exfiltration techniques. Map each TTP to the relevant Sentinel
+and Defender tables, write detection queries, and create a new investigation
+skill that hunts for these behaviors across our environment.
+```
+
 ---
 
 ## 📁 Project Structure
