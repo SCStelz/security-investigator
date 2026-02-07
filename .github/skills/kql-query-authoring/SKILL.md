@@ -355,9 +355,9 @@ mcp_kql-search_validate_kql_query("<your_query>")
 
 **File naming convention:**
 ```
-queries/defender_endpoint_failed_connections_queries.md
-queries/azure_ad_risky_signin_analysis_queries.md
-queries/email_threat_hunting_queries.md
+queries/endpoint/endpoint_failed_connections.md
+queries/identity/app_credential_management.md
+queries/email/email_threat_detection.md
 ```
 
 **Markdown file structure for multiple queries:**

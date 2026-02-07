@@ -332,20 +332,59 @@ Incident investigation and threat hunting tools for Defender XDR and Sentinel:
 
 ### 🔧 Tool Selection Rule: Data Lake vs Advanced Hunting
 
-**When to use which KQL execution tool:**
+**Two KQL execution tools are available. Each has trade-offs:**
 
-| Scenario | Tool to Use |
-|----------|-------------|
-| **Default for most tables** | `mcp_sentinel-data_query_lake` (SigninLogs, AuditLogs, SecurityAlert, SecurityIncident, Device* tables, etc.) |
-| **AzureDiagnostics table** | `RunAdvancedHuntingQuery` **ONLY** - this table is NOT in Sentinel Data Lake |
-| **DeviceTvm* tables** (DeviceTvmSoftwareInventory, DeviceTvmSoftwareVulnerabilities, etc.) | `RunAdvancedHuntingQuery` **ONLY** - TVM snapshot tables are NOT in Sentinel Data Lake |
-| **XDR tables (Device*, Alert*, Email*, etc.)** | Try `mcp_sentinel-data_query_lake` first - these tables exist in Data Lake **only under specific conditions**; otherwise, they won't exist |
-| **Table not found error** | If `mcp_sentinel-data_query_lake` fails with "table not found" or similar error, **retry with `RunAdvancedHuntingQuery`** - the table may exist only in Defender XDR Advanced Hunting |
+| Factor | `RunAdvancedHuntingQuery` (Defender XDR) | `mcp_sentinel-data_query_lake` (Sentinel Data Lake) |
+|--------|------------------------------------------|-----------------------------------------------------|
+| **Cost** | Free (included in Defender license) | Billed per query (Log Analytics ingestion costs) |
+| **Retention** | 30 days | 90+ days (workspace-configured) |
+| **Timestamp column** | `Timestamp` | `TimeGenerated` |
+| **Safety filter** | MCP-level safety filter may block queries with offensive security keywords (e.g., PowerShell download patterns) | No additional safety filter beyond KQL validation |
+| **Negation syntax** | `!has_any` and `!in~` may fail in `let` blocks — use `not()` wrappers | Standard KQL negation operators work reliably |
 
-**Important Notes:**
-- `mcp_sentinel-data_query_lake` uses `TimeGenerated` as timestamp column
-- `RunAdvancedHuntingQuery` uses `Timestamp` as timestamp column (adjust queries accordingly)
-- Always check the error message - "Failed to resolve table" or "table not found" indicates the table doesn't exist in that data source
+#### Decision Logic
+
+For **every** KQL query, determine the tool based on the **table prefix**:
+
+**Step 1 — Identify table category:**
+
+| Category | Table prefixes / names | Tool |
+|----------|----------------------|------|
+| **Sentinel-native** | SigninLogs, AuditLogs, SecurityAlert, SecurityIncident, SecurityEvent, OfficeActivity, AADUserRiskEvents, Syslog, CommonSecurityLog, ThreatIntelligenceIndicator, Heartbeat, custom `*_CL` tables | **Data Lake only** |
+| **XDR — Advanced Hunting only** | `DeviceTvm*`, `AAD*Beta`, `EntraId*`, `Campaign*`, `Message*`, `DataSecurity*`, `Exposure*`, `Disruption*`, `GraphApi*`, `OAuth*`, `AI*`, `AzureDiagnostics` | **Advanced Hunting only** |
+| **XDR — available in both** | `Device*` (non-Tvm), `Alert*`, `Email*`, `Identity*`, `Cloud*`, `Behavior*`, `Url*`, `FileMaliciousContentInfo` | **See Step 2** |
+
+**Step 2 — For tables available in both, choose by context:**
+
+| Condition | Tool | Reason |
+|-----------|------|--------|
+| **Lookback ≤ 30 days** (default) | **Advanced Hunting** | Free, guaranteed to exist, no connector dependency |
+| **Lookback > 30 days** | **Data Lake** | Advanced Hunting only retains 30 days |
+| **Query blocked by safety filter** | **Data Lake** | Data Lake has no MCP safety filter; adapt `Timestamp` → `TimeGenerated` |
+| **Data Lake returns "table not found"** | **Advanced Hunting** | XDR connector may not be streaming that table |
+
+**Step 3 — Timestamp adaptation:**
+
+When switching between tools, adapt the timestamp column:
+- Advanced Hunting → Data Lake: `Timestamp` → `TimeGenerated`
+- Data Lake → Advanced Hunting: `TimeGenerated` → `Timestamp`
+
+**Step 4 — Pre-authored query files:**
+
+If the query is from a `.md` file in `queries/` or `.github/skills/` and uses `Timestamp`, run it via **Advanced Hunting as-written** (it was authored for that tool). Only switch to Data Lake if:
+- Lookback exceeds 30 days, OR
+- The query is blocked by the safety filter
+
+#### Quick Reference
+
+| Table | Default Tool | Fallback |
+|-------|-------------|----------|
+| Sentinel-native (SigninLogs, AuditLogs, SecurityAlert, etc.) | Data Lake | — |
+| `Device*` (non-Tvm), `Alert*`, `Email*`, `Identity*`, `Cloud*` ≤ 30d | Advanced Hunting | Data Lake |
+| `Device*` (non-Tvm), `Alert*`, `Email*`, `Identity*`, `Cloud*` > 30d | Data Lake | Advanced Hunting |
+| `DeviceTvm*`, `AzureDiagnostics` | Advanced Hunting | — |
+| `AAD*Beta`, `EntraId*`, `Exposure*`, `Message*`, other AH-only | Advanced Hunting | — |
+| Custom tables (`*_CL`) | Data Lake | — |
 
 ### KQL Search MCP
 GitHub-powered KQL query discovery and schema intelligence (331+ tables from Defender XDR, Sentinel, Azure Monitor):
@@ -535,7 +574,17 @@ SecurityIncident
 
 All query files in `queries/` MUST use this standardized metadata header for efficient `grep_search` discovery:
 
-**File naming convention:** `{topic}.md` — lowercase, underscores, no redundant suffixes like `_queries` or `_sentinel`. Keep names short and descriptive of the detection scenario or data domain (e.g., `app_credential_management.md`, `rdp_lateral_movement.md`, `endpoint_failed_connections.md`).
+**Folder structure:** Query files are organized into subfolders by data domain:
+
+| Subfolder | Domain | Examples |
+|-----------|--------|----------|
+| `queries/identity/` | Entra ID / Azure AD | `app_credential_management.md`, `service_principal_scope_drift.md` |
+| `queries/endpoint/` | Defender for Endpoint | `rare_process_chains.md`, `infostealer_hunting_campaign.md` |
+| `queries/email/` | Defender for Office 365 | `email_threat_detection.md` |
+| `queries/network/` | Network telemetry | `network_anomaly_detection.md` |
+| `queries/cloud/` | Cloud apps & exposure | `cloudappevents_exploration.md`, `exposure_graph_attack_paths.md` |
+
+**File naming convention:** `{topic}.md` — lowercase, underscores, no redundant suffixes like `_queries` or `_sentinel`. Keep names short and descriptive of the detection scenario or data domain. Place new files in the subfolder matching their primary data source table.
 
 ```markdown
 # <Title>

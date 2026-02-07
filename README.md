@@ -188,16 +188,22 @@ security-investigator/
 │       ├── kql-query-authoring/
 │       ├── scope-drift-detection/
 │       └── user-investigation/
-├── queries/                     # Verified KQL query library (grep-searchable)
-│   ├── app_credential_management.md
-│   ├── cloudappevents_exploration.md
-│   ├── email_threat_detection.md
-│   ├── endpoint_failed_connections.md
-│   ├── exposure_graph_attack_paths.md
-│   ├── network_anomaly_detection.md
-│   ├── rare_process_chains.md
-│   ├── rdp_lateral_movement.md
-│   └── service_principal_scope_drift.md
+├── queries/                     # Verified KQL query library (grep-searchable, by data domain)
+│   ├── identity/               # Entra ID / Azure AD identity queries
+│   │   ├── app_credential_management.md
+│   │   └── service_principal_scope_drift.md
+│   ├── endpoint/               # Defender for Endpoint device queries
+│   │   ├── endpoint_failed_connections.md
+│   │   ├── infostealer_hunting_campaign.md
+│   │   ├── rare_process_chains.md
+│   │   └── rdp_lateral_movement.md
+│   ├── email/                  # Defender for Office 365 email queries
+│   │   └── email_threat_detection.md
+│   ├── network/                # Network telemetry queries
+│   │   └── network_anomaly_detection.md
+│   └── cloud/                  # Cloud app & exposure management queries
+│       ├── cloudappevents_exploration.md
+│       └── exposure_graph_attack_paths.md
 ├── mcp-apps/                    # Local MCP servers (visualization, automation)
 │   ├── sentinel-geomap-server/
 │   ├── sentinel-heatmap-server/

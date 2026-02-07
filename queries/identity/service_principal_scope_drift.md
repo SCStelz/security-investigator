@@ -741,7 +741,7 @@ When a service principal is flagged with a high Drift Score:
 
 1. **Identify the principal and its purpose:**
    - What does this SP do? (Check app registration in Azure Portal)
-   - Who owns it? (Query 4 from `app_credential_management.md`)
+   - Who owns it? (Query 4 from `app_credential_management.md` in `queries/identity/`)
    - Is it a managed identity or an application SP?
 
 2. **Analyze the drift dimensions:**
@@ -751,7 +751,7 @@ When a service principal is flagged with a high Drift Score:
 
 3. **Check for concurrent permission changes:**
    - Were credentials, roles, or consent grants modified? (Query 4)
-   - Did an ownership change precede the drift? (See `app_credential_management.md` Query 4)
+   - Did an ownership change precede the drift? (See `app_credential_management.md` Query 4 in `queries/identity/`)
 
 4. **Correlate with security alerts:**
    - Are there active alerts for this SP? (Query 6)
