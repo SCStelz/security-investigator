@@ -17,12 +17,10 @@ config.json
 temp/*
 !temp/.gitkeep
 !temp/investigation_sample_jsmith.json
-reports/*
-!reports/.gitkeep
-!reports/Investigation_Report_Sample_jsmith.html
-!reports/Investigation_Report_Compact_example_2025-12-14_134316.html
-!reports/Honeypot_Executive_Report_example_2025-12-14.md
-!reports/Scope_Drift_Report_example_20260207.md
+reports/**
+!reports/**/
+!reports/**/.gitkeep
+!reports/**/*example*
 archive/
 
 # Authoring (blog drafts and style guides)

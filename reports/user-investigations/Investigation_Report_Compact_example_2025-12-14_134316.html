@@ -1,0 +1,2726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compact Security Investigation Report - john.smith@contoso.com</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 13.5px;
+            line-height: 1.4;
+            color: #e0e0e0;
+            background: #1a1a1a;
+            padding: 11.25px;
+        }
+        
+        .container {
+            max-width: 1575px;
+            margin: 0 auto;
+            background: #1e1e1e;
+            border-radius: 6.75px;
+            box-shadow: 0 4.5px 22.5px rgba(0,0,0,0.5);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #00a1f1 0%, #0078d4 100%);
+            color: white;
+            padding: 16.875px 22.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 1.6875em;
+            margin: 0;
+        }
+        
+        .header .meta {
+            font-size: 0.85em;
+            text-align: right;
+        }
+        
+        .content {
+            display: grid;
+            grid-template-columns: 1.7fr 5px 3.3fr;
+            gap: 11.25px;
+            padding: 11.25px;
+            position: relative;
+        }
+        
+        .resize-handle {
+            cursor: col-resize;
+            background: transparent;
+            position: relative;
+            width: 5px;
+            margin: 0 3px;
+        }
+        
+        .resize-handle:hover {
+            background: #00a1f1;
+        }
+        
+        .resize-handle::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 3px;
+            height: 30px;
+            background: #3a3a3a;
+            border-radius: 2px;
+        }
+        
+        .resize-handle:hover::before {
+            background: #00a1f1;
+        }
+        
+        .left-column, .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 11.25px;
+        }
+        
+        .section {
+            background: #252525;
+            border-radius: 4.5px;
+            padding: 13.5px;
+            border-left: 3.375px solid #00a1f1;
+        }
+        
+        .section h2 {
+            font-size: 1.2375em;
+            color: #00a1f1;
+            margin-bottom: 9px;
+            padding-bottom: 4.5px;
+            border-bottom: 1.125px solid #3a3a3a;
+            position: relative;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 9px;
+        }
+        
+        .metric {
+            background: linear-gradient(135deg, #00a1f1 0%, #0078d4 100%);
+            padding: 11.25px;
+            border-radius: 4.5px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2.025em;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .metric-label {
+            font-size: 0.95625em;
+            color: rgba(255,255,255,0.9);
+            margin-top: 2.25px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 1.0125em;
+        }
+        
+        #incidentsTable {
+            min-height: 270px;
+        }
+        
+        th {
+            background: #2a2a2a;
+            color: #00a1f1;
+            padding: 6.75px 9px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2.25px solid #3a3a3a;
+        }
+        
+        td {
+            padding: 5.625px 9px;
+            border-bottom: 1.125px solid #2a2a2a;
+        }
+        
+        tr:hover {
+            background: #2a2a2a;
+        }
+        
+        .ip-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 9px;
+        }
+        
+        .ip-card {
+            background: #2a2a2a;
+            border-left: 3.375px solid #ffbb00;
+            padding: 11.25px;
+            border-radius: 4.5px;
+        }
+        
+        .ip-card.critical-risk { border-left-color: #f65314; }
+        .ip-card.high-risk { border-left-color: #f65314; }
+        .ip-card.medium-risk { border-left-color: #ffbb00; }
+        .ip-card.low-risk { border-left-color: #7cbb00; }
+        
+        .ip-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6.75px;
+        }
+        
+        .ip-address {
+            font-weight: 600;
+            color: #00a1f1;
+            font-size: 1.18125em;
+        }
+        
+        .ip-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4.5px;
+            font-size: 0.95625em;
+        }
+        
+        .ip-info-item {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .label {
+            color: #b0b0b0;
+            font-weight: 500;
+        }
+        
+        .value {
+            color: #e0e0e0;
+            font-weight: 600;
+        }
+        
+        .alert {
+            padding: 9px 13.5px;
+            margin: 6.75px 0;
+            border-left: 3.375px solid;
+            border-radius: 3.375px;
+            font-size: 1.0125em;
+        }
+        
+        .alert-critical { background: #3d1f1f; border-color: #f65314; }
+        .alert-high { background: #3d3520; border-color: #ffbb00; }
+        .alert-medium { background: #1f2f3d; border-color: #00a1f1; }
+        
+        .badge {
+            display: inline-block;
+            padding: 2.25px 9px;
+            border-radius: 3.375px;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin: 2.25px;
+        }
+        
+        .badge-critical { background: #f65314; color: white; }
+        .badge-high { background: #ffbb00; color: #1a1a1a; }
+        .badge-medium { background: #00a1f1; color: white; }
+        .badge-low { background: #7cbb00; color: white; }
+        .badge-info { background: #737373; color: white; }
+        
+        ul {
+            margin: 6.75px 0 6.75px 22.5px;
+            font-size: 1.0125em;
+        }
+        
+        li {
+            margin: 3.375px 0;
+        }
+        
+        details {
+            margin: 9px 0;
+        }
+        
+        summary {
+            cursor: pointer;
+            padding: 9px;
+            background: #2a2a2a;
+            border-radius: 4.5px;
+            font-weight: 600;
+            color: #00a1f1;
+        }
+        
+        summary:hover {
+            background: #333;
+        }
+        
+        details[open] summary {
+            margin-bottom: 9px;
+        }
+        
+        .ip-card details {
+            margin-top: 9px;
+            border-top: 1.125px solid #3a3a3a;
+            padding-top: 9px;
+        }
+        
+        .ip-card summary {
+            padding: 6.75px 9px;
+            background: #333;
+            border-radius: 3.375px;
+            font-size: 0.95625em;
+            cursor: pointer;
+            color: #00a1f1;
+            font-weight: 500;
+        }
+        
+        .ip-card summary::marker {
+            color: #00a1f1;
+        }
+        
+        .threat-intel-content {
+            padding: 9px;
+            background: #2a2a2a;
+            border-radius: 3.375px;
+            margin-top: 6.75px;
+            font-size: 0.95625em;
+        }
+        
+        .threat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4.5px 0;
+            border-bottom: 1.125px solid #333;
+        }
+        
+        .threat-row:last-child {
+            border-bottom: none;
+        }
+        
+        .timeline-button {
+            background: linear-gradient(135deg, #00a1f1 0%, #0078d4 100%);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        
+        .timeline-button:hover {
+            background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 120, 212, 0.4);
+        }
+        
+        .timeline-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        
+        .timeline-modal.active {
+            display: block;
+        }
+        
+        .timeline-modal-content {
+            background: #1e1e1e;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #00a1f1;
+            border-radius: 8px;
+            width: 60%;
+            max-width: 900px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .timeline-close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+        }
+        
+        .timeline-close:hover,
+        .timeline-close:focus {
+            color: #00a1f1;
+        }
+        
+        .footer {
+            background: #252525;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 0.85em;
+            color: #737373;
+            border-top: 1px solid #3a3a3a;
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+            margin-top: 20px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #00a1f1, #0078d4);
+        }
+        
+        .timeline-date-separator {
+            margin: 20px 0 15px 0;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #2d1f1f 0%, #3d2020 100%);
+            border-left: 4px solid #00a1f1;
+            border-radius: 4px;
+        }
+        
+        .timeline-date-label {
+            color: #00a1f1;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+            padding-left: 30px;
+        }
+        
+        .timeline-marker {
+            position: absolute;
+            left: -20px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #1e1e1e;
+        }
+        
+        .timeline-marker.medium {
+            background: #ffbb00;
+        }
+        
+        .timeline-marker.low {
+            background: #7cbb00;
+        }
+        
+        .timeline-marker.high {
+            background: #f65314;
+        }
+        
+        .timeline-icon {
+            font-size: 12px;
+        }
+        
+        .timeline-content {
+            background: #252525;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #00a1f1;
+        }
+        
+        .timeline-time {
+            color: #b0b0b0;
+            font-size: 0.85em;
+            margin-bottom: 5px;
+        }
+        
+        .timeline-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .timeline-details {
+            color: #b0b0b0;
+            font-size: 0.9em;
+        }
+        
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #333;
+        }
+        
+        .page-button {
+            background: linear-gradient(135deg, #00a1f1 0%, #0078d4 100%);
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s ease;
+        }
+        
+        .page-button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
+            transform: translateY(-1px);
+        }
+        
+        .page-button:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+        
+        .page-info {
+            color: #b0b0b0;
+        }
+        
+        .kql-copy-button {
+            background: none;
+            border: none;
+            color: #00a1f1;
+            cursor: pointer;
+            font-size: 0.9em;
+            padding: 0 8px;
+            transition: all 0.2s ease;
+        }
+        
+        /* Absolute positioning for section header buttons */
+        .section h2 .kql-copy-button {
+            position: absolute;
+            right: 0;
+            top: 6px;
+        }
+        
+        .kql-copy-button:hover {
+            color: #0078d4;
+            transform: scale(1.1);
+        }
+    </style>
+        
+</head>
+<body>
+    <!-- Watermark Header Bar -->
+    <div style="position: fixed; top: 0; left: 0; right: 0; 
+                background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+                color: white; padding: 10px 20px; z-index: 9999;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                font-size: 13px; font-weight: 600;
+                border-bottom: 2px solid #ff6b6b;">
+        <div style="display: flex; align-items: center; justify-content: space-between; max-width: 1800px; margin: 0 auto;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <span style="font-size: 16px;">🔒</span>
+                <span style="font-weight: 700; font-size: 14px;">CONFIDENTIAL - INTERNAL USE ONLY</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 15px; font-size: 12px; opacity: 0.95;">
+                <span>Generated by: <strong>ANALYST</strong></span>
+                <span style="opacity: 0.6;">|</span>
+                <span>Machine: <strong>WORKSTATION-001</strong></span>
+                <span style="opacity: 0.6;">|</span>
+                <span>Date: <strong>2025-12-14 13:43:16 </strong></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main content with top margin to clear watermark -->
+    <div class="container" style="margin-top: 50px;">
+        
+        <div class="header">
+            <div>
+                <h1>John Smith<a href="https://security.microsoft.com/user?aad=[REDACTED-USER-ID]" target="_blank" style="color: #00a1f1; font-size: 0.9em; margin-left: 10px; text-decoration: none;" title="View user in Microsoft Defender XDR">🛡️</a> <span style="color: #555; font-weight: 300;">|</span> <span style="font-size: 0.6em; font-weight: 400; opacity: 0.9;">john.smith@contoso.com • Security Analyst</span></h1>
+                <div style="font-size: 1em; opacity: 0.9; margin-top: 4px; line-height: 1.6;">
+                    <div>Security Operations • Seattle • <span style="background: #7cbb00; color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.7em; font-weight: 500; margin-right: 6px; white-space: nowrap; display: inline-block;">📍 US</span><span style="background: #7cbb00; color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.7em; font-weight: 500; margin-right: 6px; white-space: nowrap; display: inline-block;">📍 CA</span><span style="background: #7cbb00; color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.7em; font-weight: 500; margin-right: 6px; white-space: nowrap; display: inline-block;">📍 AU</span><span style="background: #ffbb00; color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.7em; font-weight: 500; margin-right: 6px; white-space: nowrap; display: inline-block;">📍 GB</span><span style="background: #f65314; color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.7em; font-weight: 500; margin-right: 6px; white-space: nowrap; display: inline-block;">📍 BR</span></div>
+                    <div><span style="color: #90ee90;">● Active</span> • Member</div>
+                </div>
+            </div>
+            <div class="meta">
+                <div><strong>Investigation Date:</strong> 2025-12-14</div>
+                <div><strong>Period:</strong> 2025-10-04 to 2025-12-05</div>
+                <div style="margin-top: 8px;">
+                    <button class="timeline-button" onclick="openTimeline()">📅 View Investigation Timeline</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="left-column">
+                
+        <div class="section">
+            <h2>📊 Key Metrics</h2>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">10</div>
+                    <div class="metric-label">Anomalies</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">27.4K</div>
+                    <div class="metric-label">Sign-ins</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">5</div>
+                    <div class="metric-label">DLP Events</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">412</div>
+                    <div class="metric-label">Failures</div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div class="section">
+            <h2>🔐 MFA Status</h2>
+            <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px;">
+                <span class="badge badge-low">Windowshelloforbusiness</span>
+<span class="badge badge-low">Password</span>
+<span class="badge badge-low">Phone</span>
+<span class="badge badge-low">Email</span>
+<span class="badge badge-low">Authenticator</span>
+            </div>
+        </div>
+        
+
+        <div class="section">
+            <h2>🎯 Risk Assessment</h2>
+            <div style="margin-bottom: 10px;">
+                <strong>Overall Risk:</strong> <span class="badge badge-high">HIGH</span>
+            </div>
+            <div style="margin-bottom: 10px; font-size: 0.9em; color: #b0b0b0;">
+                Risk level is calculated based on 6 risk factors 
+                and 3 mitigating factors.
+            </div>
+            
+                    <details open>
+                        <summary>Risk Factors (6)</summary>
+                        <ul>
+                            <li>🌍 <strong>Geographic anomalies:</strong> 3 new countries (BR, HK, IE)</li>
+<li>🔓 <strong>Device compliance:</strong> 277 failures (53000)</li>
+<li>📤 <strong>DLP violations:</strong> 5 events (network share + cloud)</li>
+<li>🎭 <strong>Anonymous IPs:</strong> VPN/proxy usage detected</li>
+<li>⚠️ <strong>Identity Protection:</strong> User at low risk (atRisk)</li>
+<li>🔑 <strong>Privileged account:</strong> SecOps Analyst</li>
+                        </ul>
+                    </details>
+            
+            
+                    <details open>
+                        <summary>Mitigating Factors (3)</summary>
+                        <ul>
+                            <li>✅ MFA active (5 methods including Authenticator)</li>
+<li>✅ 98.5% sign-in success rate</li>
+<li>✅ Managed/compliant devices available</li>
+                        </ul>
+                    </details>
+            
+        </div>
+        
+
+        <div class="section">
+            <h2>🎯 Critical Actions</h2>
+            <div class="alert alert-critical"><strong>🚨 CRITICAL:</strong> <strong>1. Investigate DLP events</strong><br>5 sensitive file operations detected (network share + chatgpt.com upload)</div><div class="alert alert-high"><strong>⚠️ HIGH:</strong> <strong>2. Review geographic anomalies</strong><br>Verify VPN usage for BR, HK, IE sign-ins</div><div class="alert alert-high"><strong>⚠️ HIGH:</strong> <strong>3. Address device compliance</strong><br>Fix non-compliant devices (277 failures)</div>
+        </div>
+        
+
+        <div class="section">
+            <h2>🛡️ Identity Protection</h2>
+            
+            <div style="margin-top: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="color: #b0b0b0; font-size: 0.85em;">Risk Level:</span>
+                    <span class="badge badge-low">⚠️ LOW</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="color: #b0b0b0; font-size: 0.85em;">State:</span>
+                    <span style="color: #f65314; font-weight: 500;">Active Risk</span>
+                </div>
+            
+                    <div style="margin-top: 6px; padding: 6px; background: rgba(246, 83, 20, 0.1); border-left: 3px solid #f65314; border-radius: 3px;">
+                        <span style="color: #f65314; font-weight: 500;">⚠️ 1 Active Risk Detection</span>
+                    </div>
+                    
+                <details style="margin-top: 6px; padding: 6px; background: rgba(0, 161, 241, 0.1); border-left: 3px solid #00a1f1; border-radius: 3px; cursor: pointer;">
+                    <summary style="color: #00a1f1; font-weight: 500; list-style: none; user-select: none;">
+                        📋 Recent Risk Detections <span style="font-size: 0.8em; color: #737373;">▼</span>
+                    </summary>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0, 161, 241, 0.3);">
+                        <table style="width: 100%; font-size: 0.85em;">
+                            <thead>
+                                <tr style="color: #b0b0b0; font-size: 0.75em; text-align: left;">
+                                    <th style="padding: 4px;">Date</th>
+                                    <th style="padding: 4px;">Type</th>
+                                    <th style="padding: 4px;">Level</th>
+                                    <th style="padding: 4px;">State</th>
+                                    <th style="padding: 4px;">IP</th>
+                                    <th style="padding: 4px;">Location</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                        <tr style="font-size: 0.8em; ">
+                            <td style="padding: 4px;">2025-11-26</td>
+                            <td style="padding: 4px;">anonymizedIPAddress</td>
+                            <td style="padding: 4px;"><span class="badge badge-medium">medium</span></td>
+                            <td style="padding: 4px;"><span class="badge badge-info">Remediated</span></td>
+                            <td style="padding: 4px;">146.70.130.174</td>
+                            <td style="padding: 4px;">Dublin, Dublin, IE</td>
+                        </tr>
+                    
+                        <tr style="font-size: 0.8em; ">
+                            <td style="padding: 4px;">2025-11-26</td>
+                            <td style="padding: 4px;">anonymizedIPAddress</td>
+                            <td style="padding: 4px;"><span class="badge badge-low">low</span></td>
+                            <td style="padding: 4px;"><span class="badge badge-info">Remediated</span></td>
+                            <td style="padding: 4px;">146.70.130.174</td>
+                            <td style="padding: 4px;">Dublin, Dublin, IE</td>
+                        </tr>
+                    
+                        <tr style="font-size: 0.8em; background: rgba(246, 83, 20, 0.15);">
+                            <td style="padding: 4px;">2025-11-25</td>
+                            <td style="padding: 4px;">anomalousToken</td>
+                            <td style="padding: 4px;"><span class="badge badge-low">low</span></td>
+                            <td style="padding: 4px;"><span class="badge badge-critical">Active Risk</span></td>
+                            <td style="padding: 4px;">146.70.9.214</td>
+                            <td style="padding: 4px;">Shek Kip Mei, Kowloon, HK</td>
+                        </tr>
+                    
+                        <tr style="font-size: 0.8em; ">
+                            <td style="padding: 4px;">2025-11-24</td>
+                            <td style="padding: 4px;">anonymizedIPAddress</td>
+                            <td style="padding: 4px;"><span class="badge badge-medium">medium</span></td>
+                            <td style="padding: 4px;"><span class="badge badge-info">Remediated</span></td>
+                            <td style="padding: 4px;">146.70.9.214</td>
+                            <td style="padding: 4px;">Shek Kip Mei, Kowloon, HK</td>
+                        </tr>
+                    
+                        <tr style="font-size: 0.8em; ">
+                            <td style="padding: 4px;">2025-11-24</td>
+                            <td style="padding: 4px;">anonymizedIPAddress</td>
+                            <td style="padding: 4px;"><span class="badge badge-medium">medium</span></td>
+                            <td style="padding: 4px;"><span class="badge badge-info">Remediated</span></td>
+                            <td style="padding: 4px;">146.70.9.214</td>
+                            <td style="padding: 4px;">Shek Kip Mei, Kowloon, HK</td>
+                        </tr>
+                    
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+                </div>
+        </div>
+        
+
+        <div class="section">
+            <h2>💻 Registered Devices<a href="https://security.microsoft.com/user?aad=[REDACTED-USER-ID]&tab=data&datatab=devices" target="_blank" style="color: #00a1f1; font-size: 0.75em; margin-left: 10px; text-decoration: none;" title="View user devices in Microsoft Defender XDR">🛡️</a></h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Device Name</th>
+                        <th>OS</th>
+                        <th>Compliant</th>
+                        <th>Last Seen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                <tr>
+                    <td>CORP-DESKTOP-01</td>
+                    <td>Windows</td>
+                    <td><span style="color: #7cbb00;">✓ Yes</span></td>
+                    <td>2025-12-11</td>
+                </tr>
+            
+                <tr>
+                    <td>CORP-LAPTOP-02</td>
+                    <td>Windows</td>
+                    <td><span style="color: #f65314;">✗ No</span></td>
+                    <td>2025-12-04</td>
+                </tr>
+            
+                <tr>
+                    <td>CORP-VM-03</td>
+                    <td>Windows</td>
+                    <td><span style="color: #7cbb00;">✓ Yes</span></td>
+                    <td>2025-11-20</td>
+                </tr>
+            
+                <tr>
+                    <td>CORP-WVD-04 <span style="color: #ffbb00; font-size: 0.75em;">⚠ STALE</span></td>
+                    <td>Windows</td>
+                    <td><span style="color: #f65314;">✗ No</span></td>
+                    <td>2025-03-21</td>
+                </tr>
+            
+                <tr>
+                    <td>LAPTOP-ABC123 <span style="color: #ffbb00; font-size: 0.75em;">⚠ STALE</span></td>
+                    <td>Windows</td>
+                    <td><span style="color: #f65314;">✗ No</span></td>
+                    <td>2023-04-12</td>
+                </tr>
+            
+                </tbody>
+            </table>
+        </div>
+        
+
+        <div class="section">
+            <h2>📍 Top Locations</h2>
+            <table id="locationsTable">
+                <thead>
+                    <tr>
+                        <th>Location</th>
+                        <th style="text-align: center;">Total</th>
+                        <th style="text-align: center;">Success</th>
+                        <th style="text-align: center;">Failures</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                <tr class="location-row" data-page="1">
+                    <td>CA</td>
+                    <td style="text-align: center;">21953</td>
+                    <td style="text-align: center;"><span style="color: #7cbb00;">✓ 21618</span></td>
+                    <td style="text-align: center;"><span style="color: #f65314;">✗ 335</span></td>
+                </tr>
+            
+                <tr class="location-row" data-page="1">
+                    <td>US</td>
+                    <td style="text-align: center;">5998</td>
+                    <td style="text-align: center;"><span style="color: #7cbb00;">✓ 5881</span></td>
+                    <td style="text-align: center;"><span style="color: #f65314;">✗ 117</span></td>
+                </tr>
+            
+                <tr class="location-row" data-page="1">
+                    <td>AU</td>
+                    <td style="text-align: center;">258</td>
+                    <td style="text-align: center;"><span style="color: #7cbb00;">✓ 249</span></td>
+                    <td style="text-align: center;"><span style="color: #f65314;">✗ 9</span></td>
+                </tr>
+            
+                <tr class="location-row" data-page="2" style="display: none;">
+                    <td>GB</td>
+                    <td style="text-align: center;">17</td>
+                    <td style="text-align: center;"><span style="color: #7cbb00;">✓ 16</span></td>
+                    <td style="text-align: center;"><span style="color: #f65314;">✗ 1</span></td>
+                </tr>
+            
+                <tr class="location-row" data-page="2" style="display: none;">
+                    <td>BR</td>
+                    <td style="text-align: center;">12</td>
+                    <td style="text-align: center;"><span style="color: #7cbb00;">✓ 9</span></td>
+                    <td style="text-align: center;"><span style="color: #f65314;">✗ 3</span></td>
+                </tr>
+            
+                </tbody>
+            </table>
+            
+            <div class="pagination-controls">
+                <button class="page-button" id="locPrevBtn" onclick="changeLocationPage(-1)" disabled>← Prev</button>
+                <span id="locPageInfo" style="color: #b0b0b0;">Page <span id="locCurrentPage">1</span> of 2</span>
+                <button class="page-button" id="locNextBtn" onclick="changeLocationPage(1)">Next →</button>
+            </div>
+            
+        </div>
+        
+
+        <div class="section">
+            <h2>📱 Top Applications</h2>
+            <table id="applicationsTable">
+                <thead>
+                    <tr>
+                        <th>Application</th>
+                        <th style="text-align: center;">Total</th>
+                        <th style="text-align: center;">Success</th>
+                        <th style="text-align: center;">Failures</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                <tr class="application-row" data-page="1">
+                    <td>Microsoft 365 Security and Compliance Center</td>
+                    <td style="text-align: center;">8351</td>
+                    <td style="text-align: center;"><span style="color: #7cbb00;">✓ 8336</span></td>
+                    <td style="text-align: center;"><span style="color: #f65314;">✗ 15</span></td>
+                </tr>
+            
+                <tr class="application-row" data-page="1">
+                    <td>WindowsDefenderATP</td>
+                    <td style="text-align: center;">3763</td>
+                    <td style="text-align: center;"><span style="color: #7cbb00;">✓ 3763</span></td>
+                    <td style="text-align: center;"><span style="color: #f65314;">✗ 0</span></td>
+                </tr>
+            
+                <tr class="application-row" data-page="1">
+                    <td>Microsoft Threat Protection</td>
+                    <td style="text-align: center;">3430</td>
+                    <td style="text-align: center;"><span style="color: #7cbb00;">✓ 3430</span></td>
+                    <td style="text-align: center;"><span style="color: #f65314;">✗ 0</span></td>
+                </tr>
+            
+                <tr class="application-row" data-page="2" style="display: none;">
+                    <td>Microsoft Edge</td>
+                    <td style="text-align: center;">1953</td>
+                    <td style="text-align: center;"><span style="color: #7cbb00;">✓ 1675</span></td>
+                    <td style="text-align: center;"><span style="color: #f65314;">✗ 278</span></td>
+                </tr>
+            
+                <tr class="application-row" data-page="2" style="display: none;">
+                    <td>Microsoft Office 365 Portal</td>
+                    <td style="text-align: center;">911</td>
+                    <td style="text-align: center;"><span style="color: #7cbb00;">✓ 911</span></td>
+                    <td style="text-align: center;"><span style="color: #f65314;">✗ 0</span></td>
+                </tr>
+            
+                </tbody>
+            </table>
+            
+            <div class="pagination-controls">
+                <button class="page-button" id="appPrevBtn" onclick="changeApplicationPage(-1)" disabled>← Prev</button>
+                <span id="appPageInfo" style="color: #b0b0b0;">Page <span id="appCurrentPage">1</span> of 2</span>
+                <button class="page-button" id="appNextBtn" onclick="changeApplicationPage(1)">Next →</button>
+            </div>
+            
+        </div>
+        
+            </div>
+            <div class="resize-handle"></div>
+            <div class="right-column">
+                
+        <div class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h2 style="margin: 0;">🌐 User Sign-in IP Intelligence</h2>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label for="ipSortSelect" style="color: #b0b0b0; font-size: 0.9em;">Sort by:</label>
+                    <select id="ipSortSelect" onchange="sortIPCards()" style="background: #2d2d2d; color: #e0e0e0; border: 1px solid #404040; border-radius: 4px; padding: 4px 8px; font-size: 0.9em; cursor: pointer;">
+                        <option value="default">Default (Risk Level)</option>
+                        <option value="last-seen">Last Seen Date</option>
+                    </select>
+                    <button onclick="copyKQL(event, 'anomalies')" title="Copy KQL Query" style="background: none; border: none; color: #00a1f1; cursor: pointer; font-size: 1.3em; padding: 4px 8px; transition: all 0.2s ease;">📋</button>
+                </div>
+            </div>
+            <div class="ip-grid">
+                
+        <div class="ip-card high-risk anomaly-card" data-page="1" data-category="0" data-risk="2" data-last-seen="2025-11-24 00:00:00">
+            <div class="ip-header">
+                <div class="ip-address">146.70.9.214<span style="background: #dc3545; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 6px;">🚨 THREAT</span><span style="background: #ff7f00; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span><span style="background: #ffc107; color: #1a1a1a; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-high">High</span>
+                    <button class="kql-copy-button" onclick="copyKQL(event, 'ip_146_70_9_214')" title="Copy IP Investigation KQL Query" style="margin-left: 2px; padding: 0 2px; font-size: 12px;">📋</button>
+                </div>
+            </div>
+            <div class="ip-info">
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Location:</span>
+                        <span class="value">Shek Kip Mei, HK</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="label">Sign-ins:</span>
+                        <span class="value" style="color: #7cbb00;">✓ 11</span>
+                        <span class="value" style="color: #dc3545;">✗ 1</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">First Seen:</span>
+                        <span class="value">2025-11-24</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Last Seen:</span>
+                        <span class="value">2025-11-24</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Type:</span>
+                        <span class="value" style="color: #b0b0b0;">🌐 ISP | <span style='color: #ffc107; font-weight: bold;'>🔒 VPN</span></span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Recent Auth:</span>
+                        <span style="background: #00b7c3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">🎫 Token</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1;">
+                    
+            <details style="width: 100%; margin-top: 8px;">
+                <summary style="cursor: pointer; user-select: none;">🔍 Details</summary>
+                <div class="threat-intel-content">
+                    <div class="threat-row">
+                        <span class="label">Organization:</span>
+                        <span class="value">AS9009 M247 Europe SRL</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">ASN:</span>
+                        <span class="value">AS9009</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">IP Type:</span>
+                        <span class="value" style="color: #b0b0b0; font-weight: bold;">🌐 ISP | <span style='color: #ffc107; font-weight: bold;'>🔒 VPN</span> | <span style="color: #f65314; font-weight: bold;">⚠️ THREAT DETECTED</span></span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">Threat Match:</span>
+                        <span class="value" style="color: #f65314;"><strong>Sentinel:</strong> Threat Intel IOC Test Match</span>
+                    </div>
+                </div>
+            </details>
+            
+                </div>
+            </div>
+        </div>
+        
+        <div class="ip-card medium-risk anomaly-card" data-page="1" data-category="1" data-risk="3" data-last-seen="2025-11-26 00:00:00">
+            <div class="ip-header">
+                <div class="ip-address">146.70.130.174<span style="background: #ff7f00; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span><span style="background: #ffc107; color: #1a1a1a; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-medium">Medium</span>
+                    <button class="kql-copy-button" onclick="copyKQL(event, 'ip_146_70_130_174')" title="Copy IP Investigation KQL Query" style="margin-left: 2px; padding: 0 2px; font-size: 12px;">📋</button>
+                </div>
+            </div>
+            <div class="ip-info">
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Location:</span>
+                        <span class="value">Dublin, IE</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="label">Sign-ins:</span>
+                        <span class="value" style="color: #7cbb00;">✓ 11</span>
+                        <span class="value" style="color: #dc3545;">✗ 1</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">First Seen:</span>
+                        <span class="value">2025-11-26</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Last Seen:</span>
+                        <span class="value">2025-11-26</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Type:</span>
+                        <span class="value" style="color: #b0b0b0;">🌐 ISP | <span style='color: #ffc107; font-weight: bold;'>🔒 VPN</span></span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Recent Auth:</span>
+                        <span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">🔒 MFA</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1;">
+                    
+            <details style="width: 100%; margin-top: 8px;">
+                <summary style="cursor: pointer; user-select: none;">🔍 Details</summary>
+                <div class="threat-intel-content">
+                    <div class="threat-row">
+                        <span class="label">Organization:</span>
+                        <span class="value">AS9009 M247 Europe SRL</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">ASN:</span>
+                        <span class="value">AS9009</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">IP Type:</span>
+                        <span class="value" style="color: #b0b0b0; font-weight: bold;">🌐 ISP | <span style='color: #ffc107; font-weight: bold;'>🔒 VPN</span> | <span style="color: #f65314; font-weight: bold;">⚠️ THREAT DETECTED</span></span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">Threat Match:</span>
+                        <span class="value" style="color: #ffc107;"><strong>AbuseIPDB:</strong> Medium Risk (52/100, 27 reports)</span>
+                    </div>
+                </div>
+            </details>
+            
+                </div>
+            </div>
+        </div>
+        
+        <div class="ip-card medium-risk anomaly-card" data-page="1" data-category="2" data-risk="3" data-last-seen="2025-11-18 00:00:00">
+            <div class="ip-header">
+                <div class="ip-address">149.22.81.146<span style="background: #ff7f00; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-medium">Medium</span>
+                    <button class="kql-copy-button" onclick="copyKQL(event, 'ip_149_22_81_146')" title="Copy IP Investigation KQL Query" style="margin-left: 2px; padding: 0 2px; font-size: 12px;">📋</button>
+                </div>
+            </div>
+            <div class="ip-info">
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Location:</span>
+                        <span class="value">Vancouver, CA</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="label">Sign-ins:</span>
+                        <span class="value" style="color: #7cbb00;">✓ 5</span>
+                        <span class="value" style="color: #dc3545;">✗ 7</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Detected:</span>
+                        <span class="value">2025-11-18</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Last Seen:</span>
+                        <span class="value">2025-11-18</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Type:</span>
+                        <span class="value" style="color: #b0b0b0;">🌐 ISP | <span style='color: #ffc107; font-weight: bold;'>🔒 VPN</span></span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Recent Auth:</span>
+                        <span style="background: #f65314; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">❌ Failed</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1;">
+                    
+            <details style="width: 100%; margin-top: 8px;">
+                <summary style="cursor: pointer; user-select: none;">🔍 Details</summary>
+                <div class="threat-intel-content">
+                    <div class="threat-row">
+                        <span class="label">Organization:</span>
+                        <span class="value">AS212238 Datacamp Limited</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">ASN:</span>
+                        <span class="value">AS212238</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">IP Type:</span>
+                        <span class="value" style="color: #b0b0b0; font-weight: bold;">🌐 ISP | <span style='color: #ffc107; font-weight: bold;'>🔒 VPN</span> | <span style="color: #f65314; font-weight: bold;">⚠️ THREAT DETECTED</span></span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">Threat Match:</span>
+                        <span class="value" style="color: #ffc107;"><strong>AbuseIPDB:</strong> Medium Risk (32/100, 13 reports)</span>
+                    </div>
+                </div>
+            </details>
+            
+                </div>
+            </div>
+        </div>
+        
+        <div class="ip-card medium-risk anomaly-card" data-page="1" data-category="3" data-risk="3" data-last-seen="2025-11-23 00:00:00">
+            <div class="ip-header">
+                <div class="ip-address">193.19.205.125<span style="background: #ffc107; color: #1a1a1a; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-medium">Medium</span>
+                    <button class="kql-copy-button" onclick="copyKQL(event, 'ip_193_19_205_125')" title="Copy IP Investigation KQL Query" style="margin-left: 2px; padding: 0 2px; font-size: 12px;">📋</button>
+                </div>
+            </div>
+            <div class="ip-info">
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Location:</span>
+                        <span class="value">Sao Paulo, BR</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="label">Sign-ins:</span>
+                        <span class="value" style="color: #7cbb00;">✓ 9</span>
+                        <span class="value" style="color: #dc3545;">✗ 3</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">First Seen:</span>
+                        <span class="value">2025-11-23</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Last Seen:</span>
+                        <span class="value">2025-11-23</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Type:</span>
+                        <span class="value" style="color: #b0b0b0;">🌐 ISP | <span style='color: #ffc107; font-weight: bold;'>🔒 VPN</span></span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Recent Auth:</span>
+                        <span style="background: #f65314; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">❌ Failed</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1;">
+                    
+            <details style="width: 100%; margin-top: 8px;">
+                <summary style="cursor: pointer; user-select: none;">🔍 Details</summary>
+                <div class="threat-intel-content">
+                    <div class="threat-row">
+                        <span class="label">Organization:</span>
+                        <span class="value">AS203020 HostRoyale Technologies Pvt Ltd</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">ASN:</span>
+                        <span class="value">AS203020</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">IP Type:</span>
+                        <span class="value" style="color: #b0b0b0; font-weight: bold;">🌐 ISP | <span style='color: #ffc107; font-weight: bold;'>🔒 VPN</span> | <span style="color: #7cbb00; font-weight: bold;">✓ Clean</span></span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">Threat Match:</span>
+                        <span class="value" style="color: #7cbb00;"><strong>AbuseIPDB:</strong> Low Risk (19/100, 4 reports)</span>
+                    </div>
+                </div>
+            </details>
+            
+                </div>
+            </div>
+        </div>
+        
+        <div class="ip-card low-risk anomaly-card" data-page="2" data-category="3" data-risk="4" data-last-seen="2025-12-06 00:00:00" style="display: none;">
+            <div class="ip-header">
+                <div class="ip-address">198.51.100.20<span style="background: #ffc107; color: #1a1a1a; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-low">Low</span>
+                    <button class="kql-copy-button" onclick="copyKQL(event, 'ip_198_51_100_20')" title="Copy IP Investigation KQL Query" style="margin-left: 2px; padding: 0 2px; font-size: 12px;">📋</button>
+                </div>
+            </div>
+            <div class="ip-info">
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Location:</span>
+                        <span class="value">Comox, CA</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="label">Sign-ins:</span>
+                        <span class="value" style="color: #7cbb00;">✓ 2238</span>
+                        <span class="value" style="color: #dc3545;">✗ 0</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">First Seen:</span>
+                        <span class="value">2025-12-03</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Last Seen:</span>
+                        <span class="value">2025-12-06</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Type:</span>
+                        <span class="value" style="color: #7cbb00;">🏠 Residential ISP</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Recent Auth:</span>
+                        <span style="background: #00b7c3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">🎫 Token</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1;">
+                    
+            <details style="width: 100%; margin-top: 8px;">
+                <summary style="cursor: pointer; user-select: none;">🔍 Details</summary>
+                <div class="threat-intel-content">
+                    <div class="threat-row">
+                        <span class="label">Organization:</span>
+                        <span class="value">AS852 TELUS Communications Inc.</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">ASN:</span>
+                        <span class="value">AS852</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">IP Type:</span>
+                        <span class="value" style="color: #7cbb00; font-weight: bold;">🏠 Residential ISP | <span style="color: #7cbb00; font-weight: bold;">✓ Clean</span></span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">Threat Match:</span>
+                        <span class="value" style="color: #7cbb00;">✓ None found</span>
+                    </div>
+                </div>
+            </details>
+            
+                </div>
+            </div>
+        </div>
+        
+        <div class="ip-card medium-risk anomaly-card" data-page="2" data-category="4" data-risk="3" data-last-seen="2025-11-20 00:00:00" style="display: none;">
+            <div class="ip-header">
+                <div class="ip-address">138.199.29.228</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-medium">Medium</span>
+                    <button class="kql-copy-button" onclick="copyKQL(event, 'ip_138_199_29_228')" title="Copy IP Investigation KQL Query" style="margin-left: 2px; padding: 0 2px; font-size: 12px;">📋</button>
+                </div>
+            </div>
+            <div class="ip-info">
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Location:</span>
+                        <span class="value">London, GB</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="label">Sign-ins:</span>
+                        <span class="value" style="color: #7cbb00;">✓ 16</span>
+                        <span class="value" style="color: #dc3545;">✗ 1</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">First Seen:</span>
+                        <span class="value">2025-11-20</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Last Seen:</span>
+                        <span class="value">2025-11-20</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Type:</span>
+                        <span class="value" style="color: #b0b0b0;">🌐 ISP | <span style='color: #ffc107; font-weight: bold;'>🔒 VPN</span></span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Recent Auth:</span>
+                        <span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">🔒 MFA</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1;">
+                    
+            <details style="width: 100%; margin-top: 8px;">
+                <summary style="cursor: pointer; user-select: none;">🔍 Details</summary>
+                <div class="threat-intel-content">
+                    <div class="threat-row">
+                        <span class="label">Organization:</span>
+                        <span class="value">AS212238 Datacamp Limited</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">ASN:</span>
+                        <span class="value">AS212238</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">IP Type:</span>
+                        <span class="value" style="color: #b0b0b0; font-weight: bold;">🌐 ISP | <span style='color: #ffc107; font-weight: bold;'>🔒 VPN</span> | <span style="color: #f65314; font-weight: bold;">⚠️ THREAT DETECTED</span></span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">Threat Match:</span>
+                        <span class="value" style="color: #ffc107;"><strong>AbuseIPDB:</strong> Medium Risk (40/100, 29 reports)</span>
+                    </div>
+                </div>
+            </details>
+            
+                </div>
+            </div>
+        </div>
+        
+        <div class="ip-card low-risk anomaly-card" data-page="2" data-category="4" data-risk="4" data-last-seen="2025-11-30 00:00:00" style="display: none;">
+            <div class="ip-header">
+                <div class="ip-address">198.51.100.10<span style="background: #007bff; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 6px;">PRIMARY</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-low">Low</span>
+                    <button class="kql-copy-button" onclick="copyKQL(event, 'ip_198_51_100_10')" title="Copy IP Investigation KQL Query" style="margin-left: 2px; padding: 0 2px; font-size: 12px;">📋</button>
+                </div>
+            </div>
+            <div class="ip-info">
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Location:</span>
+                        <span class="value">Vancouver, CA</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="label">Sign-ins:</span>
+                        <span class="value" style="color: #7cbb00;">✓ 13848</span>
+                        <span class="value" style="color: #dc3545;">✗ 32</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">First Seen:</span>
+                        <span class="value">2025-11-23</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Last Seen:</span>
+                        <span class="value">2025-11-30</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Type:</span>
+                        <span class="value" style="color: #7cbb00;">🏠 Residential ISP</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Recent Auth:</span>
+                        <span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">🔒 MFA</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1;">
+                    
+            <details style="width: 100%; margin-top: 8px;">
+                <summary style="cursor: pointer; user-select: none;">🔍 Details</summary>
+                <div class="threat-intel-content">
+                    <div class="threat-row">
+                        <span class="label">Organization:</span>
+                        <span class="value">AS852 TELUS Communications Inc.</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">ASN:</span>
+                        <span class="value">AS852</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">IP Type:</span>
+                        <span class="value" style="color: #7cbb00; font-weight: bold;">🏠 Residential ISP | <span style="color: #7cbb00; font-weight: bold;">✓ Clean</span></span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">Threat Match:</span>
+                        <span class="value" style="color: #7cbb00;">✓ None found</span>
+                    </div>
+                </div>
+            </details>
+            
+                </div>
+            </div>
+        </div>
+        
+        <div class="ip-card low-risk anomaly-card" data-page="2" data-category="4" data-risk="4" data-last-seen="2025-12-05 00:00:00" style="display: none;">
+            <div class="ip-header">
+                <div class="ip-address">20.236.10.66<span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 6px;">ACTIVE</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-low">Low</span>
+                    <button class="kql-copy-button" onclick="copyKQL(event, 'ip_20_236_10_66')" title="Copy IP Investigation KQL Query" style="margin-left: 2px; padding: 0 2px; font-size: 12px;">📋</button>
+                </div>
+            </div>
+            <div class="ip-info">
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Location:</span>
+                        <span class="value">Moses Lake, US</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="label">Sign-ins:</span>
+                        <span class="value" style="color: #7cbb00;">✓ 5477</span>
+                        <span class="value" style="color: #dc3545;">✗ 113</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">First Seen:</span>
+                        <span class="value">2025-10-16</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Last Seen:</span>
+                        <span class="value">2025-12-05</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Type:</span>
+                        <span class="value" style="color: #00a1f1;">☁️ Azure Cloud</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Recent Auth:</span>
+                        <span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">🔒 MFA</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1;">
+                    
+            <details style="width: 100%; margin-top: 8px;">
+                <summary style="cursor: pointer; user-select: none;">🔍 Details</summary>
+                <div class="threat-intel-content">
+                    <div class="threat-row">
+                        <span class="label">Organization:</span>
+                        <span class="value">AS8075 Microsoft Corporation</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">ASN:</span>
+                        <span class="value">AS8075</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">IP Type:</span>
+                        <span class="value" style="color: #00a1f1; font-weight: bold;">☁️ Azure Cloud | <span style="color: #7cbb00; font-weight: bold;">✓ Clean</span></span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">Threat Match:</span>
+                        <span class="value" style="color: #7cbb00;">✓ None found</span>
+                    </div>
+                </div>
+            </details>
+            
+                </div>
+            </div>
+        </div>
+        
+        <div class="ip-card low-risk anomaly-card" data-page="3" data-category="4" data-risk="4" data-last-seen="2025-11-23 00:00:00" style="display: none;">
+            <div class="ip-header">
+                <div class="ip-address">198.51.100.30</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-low">Low</span>
+                    <button class="kql-copy-button" onclick="copyKQL(event, 'ip_198_51_100_30')" title="Copy IP Investigation KQL Query" style="margin-left: 2px; padding: 0 2px; font-size: 12px;">📋</button>
+                </div>
+            </div>
+            <div class="ip-info">
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Location:</span>
+                        <span class="value">Vancouver, CA</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="label">Sign-ins:</span>
+                        <span class="value" style="color: #7cbb00;">✓ 4643</span>
+                        <span class="value" style="color: #dc3545;">✗ 295</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">First Seen:</span>
+                        <span class="value">2025-11-18</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Last Seen:</span>
+                        <span class="value">2025-11-23</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Type:</span>
+                        <span class="value" style="color: #7cbb00;">🏠 Residential ISP</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Recent Auth:</span>
+                        <span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">🔒 MFA</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1;">
+                    
+            <details style="width: 100%; margin-top: 8px;">
+                <summary style="cursor: pointer; user-select: none;">🔍 Details</summary>
+                <div class="threat-intel-content">
+                    <div class="threat-row">
+                        <span class="label">Organization:</span>
+                        <span class="value">AS852 TELUS Communications Inc.</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">ASN:</span>
+                        <span class="value">AS852</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">IP Type:</span>
+                        <span class="value" style="color: #7cbb00; font-weight: bold;">🏠 Residential ISP | <span style="color: #7cbb00; font-weight: bold;">✓ Clean</span></span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">Threat Match:</span>
+                        <span class="value" style="color: #7cbb00;">✓ None found</span>
+                    </div>
+                </div>
+            </details>
+            
+                </div>
+            </div>
+        </div>
+        
+        <div class="ip-card low-risk anomaly-card" data-page="3" data-category="4" data-risk="4" data-last-seen="2025-12-06 00:00:00" style="display: none;">
+            <div class="ip-header">
+                <div class="ip-address">198.51.100.50</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-low">Low</span>
+                    <button class="kql-copy-button" onclick="copyKQL(event, 'ip_198_51_100_50')" title="Copy IP Investigation KQL Query" style="margin-left: 2px; padding: 0 2px; font-size: 12px;">📋</button>
+                </div>
+            </div>
+            <div class="ip-info">
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Location:</span>
+                        <span class="value">Vancouver, CA</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="label">Sign-ins:</span>
+                        <span class="value" style="color: #7cbb00;">✓ 718</span>
+                        <span class="value" style="color: #dc3545;">✗ 0</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">First Seen:</span>
+                        <span class="value">2025-11-18</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Last Seen:</span>
+                        <span class="value">2025-12-06</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Type:</span>
+                        <span class="value" style="color: #7cbb00;">🏠 Residential ISP</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Recent Auth:</span>
+                        <span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">🔒 MFA</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1;">
+                    
+            <details style="width: 100%; margin-top: 8px;">
+                <summary style="cursor: pointer; user-select: none;">🔍 Details</summary>
+                <div class="threat-intel-content">
+                    <div class="threat-row">
+                        <span class="label">Organization:</span>
+                        <span class="value">AS852 TELUS Communications Inc.</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">ASN:</span>
+                        <span class="value">AS852</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">IP Type:</span>
+                        <span class="value" style="color: #7cbb00; font-weight: bold;">🏠 Residential ISP | <span style="color: #7cbb00; font-weight: bold;">✓ Clean</span></span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">Threat Match:</span>
+                        <span class="value" style="color: #7cbb00;">✓ None found</span>
+                    </div>
+                </div>
+            </details>
+            
+                </div>
+            </div>
+        </div>
+        
+        <div class="ip-card low-risk anomaly-card" data-page="3" data-category="4" data-risk="4" data-last-seen="2025-11-21 00:00:00" style="display: none;">
+            <div class="ip-header">
+                <div class="ip-address">20.120.96.152</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-low">Low</span>
+                    <button class="kql-copy-button" onclick="copyKQL(event, 'ip_20_120_96_152')" title="Copy IP Investigation KQL Query" style="margin-left: 2px; padding: 0 2px; font-size: 12px;">📋</button>
+                </div>
+            </div>
+            <div class="ip-info">
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Location:</span>
+                        <span class="value">Washington, US</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="label">Sign-ins:</span>
+                        <span class="value" style="color: #7cbb00;">✓ 2</span>
+                        <span class="value" style="color: #dc3545;">✗ 1</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">First Seen:</span>
+                        <span class="value">2025-11-21</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Last Seen:</span>
+                        <span class="value">2025-11-21</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Type:</span>
+                        <span class="value" style="color: #00a1f1;">☁️ Azure Cloud</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label">Recent Auth:</span>
+                        <span style="background: #f65314; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">❌ Failed</span>
+                    </div>
+                </div>
+                <div class="ip-info-item" style="grid-column: 1 / -1;">
+                    
+            <details style="width: 100%; margin-top: 8px;">
+                <summary style="cursor: pointer; user-select: none;">🔍 Details</summary>
+                <div class="threat-intel-content">
+                    <div class="threat-row">
+                        <span class="label">Organization:</span>
+                        <span class="value">AS8075 Microsoft Corporation</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">ASN:</span>
+                        <span class="value">AS8075</span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">IP Type:</span>
+                        <span class="value" style="color: #00a1f1; font-weight: bold;">☁️ Azure Cloud | <span style="color: #7cbb00; font-weight: bold;">✓ Clean</span></span>
+                    </div>
+                    <div class="threat-row">
+                        <span class="label">Threat Match:</span>
+                        <span class="value" style="color: #7cbb00;">✓ None found</span>
+                    </div>
+                </div>
+            </details>
+            
+                </div>
+            </div>
+        </div>
+        
+            </div>
+            
+            <div class="pagination-controls">
+                <button class="page-button" id="prevBtn" onclick="changeAnomalyPage(-1)" disabled>← Prev</button>
+                <span id="pageInfo" style="color: #b0b0b0;">Page <span id="currentPage">1</span> of 3</span>
+                <button class="page-button" id="nextBtn" onclick="changeAnomalyPage(1)">Next →</button>
+            </div>
+            
+        </div>
+        
+
+        <div class="section">
+            <h2>🚨 Recent Security Incidents<button class="kql-copy-button" onclick="copyKQL(event, 'incidents')" title="Copy KQL Query">📋</button><a href="https://security.microsoft.com/user?aad=[REDACTED-USER-ID]" target="_blank" style="color: #00a1f1; font-size: 0.75em; margin-left: 10px; text-decoration: none;" title="View user in Microsoft Defender XDR">🛡️</a></h2>
+            <table id="incidentsTable">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Severity</th>
+                        <th>ID</th>
+                        <th style="width: 45px; text-align: center;" title="Number of alerts in this incident">🔔</th>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th>Owner</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                <tr class="incident-row" data-page="1">
+                    <td>Dec 03 14:59</td>
+                    <td><span class="badge badge-low">Low</span></td>
+                    <td>2288</td>
+                    <td style="text-align: center; font-weight: bold; color: #00a1f1;">1</td>
+                    <td><a href="https://security.microsoft.com/incident2/2288/overview?tid=[REDACTED-TENANT-ID]" target="_blank" rel="noopener noreferrer" style="color: #00a1f1;">Privileged User Logon from new ASN involving one user</a></td>
+                    <td><span class="badge badge-info">Closed</span></td>
+                    <td>analyst1@contoso.com</td>
+                </tr>
+            
+                <tr class="incident-row" data-page="1">
+                    <td>Nov 29 14:59</td>
+                    <td><span class="badge badge-critical">High</span></td>
+                    <td>2281</td>
+                    <td style="text-align: center; font-weight: bold; color: #00a1f1;">1</td>
+                    <td><a href="https://security.microsoft.com/incident2/2281/overview?tid=[REDACTED-TENANT-ID]" target="_blank" rel="noopener noreferrer" style="color: #00a1f1;">Privileged User Logon from new ASN involving one user</a></td>
+                    <td><span class="badge badge-info">Closed</span></td>
+                    <td>john.smith@contoso.com</td>
+                </tr>
+            
+                <tr class="incident-row" data-page="1">
+                    <td>Nov 29 16:01</td>
+                    <td><span class="badge badge-critical">High</span></td>
+                    <td>2283</td>
+                    <td style="text-align: center; font-weight: bold; color: #00a1f1;">1</td>
+                    <td><a href="https://security.microsoft.com/incident2/2283/overview?tid=[REDACTED-TENANT-ID]" target="_blank" rel="noopener noreferrer" style="color: #00a1f1;">Rare RDP Connections</a></td>
+                    <td><span class="badge badge-info">Closed</span></td>
+                    <td>john.smith@contoso.com</td>
+                </tr>
+            
+                <tr class="incident-row" data-page="1">
+                    <td>Nov 29 16:34</td>
+                    <td><span class="badge badge-critical">High</span></td>
+                    <td>2284</td>
+                    <td style="text-align: center; font-weight: bold; color: #00a1f1;">1</td>
+                    <td><a href="https://security.microsoft.com/incident2/2284/overview?tid=[REDACTED-TENANT-ID]" target="_blank" rel="noopener noreferrer" style="color: #00a1f1;">RDP Nesting</a></td>
+                    <td><span class="badge badge-info">Closed</span></td>
+                    <td>analyst2@contoso.com</td>
+                </tr>
+            
+                <tr class="incident-row" data-page="2" style="display: none;">
+                    <td>Nov 29 01:03</td>
+                    <td><span class="badge badge-critical">High</span></td>
+                    <td>2279</td>
+                    <td style="text-align: center; font-weight: bold; color: #00a1f1;">2</td>
+                    <td><a href="https://security.microsoft.com/incident2/2279/overview?tid=[REDACTED-TENANT-ID]" target="_blank" rel="noopener noreferrer" style="color: #00a1f1;">Defense evasion incident on one endpoint</a></td>
+                    <td><span class="badge badge-info">Closed</span></td>
+                    <td>analyst1@contoso.com</td>
+                </tr>
+            
+                <tr class="incident-row" data-page="2" style="display: none;">
+                    <td>Nov 28 20:09</td>
+                    <td><span class="badge badge-medium">Medium</span></td>
+                    <td>2278</td>
+                    <td style="text-align: center; font-weight: bold; color: #00a1f1;">1</td>
+                    <td><a href="https://security.microsoft.com/incident2/2278/overview?tid=[REDACTED-TENANT-ID]" target="_blank" rel="noopener noreferrer" style="color: #00a1f1;">Authentications of Privileged Accounts Outside of Expected Controls</a></td>
+                    <td><span class="badge badge-info">Closed</span></td>
+                    <td>analyst3@contoso.com</td>
+                </tr>
+            
+                <tr class="incident-row" data-page="2" style="display: none;">
+                    <td>Nov 26 18:21</td>
+                    <td><span class="badge badge-medium">Medium</span></td>
+                    <td>2272</td>
+                    <td style="text-align: center; font-weight: bold; color: #00a1f1;">1</td>
+                    <td><a href="https://security.microsoft.com/incident2/2272/overview?tid=[REDACTED-TENANT-ID]" target="_blank" rel="noopener noreferrer" style="color: #00a1f1;">DLP policy (Endpoint DLP) matched for document (sample-data.pdf)</a></td>
+                    <td><span class="badge badge-info">Closed</span></td>
+                    <td>analyst3@contoso.com</td>
+                </tr>
+            
+                <tr class="incident-row" data-page="2" style="display: none;">
+                    <td>Nov 22 19:21</td>
+                    <td><span class="badge badge-critical">High</span></td>
+                    <td>2262</td>
+                    <td style="text-align: center; font-weight: bold; color: #00a1f1;">1</td>
+                    <td><a href="https://security.microsoft.com/incident2/2262/overview?tid=[REDACTED-TENANT-ID]" target="_blank" rel="noopener noreferrer" style="color: #00a1f1;">Device Code Authentication Flow Detected involving one user</a></td>
+                    <td><span class="badge badge-info">Closed</span></td>
+                    <td>john.smith@contoso.com</td>
+                </tr>
+            
+                <tr class="incident-row" data-page="3" style="display: none;">
+                    <td>Nov 26 20:59</td>
+                    <td><span class="badge badge-medium">Medium</span></td>
+                    <td>2273</td>
+                    <td style="text-align: center; font-weight: bold; color: #00a1f1;">3</td>
+                    <td><a href="https://security.microsoft.com/incident2/2273/overview?tid=[REDACTED-TENANT-ID]" target="_blank" rel="noopener noreferrer" style="color: #00a1f1;">File containing PII / PCI / PHI detected in the cloud (built-in DLP engine)</a></td>
+                    <td><span class="badge badge-info">Closed</span></td>
+                    <td>analyst1@contoso.com</td>
+                </tr>
+            
+                <tr class="incident-row" data-page="3" style="display: none;">
+                    <td>Nov 25 20:10</td>
+                    <td><span class="badge badge-medium">Medium</span></td>
+                    <td>2270</td>
+                    <td style="text-align: center; font-weight: bold; color: #00a1f1;">1</td>
+                    <td><a href="https://security.microsoft.com/incident2/2270/overview?tid=[REDACTED-TENANT-ID]" target="_blank" rel="noopener noreferrer" style="color: #00a1f1;">Authentications of Privileged Accounts Outside of Expected Controls</a></td>
+                    <td><span class="badge badge-info">Closed</span></td>
+                    <td>john.smith@contoso.com</td>
+                </tr>
+            
+                </tbody>
+            </table>
+            
+            <div class="pagination-controls">
+                <button class="page-button" id="incPrevBtn" onclick="changeIncidentPage(-1)" disabled>← Prev</button>
+                <span id="incPageInfo" style="color: #b0b0b0;">Page <span id="incCurrentPage">1</span> of 3</span>
+                <button class="page-button" id="incNextBtn" onclick="changeIncidentPage(1)">Next →</button>
+            </div>
+            
+        </div>
+        
+
+        <div class="section">
+            <h2>📈 Common Office 365 Activity<button class="kql-copy-button" onclick="copyKQL(event, 'activity_summary')" title="Copy KQL Query">📋</button></h2>
+            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 8px;">
+                
+                <div style="background: #2a2a2a; padding: 10px; border-radius: 4px; text-align: center;">
+                    <div style="font-size: 1.5em; font-weight: bold; color: #7cbb00;">292</div>
+                    <div style="font-size: 0.85em; color: #b0b0b0;">Emails Accessed</div>
+                </div>
+            
+                <div style="background: #2a2a2a; padding: 10px; border-radius: 4px; text-align: center;">
+                    <div style="font-size: 1.5em; font-weight: bold; color: #7cbb00;">229</div>
+                    <div style="font-size: 0.85em; color: #b0b0b0;">Teams Messages</div>
+                </div>
+            
+                <div style="background: #2a2a2a; padding: 10px; border-radius: 4px; text-align: center;">
+                    <div style="font-size: 1.5em; font-weight: bold; color: #7cbb00;">192</div>
+                    <div style="font-size: 0.85em; color: #b0b0b0;">Teams Card Actions</div>
+                </div>
+            
+                <div style="background: #2a2a2a; padding: 10px; border-radius: 4px; text-align: center;">
+                    <div style="font-size: 1.5em; font-weight: bold; color: #7cbb00;">150</div>
+                    <div style="font-size: 0.85em; color: #b0b0b0;">Emails Sent</div>
+                </div>
+            
+                <div style="background: #2a2a2a; padding: 10px; border-radius: 4px; text-align: center;">
+                    <div style="font-size: 1.5em; font-weight: bold; color: #7cbb00;">71</div>
+                    <div style="font-size: 0.85em; color: #b0b0b0;">SharePoint Access</div>
+                </div>
+            
+            </div>
+        </div>
+        
+
+        <div class="section">
+            <h2>📤 Recent DLP Events<button class="kql-copy-button" onclick="copyKQL(event, 'dlp')" title="Copy KQL Query">📋</button></h2>
+            <table>
+                <tr>
+                    <th style="width: 100px;">Time</th>
+                    <th style="width: 130px;">Operation</th>
+                    <th style="width: 180px;">File</th>
+                    <th style="width: 200px;">Target</th>
+                    <th style="width: 120px;">IP Address</th>
+                </tr>
+                
+                <tr>
+                    <td>Nov 26 18:19</td>
+                    <td><span class="badge badge-critical">Network Share</span></td>
+                    <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="C:\Users\jsmith\Contoso\SecOPS - General\Sensitive Content\1-MB-Test-2.docx">1-MB-Test-2.docx</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="\\10.0.0.50\Share\Temp\sample-data.pdf">\\10.0.0.50\Share\Temp\sample-data.pdf</td>
+                    <td>198.51.100.10</td>
+                </tr>
+            
+                <tr>
+                    <td>Nov 26 18:19</td>
+                    <td><span class="badge badge-critical">Network Share</span></td>
+                    <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="C:\Users\jsmith\Contoso\SecOPS - General\Sensitive Content\1-MB-Test-2.docx">1-MB-Test-2.docx</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="\\10.0.0.50\Share\Temp\1-MB-Test-2.docx">\\10.0.0.50\Share\Temp\1-MB-Test-2.docx</td>
+                    <td>198.51.100.10</td>
+                </tr>
+            
+                <tr>
+                    <td>Nov 26 18:19</td>
+                    <td><span class="badge badge-critical">Network Share</span></td>
+                    <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="C:\Users\jsmith\Contoso\SecOPS - General\Sensitive Content\sample-data.csv">sample-data.csv</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="\\10.0.0.50\Share\Temp\sample-data.csv">\\10.0.0.50\Share\Temp\sample-data.csv</td>
+                    <td>198.51.100.10</td>
+                </tr>
+            
+                <tr>
+                    <td>Nov 26 18:19</td>
+                    <td><span class="badge badge-critical">Network Share</span></td>
+                    <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="C:\Users\jsmith\Contoso\SecOPS - General\Sensitive Content\sample-data.pdf">sample-data.pdf</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="\\10.0.0.50\Share\Temp\sample-data.pdf">\\10.0.0.50\Share\Temp\sample-data.pdf</td>
+                    <td>198.51.100.10</td>
+                </tr>
+            
+                <tr>
+                    <td>Nov 26 18:03</td>
+                    <td><span class="badge badge-high">Cloud Upload</span></td>
+                    <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="C:\Users\jsmith\OneDrive - Contoso\Desktop\1-MB-Test.docx">1-MB-Test.docx</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="chatgpt.com">chatgpt.com</td>
+                    <td>198.51.100.10</td>
+                </tr>
+            
+            </table>
+        </div>
+        
+
+        <div class="section">
+            <h2>🔒 Recent Sign-in Failures<button class="kql-copy-button" onclick="copyKQL(event, 'signin_failures')" title="Copy KQL Query">📋</button></h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Error</th>
+                        <th>Description</th>
+                        <th style="text-align: center;">Count</th>
+                        <th>Applications</th>
+                        <th>Locations</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                <tr>
+                    <td>53000</td>
+                    <td style="white-space: normal; word-wrap: break-word;">Conditional Access policy requires a compliant device, and the device is not compliant. Have the ...</td>
+                    <td style="text-align: center;"><strong>277</strong></td>
+                    <td style="font-size: 0.85em;">Visual Studio Code, Microsoft Edge</td>
+                    <td style="font-size: 0.85em;">CA, US</td>
+                </tr>
+            
+                <tr>
+                    <td>65002</td>
+                    <td style="white-space: normal; word-wrap: break-word;">Other</td>
+                    <td style="text-align: center;"><strong>79</strong></td>
+                    <td style="font-size: 0.85em;">Visual Studio Code, Enterprise Dashboard Project, Windows Search</td>
+                    <td style="font-size: 0.85em;">US, CA</td>
+                </tr>
+            
+                <tr>
+                    <td>700003</td>
+                    <td style="white-space: normal; word-wrap: break-word;">Other</td>
+                    <td style="text-align: center;"><strong>23</strong></td>
+                    <td style="font-size: 0.85em;">Microsoft 365 Copilot extension, Azure Portal, Office365 Shell WCSS-Client</td>
+                    <td style="font-size: 0.85em;">CA, US</td>
+                </tr>
+            
+                <tr>
+                    <td>700084</td>
+                    <td style="white-space: normal; word-wrap: break-word;">The refresh token was issued to a single page app (SPA), and therefore has a fixed, limited lifet...</td>
+                    <td style="text-align: center;"><strong>17</strong></td>
+                    <td style="font-size: 0.85em;">Office365 Shell WCSS-Client, Security Copilot Portal, Microsoft Docs</td>
+                    <td style="font-size: 0.85em;">CA, US</td>
+                </tr>
+            
+                <tr>
+                    <td>50074</td>
+                    <td style="white-space: normal; word-wrap: break-word;">Strong Authentication is required.</td>
+                    <td style="text-align: center;"><strong>16</strong></td>
+                    <td style="font-size: 0.85em;">Azure Portal, Visual Studio Code, Microsoft Sentinel CLI</td>
+                    <td style="font-size: 0.85em;">CA, US</td>
+                </tr>
+            
+                </tbody>
+            </table>
+        </div>
+        
+
+            <div class="section">
+                <h2>📋 Recent Azure AD Audit Log Activity<button class="kql-copy-button" onclick="copyKQL(event, 'audit')" title="Copy KQL Query">📋</button></h2>
+                <table style="margin-top: 8px;">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th style="text-align: center;">Count</th>
+                            <th style="text-align: center;">Result</th>
+                            <th>Operations</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                    <tr class="audit-row" data-page="1" style=" background: rgba(246, 83, 20, 0.1);">
+                        <td><span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">ApplicationManagement</span></td>
+                        <td style="text-align: center;"><strong>38</strong></td>
+                        <td style="text-align: center;"><span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">success</span></td>
+                        <td style="font-size: 0.85em; white-space: normal; word-wrap: break-word;"><span style="color: #f65314; font-weight: 500;">🔐 Add delegated permission grant</span>, <span style="color: #f65314; font-weight: 500;">🔐 Remove delegated permission grant</span>, <span style="color: #f65314; font-weight: 500;">🔐 Consent to application</span>, Add service principal, Update service principal, Update application, <span style="color: #f65314; font-weight: 500;">🔐 Create application – Certificates and secrets management </span>, Add application, <span style="color: #f65314; font-weight: 500;">🔐 Add app role assignment to service principal</span>, <span style="color: #f65314; font-weight: 500;">🔐 Remove app role assignment from service principal</span></td>
+                    </tr>
+                
+                    <tr class="audit-row" data-page="1" style=" ">
+                        <td><span style="background: #737373; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">GroupManagement</span></td>
+                        <td style="text-align: center;"><strong>30</strong></td>
+                        <td style="text-align: center;"><span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">success</span></td>
+                        <td style="font-size: 0.85em; white-space: normal; word-wrap: break-word;">Features_GetFeaturesAsync, Settings_GetSettingsAsync, Group_GetDynamicGroupProperties, GroupsODataV4_Get, Add group, Add member to group</td>
+                    </tr>
+                
+                    <tr class="audit-row" data-page="1" style=" ">
+                        <td><span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">ApplicationManagement</span></td>
+                        <td style="text-align: center;"><strong>11</strong></td>
+                        <td style="text-align: center;"><span style="background: #f65314; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">failure</span></td>
+                        <td style="font-size: 0.85em; white-space: normal; word-wrap: break-word;">Add application</td>
+                    </tr>
+                
+                    <tr class="audit-row" data-page="1" style=" ">
+                        <td><span style="background: #737373; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">Authentication</span></td>
+                        <td style="text-align: center;"><strong>11</strong></td>
+                        <td style="text-align: center;"><span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">success</span></td>
+                        <td style="font-size: 0.85em; white-space: normal; word-wrap: break-word;">Validate user authentication</td>
+                    </tr>
+                
+                    <tr class="audit-row" data-page="1" style=" background: rgba(246, 83, 20, 0.1);">
+                        <td><span style="background: #ffbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">Policy</span></td>
+                        <td style="text-align: center;"><strong>9</strong></td>
+                        <td style="text-align: center;"><span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">success</span></td>
+                        <td style="font-size: 0.85em; white-space: normal; word-wrap: break-word;"><span style="color: #f65314; font-weight: 500;">🔐 Update policy</span>, <span style="color: #f65314; font-weight: 500;">🔐 Update conditional access policy</span></td>
+                    </tr>
+                
+                    <tr class="audit-row" data-page="2" style="display: none; background: rgba(246, 83, 20, 0.1);">
+                        <td><span style="background: #00a1f1; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">UserManagement</span></td>
+                        <td style="text-align: center;"><strong>9</strong></td>
+                        <td style="text-align: center;"><span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">success</span></td>
+                        <td style="font-size: 0.85em; white-space: normal; word-wrap: break-word;"><span style="color: #f65314; font-weight: 500;">🔐 Add app role assignment grant to user</span>, <span style="color: #f65314; font-weight: 500;">🔐 Update PasswordProfile</span>, Update user, <span style="color: #f65314; font-weight: 500;">🔐 Reset user password</span>, Update StsRefreshTokenValidFrom Timestamp, <span style="color: #f65314; font-weight: 500;">🔐 Admin registered security info</span></td>
+                    </tr>
+                
+                    <tr class="audit-row" data-page="2" style="display: none; ">
+                        <td><span style="background: #737373; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">Other</span></td>
+                        <td style="text-align: center;"><strong>8</strong></td>
+                        <td style="text-align: center;"><span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">success</span></td>
+                        <td style="font-size: 0.85em; white-space: normal; word-wrap: break-word;">ConfirmSafe, DismissRisk</td>
+                    </tr>
+                
+                    <tr class="audit-row" data-page="2" style="display: none; background: rgba(246, 83, 20, 0.1);">
+                        <td><span style="background: #737373; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">DirectoryManagement</span></td>
+                        <td style="text-align: center;"><strong>3</strong></td>
+                        <td style="text-align: center;"><span style="background: #7cbb00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em;">success</span></td>
+                        <td style="font-size: 0.85em; white-space: normal; word-wrap: break-word;"><span style="color: #f65314; font-weight: 500;">🔐 Validate Password</span></td>
+                    </tr>
+                
+                    </tbody>
+                </table>
+                
+                <div class="pagination-controls">
+                    <button class="page-button" id="auditPrevBtn" onclick="changeAuditPage(-1)" disabled>← Prev</button>
+                    <span id="auditPageInfo" style="color: #b0b0b0;">Page <span id="auditCurrentPage">1</span> of 3</span>
+                    <button class="page-button" id="auditNextBtn" onclick="changeAuditPage(1)">Next →</button>
+                </div>
+                
+            </div>
+            
+            </div>
+        </div>
+        
+        <div style="padding: 10px;">
+            <div class="section">
+                <h2>💡 Recommendations</h2>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div>
+                        <h3 style="color: #f65314; font-size: 1em; margin-bottom: 6px;">Critical (Immediate)</h3>
+                        <ul style="font-size: 0.85em;">
+                            <li>1. Investigate DLP events: 5 sensitive file operations detected (network share + chatgpt.com upload)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 style="color: #ffbb00; font-size: 1em; margin-bottom: 6px;">High Priority (24 hours)</h3>
+                        <ul style="font-size: 0.85em;">
+                            <li>2. Review geographic anomalies: Verify VPN usage for BR, HK, IE sign-ins</li><li>3. Address device compliance: Fix non-compliant devices (277 failures)</li><li>4. Investigate risky sign-ins: 2 at-risk sign-ins from 1 IP</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 style="color: #00a1f1; font-size: 1em; margin-bottom: 6px;">Monitoring (14 days)</h3>
+                        <ul style="font-size: 0.85em;">
+                            <li>Monitor for additional DLP events</li><li>Track VPN/proxy usage patterns</li><li>Monitor threat intelligence feeds for new indicators</li><li>Watch for sign-ins during unusual hours</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong style="color: #f65314;">⚠️ CONFIDENTIAL</strong> - Security Investigation Report | Generated: 2025-12-14 | 
+            Investigation Period: 2025-10-04 to 2025-12-05
+        </div>
+    </div>
+    
+        <div id="timelineModal" class="timeline-modal">
+            <div class="timeline-modal-content">
+                <span class="timeline-close" onclick="closeTimeline()">&times;</span>
+                <h2 style="color: #00a1f1; margin-bottom: 20px;">📅 Investigation Timeline</h2>
+                <div class="timeline">
+                    
+                    <div class="timeline-date-separator">
+                        <div class="timeline-date-label">2025-12-03</div>
+                    </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🚨</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">08:00 PST</div>
+                        <div class="timeline-title">Sign-in Anomaly</div>
+                        <div class="timeline-details">NewInteractiveIP: 198.51.100.20 from Comox, CA <span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker low">
+                        <span class="timeline-icon">🛡️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">06:59 PST</div>
+                        <div class="timeline-title">Security Incident: Privileged User Logon from new ASN involving one user</div>
+                        <div class="timeline-details">Status: Closed | Severity: Low</div>
+                    </div>
+                </div>
+            
+                    <div class="timeline-date-separator">
+                        <div class="timeline-date-label">2025-12-02</div>
+                    </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🚨</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">14:00 PST</div>
+                        <div class="timeline-title">Sign-in Anomaly</div>
+                        <div class="timeline-details">NewInteractiveIP: 198.51.100.60 from Santa Clara, US <span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🚨</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">09:00 PST</div>
+                        <div class="timeline-title">Sign-in Anomaly</div>
+                        <div class="timeline-details">NewNonInteractiveIP: 203.0.113.60 from San Jose, US <span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🚨</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">09:00 PST</div>
+                        <div class="timeline-title">Sign-in Anomaly</div>
+                        <div class="timeline-details">NewInteractiveIP: 203.0.113.60 from San Jose, US <span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                    <div class="timeline-date-separator">
+                        <div class="timeline-date-label">2025-11-29</div>
+                    </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-marker high">
+                        <span class="timeline-icon">🛡️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">08:34 PST</div>
+                        <div class="timeline-title">Security Incident: RDP Nesting</div>
+                        <div class="timeline-details">Status: Closed | Severity: High</div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker high">
+                        <span class="timeline-icon">🛡️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">08:01 PST</div>
+                        <div class="timeline-title">Security Incident: Rare RDP Connections</div>
+                        <div class="timeline-details">Status: Closed | Severity: High</div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker high">
+                        <span class="timeline-icon">🛡️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">06:59 PST</div>
+                        <div class="timeline-title">Security Incident: Privileged User Logon from new ASN involving one user</div>
+                        <div class="timeline-details">Status: Closed | Severity: High</div>
+                    </div>
+                </div>
+            
+                    <div class="timeline-date-separator">
+                        <div class="timeline-date-label">2025-11-28</div>
+                    </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-marker high">
+                        <span class="timeline-icon">🛡️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">17:03 PST</div>
+                        <div class="timeline-title">Security Incident: Defense evasion incident on one endpoint</div>
+                        <div class="timeline-details">Status: Closed | Severity: High</div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🛡️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">12:09 PST</div>
+                        <div class="timeline-title">Security Incident: Authentications of Privileged Accounts Outside of Expected Controls involving one user</div>
+                        <div class="timeline-details">Status: Closed | Severity: Medium</div>
+                    </div>
+                </div>
+            
+                    <div class="timeline-date-separator">
+                        <div class="timeline-date-label">2025-11-26</div>
+                    </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🛡️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">12:59 PST</div>
+                        <div class="timeline-title">Security Incident: File containing PII / PCI / PHI detected in the cloud (built-in DLP engine) involving one user</div>
+                        <div class="timeline-details">Status: Closed | Severity: Medium</div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🛡️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">10:21 PST</div>
+                        <div class="timeline-title">Security Incident: DLP policy (Endpoint DLP) matched for document (sample-data.pdf) in a device</div>
+                        <div class="timeline-details">Status: Closed | Severity: Medium</div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker high">
+                        <span class="timeline-icon">📁</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">10:19 PST</div>
+                        <div class="timeline-title">DLP Events (4 files)</div>
+                        <div class="timeline-details">FileCopiedToNetworkShare - 1-MB-Test-2.docx <span style="background: #007bff; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">PRIMARY</span>, 1-MB-Test-2.docx <span style="background: #007bff; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">PRIMARY</span>, sample-data.csv <span style="background: #007bff; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">PRIMARY</span>... | Device IP: 198.51.100.10</div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker high">
+                        <span class="timeline-icon">📁</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">10:03 PST</div>
+                        <div class="timeline-title">DLP Event</div>
+                        <div class="timeline-details">FileUploadedToCloud - 1-MB-Test.docx <span style="background: #007bff; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">PRIMARY</span> | Device IP: 198.51.100.10</div>
+                    </div>
+                </div>
+            
+                    <div class="timeline-date-separator">
+                        <div class="timeline-date-label">2025-11-25</div>
+                    </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🚨</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">17:00 PST</div>
+                        <div class="timeline-title">Sign-in Anomaly</div>
+                        <div class="timeline-details">NewNonInteractiveIP: 146.70.130.174 from Dublin, IE <span style="background: #ff7f00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span><span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🚨</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">17:00 PST</div>
+                        <div class="timeline-title">Sign-in Anomaly</div>
+                        <div class="timeline-details">NewInteractiveIP: 146.70.130.174 from Dublin, IE <span style="background: #ff7f00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span><span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">⚠️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">16:27 PST</div>
+                        <div class="timeline-title">Identity Protection: anonymizedIPAddress</div>
+                        <div class="timeline-details">Dublin, IE (146.70.130.174) - remediated <span style="background: #ff7f00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span><span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker low">
+                        <span class="timeline-icon">⚠️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">16:27 PST</div>
+                        <div class="timeline-title">Identity Protection: anonymizedIPAddress</div>
+                        <div class="timeline-details">Dublin, IE (146.70.130.174) - remediated <span style="background: #ff7f00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span><span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🛡️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">12:10 PST</div>
+                        <div class="timeline-title">Security Incident: Authentications of Privileged Accounts Outside of Expected Controls involving one user</div>
+                        <div class="timeline-details">Status: Closed | Severity: Medium</div>
+                    </div>
+                </div>
+            
+                    <div class="timeline-date-separator">
+                        <div class="timeline-date-label">2025-11-24</div>
+                    </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-marker low">
+                        <span class="timeline-icon">⚠️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">23:24 PST</div>
+                        <div class="timeline-title">Identity Protection: anomalousToken</div>
+                        <div class="timeline-details">Shek Kip Mei, HK (146.70.9.214) - atRisk <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">🚨 THREAT</span><span style="background: #ff7f00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span><span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🚨</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">14:00 PST</div>
+                        <div class="timeline-title">Sign-in Anomaly</div>
+                        <div class="timeline-details">NewInteractiveIP: 146.70.9.214 from Shek Kip Mei, HK <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">🚨 THREAT</span><span style="background: #ff7f00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span><span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🚨</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">14:00 PST</div>
+                        <div class="timeline-title">Sign-in Anomaly</div>
+                        <div class="timeline-details">NewNonInteractiveIP: 146.70.9.214 from Shek Kip Mei, HK <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">🚨 THREAT</span><span style="background: #ff7f00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span><span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">⚠️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">13:20 PST</div>
+                        <div class="timeline-title">Identity Protection: anonymizedIPAddress</div>
+                        <div class="timeline-details">Shek Kip Mei, HK (146.70.9.214) - remediated <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">🚨 THREAT</span><span style="background: #ff7f00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span><span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">⚠️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">13:20 PST</div>
+                        <div class="timeline-title">Identity Protection: anonymizedIPAddress</div>
+                        <div class="timeline-details">Shek Kip Mei, HK (146.70.9.214) - remediated <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">🚨 THREAT</span><span style="background: #ff7f00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span><span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                    <div class="timeline-date-separator">
+                        <div class="timeline-date-label">2025-11-23</div>
+                    </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🚨</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">08:30 PST</div>
+                        <div class="timeline-title">Sign-in Anomaly</div>
+                        <div class="timeline-details">NewNonInteractiveIP: 198.51.100.40 from Comox, CA <span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🚨</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">08:30 PST</div>
+                        <div class="timeline-title">Sign-in Anomaly</div>
+                        <div class="timeline-details">NewNonInteractiveIP: 193.19.205.125 from Sao Paulo, BR <span style="background: #ffc107; color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">ANOMALY</span></div>
+                    </div>
+                </div>
+            
+                    <div class="timeline-date-separator">
+                        <div class="timeline-date-label">2025-11-22</div>
+                    </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-marker high">
+                        <span class="timeline-icon">🛡️</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">11:21 PST</div>
+                        <div class="timeline-title">Security Incident: Device Code Authentication Flow Detected involving one user</div>
+                        <div class="timeline-details">Status: Closed | Severity: High</div>
+                    </div>
+                </div>
+            
+                    <div class="timeline-date-separator">
+                        <div class="timeline-date-label">2025-11-18</div>
+                    </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🔐</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">15:00 PST</div>
+                        <div class="timeline-title">Risky Sign-in: Azure Portal</div>
+                        <div class="timeline-details">Vancouver, CA (149.22.81.146) - atRisk <span style="background: #ff7f00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span></div>
+                    </div>
+                </div>
+            
+                <div class="timeline-item">
+                    <div class="timeline-marker medium">
+                        <span class="timeline-icon">🔐</span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">15:00 PST</div>
+                        <div class="timeline-title">Risky Sign-in: Azure Portal</div>
+                        <div class="timeline-details">Vancouver, CA (149.22.81.146) - atRisk <span style="background: #ff7f00; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 4px;">⚠️ RISKY</span></div>
+                    </div>
+                </div>
+            
+                </div>
+            </div>
+        </div>
+        
+    
+    <script>
+        const kqlQueries = {
+    "anomalies": "let start = datetime(2025-10-04);\nlet end = datetime(2025-12-05);\n// Get the most recent sign-in per IP with full event context\nlet most_recent_signins = union isfuzzy=true SigninLogs, AADNonInteractiveUserSignInLogs\n| where TimeGenerated between (start .. end)\n| where UserPrincipalName =~ 'jsmith@contoso.com'\n| summarize arg_max(TimeGenerated, *) by IPAddress;\n// Expand authentication details for the most recent sign-in per IP\nmost_recent_signins\n| extend AuthDetails = parse_json(AuthenticationDetails)\n| extend HasAuthDetails = array_length(AuthDetails) > 0\n| extend AuthDetailsToExpand = iif(HasAuthDetails, AuthDetails, dynamic([{\"authenticationStepResultDetail\": \"\"}]))\n| mv-expand AuthDetailsToExpand\n| extend AuthStepResultDetail = tostring(AuthDetailsToExpand.authenticationStepResultDetail)\n| extend AuthPriority = case(\n    AuthStepResultDetail has \"MFA requirement satisfied\", 1,\n    AuthStepResultDetail has \"Correct password\", 2,\n    AuthStepResultDetail has \"Passkey\", 2,\n    AuthStepResultDetail has \"Phone sign-in\", 2,\n    AuthStepResultDetail has \"SMS verification\", 2,\n    AuthStepResultDetail has \"First factor requirement satisfied\", 3,\n    AuthStepResultDetail has \"MFA required\", 4,\n    999)\n| summarize \n    MostRecentTime = any(TimeGenerated),\n    MostRecentResultType = any(ResultType),\n    HasAuthDetails = any(HasAuthDetails),\n    MinPriority = min(AuthPriority),\n    AllAuthDetails = make_set(AuthStepResultDetail)\n    by IPAddress\n| extend LastAuthResultDetail = case(\n    MostRecentResultType != \"0\", \"Authentication failed\",  // Failure takes priority over auth details\n    not(HasAuthDetails) and MostRecentResultType == \"0\", \"Token\",  // Non-interactive token-based auth\n    MinPriority == 1 and AllAuthDetails has \"MFA requirement satisfied\", \"MFA requirement satisfied by claim in the token\",  // Catches all MFA variants\n    MinPriority == 2 and AllAuthDetails has \"Correct password\", \"Correct password\",\n    MinPriority == 2 and AllAuthDetails has \"Passkey (device-bound)\", \"Passkey (device-bound)\",\n    MinPriority == 3 and AllAuthDetails has \"First factor requirement satisfied by claim in the token\", \"First factor requirement satisfied by claim in the token\",\n    MinPriority == 4 and AllAuthDetails has \"MFA required in Azure AD\", \"MFA required in Azure AD\",\n    tostring(AllAuthDetails[0]))\n// Join back to get aggregate sign-in counts across all time\n| join kind=inner (\n    union isfuzzy=true SigninLogs, AADNonInteractiveUserSignInLogs\n    | where TimeGenerated between (start .. end)\n    | where UserPrincipalName =~ 'jsmith@contoso.com'\n    | summarize \n        SignInCount = count(),\n        SuccessCount = countif(ResultType == '0'),\n        FailureCount = countif(ResultType != '0'),\n        FirstSeen = min(TimeGenerated),\n        LastSeen = max(TimeGenerated)\n        by IPAddress\n) on IPAddress\n| project IPAddress, SignInCount, SuccessCount, FailureCount, FirstSeen, LastSeen, LastAuthResultDetail\n| order by SignInCount desc",
+    "signin_failures": "let start = datetime(2025-10-04);\nlet end = datetime(2025-12-05);\nunion isfuzzy=true SigninLogs, AADNonInteractiveUserSignInLogs\n| where TimeGenerated between (start .. end)\n| where UserPrincipalName =~ 'jsmith@contoso.com'\n| where ResultType != '0'\n| summarize \n    FailureCount=count(),\n    FirstSeen=min(TimeGenerated),\n    LastSeen=max(TimeGenerated),\n    Applications=make_set(AppDisplayName),\n    Locations=make_set(Location)\n    by ResultType, ResultDescription\n| order by FailureCount desc",
+    "dlp": "let upn = 'jsmith@contoso.com';\nlet start = datetime(2025-10-04);\nlet end = datetime(2025-12-05);\nCloudAppEvents\n| where TimeGenerated between (start .. end)\n| where ActionType in (\"FileCopiedToRemovableMedia\", \"FileUploadedToCloud\", \"FileCopiedToNetworkShare\")\n| extend DlpAudit = parse_json(RawEventData)[\"DlpAuditEventMetadata\"]\n| extend File = parse_json(RawEventData)[\"ObjectId\"]\n| extend UserId = parse_json(RawEventData)[\"UserId\"]\n| extend DeviceName = parse_json(RawEventData)[\"DeviceName\"]\n| extend ClientIP = parse_json(RawEventData)[\"ClientIP\"]\n| extend RuleName = parse_json(RawEventData)[\"PolicyMatchInfo\"][\"RuleName\"]\n| extend Operation = parse_json(RawEventData)[\"Operation\"]\n| extend TargetDomain = parse_json(RawEventData)[\"TargetDomain\"]\n| extend TargetFilePath = parse_json(RawEventData)[\"TargetFilePath\"]\n| where isnotnull(DlpAudit)\n| where UserId == upn\n| summarize by TimeGenerated, tostring(UserId), tostring(DeviceName), tostring(ClientIP), tostring(RuleName), tostring(File), tostring(Operation), tostring(TargetDomain), tostring(TargetFilePath)\n| order by TimeGenerated desc",
+    "audit": "let start = datetime(2025-10-04);\nlet end = datetime(2025-12-05);\nAuditLogs\n| where TimeGenerated between (start .. end)\n| where Identity =~ 'jsmith@contoso.com' or tostring(InitiatedBy) has 'jsmith@contoso.com'\n| summarize \n    Count=count(),\n    FirstSeen=min(TimeGenerated),\n    LastSeen=max(TimeGenerated),\n    Operations=make_set(OperationName, 10)\n    by Category, Result\n| order by Count desc",
+    "incidents": "let targetUPN = \"jsmith@contoso.com\";\nlet targetUserId = \"[REDACTED-USER-ID]\";\nlet targetSid = \"S-1-5-21-1234567890-0987654321-1122334455-1103\";\nlet start = datetime(2025-10-04);\nlet end = datetime(2025-12-05);\nlet relevantAlerts = SecurityAlert\n| where TimeGenerated between (start .. end)\n| where Entities has targetUPN or Entities has targetUserId or Entities has targetSid\n| summarize arg_max(TimeGenerated, *) by SystemAlertId\n| project SystemAlertId, AlertName, AlertSeverity, ProviderName, Tactics;\nSecurityIncident\n| where CreatedTime between (start .. end)\n| summarize arg_max(TimeGenerated, *) by IncidentNumber\n| mv-expand AlertId = AlertIds\n| extend AlertId = tostring(AlertId)\n| join kind=inner relevantAlerts on $left.AlertId == $right.SystemAlertId\n| extend ProviderIncidentUrl = tostring(AdditionalData.providerIncidentUrl)\n| extend OwnerUPN = tostring(Owner.userPrincipalName)\n| project \n    IncidentNumber,\n    ProviderIncidentId,\n    Title,\n    Severity,\n    Status,\n    Classification,\n    CreatedTime,\n    OwnerUPN,\n    ProviderIncidentUrl,\n    AlertName,\n    AlertSeverity,\n    ProviderName,\n    Tactics\n| order by CreatedTime desc",
+    "activity_summary": "OfficeActivity\n| where TimeGenerated between (datetime(2025-10-04) .. datetime(2025-12-05))\n| where UserId =~ 'jsmith@contoso.com'\n| summarize ActivityCount = count() by RecordType, Operation\n| order by ActivityCount desc",
+    "ip_198_51_100_10": "// Activity from IP: 198.51.100.10 (Vancouver, CA)\n// Organization: AS852 TELUS Communications Inc.\n// Risk Level: LOW\nlet TargetIP = \"198.51.100.10\";\nlet TimeRange = 30d;\nunion isfuzzy=true\n    (SigninLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"SigninLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (AADNonInteractiveUserSignInLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AADNonInteractiveUserSignInLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (OfficeActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where ClientIP == TargetIP\n    | project TimeGenerated, LogSource=\"OfficeActivity\", UserPrincipalName=UserId, IPAddress=ClientIP, Location=\"\", AppDisplayName=Operation, ResultType=ResultStatus, ResultDescription=Operation, operatingSystem=\"\"),\n    (AuditLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where tostring(InitiatedBy.user.ipAddress) == TargetIP or tostring(InitiatedBy.app.ipAddress) == TargetIP\n    | project TimeGenerated, LogSource=\"AuditLogs\", UserPrincipalName=tostring(InitiatedBy.user.userPrincipalName), IPAddress=coalesce(tostring(InitiatedBy.user.ipAddress), tostring(InitiatedBy.app.ipAddress)), Location=\"\", AppDisplayName=OperationName, ResultType=Result, ResultDescription=OperationName, operatingSystem=\"\"),\n    (AzureActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where CallerIpAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AzureActivity\", UserPrincipalName=Caller, IPAddress=CallerIpAddress, Location=\"\", AppDisplayName=OperationNameValue, ResultType=ActivityStatusValue, ResultDescription=OperationNameValue, operatingSystem=\"\")\n| order by TimeGenerated desc",
+    "ip_20_236_10_66": "// Activity from IP: 20.236.10.66 (Moses Lake, US)\n// Organization: AS8075 Microsoft Corporation\n// Risk Level: LOW\nlet TargetIP = \"20.236.10.66\";\nlet TimeRange = 30d;\nunion isfuzzy=true\n    (SigninLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"SigninLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (AADNonInteractiveUserSignInLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AADNonInteractiveUserSignInLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (OfficeActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where ClientIP == TargetIP\n    | project TimeGenerated, LogSource=\"OfficeActivity\", UserPrincipalName=UserId, IPAddress=ClientIP, Location=\"\", AppDisplayName=Operation, ResultType=ResultStatus, ResultDescription=Operation, operatingSystem=\"\"),\n    (AuditLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where tostring(InitiatedBy.user.ipAddress) == TargetIP or tostring(InitiatedBy.app.ipAddress) == TargetIP\n    | project TimeGenerated, LogSource=\"AuditLogs\", UserPrincipalName=tostring(InitiatedBy.user.userPrincipalName), IPAddress=coalesce(tostring(InitiatedBy.user.ipAddress), tostring(InitiatedBy.app.ipAddress)), Location=\"\", AppDisplayName=OperationName, ResultType=Result, ResultDescription=OperationName, operatingSystem=\"\"),\n    (AzureActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where CallerIpAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AzureActivity\", UserPrincipalName=Caller, IPAddress=CallerIpAddress, Location=\"\", AppDisplayName=OperationNameValue, ResultType=ActivityStatusValue, ResultDescription=OperationNameValue, operatingSystem=\"\")\n| order by TimeGenerated desc",
+    "ip_198_51_100_30": "// Activity from IP: 198.51.100.30 (Vancouver, CA)\n// Organization: AS852 TELUS Communications Inc.\n// Risk Level: LOW\nlet TargetIP = \"198.51.100.30\";\nlet TimeRange = 30d;\nunion isfuzzy=true\n    (SigninLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"SigninLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (AADNonInteractiveUserSignInLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AADNonInteractiveUserSignInLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (OfficeActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where ClientIP == TargetIP\n    | project TimeGenerated, LogSource=\"OfficeActivity\", UserPrincipalName=UserId, IPAddress=ClientIP, Location=\"\", AppDisplayName=Operation, ResultType=ResultStatus, ResultDescription=Operation, operatingSystem=\"\"),\n    (AuditLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where tostring(InitiatedBy.user.ipAddress) == TargetIP or tostring(InitiatedBy.app.ipAddress) == TargetIP\n    | project TimeGenerated, LogSource=\"AuditLogs\", UserPrincipalName=tostring(InitiatedBy.user.userPrincipalName), IPAddress=coalesce(tostring(InitiatedBy.user.ipAddress), tostring(InitiatedBy.app.ipAddress)), Location=\"\", AppDisplayName=OperationName, ResultType=Result, ResultDescription=OperationName, operatingSystem=\"\"),\n    (AzureActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where CallerIpAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AzureActivity\", UserPrincipalName=Caller, IPAddress=CallerIpAddress, Location=\"\", AppDisplayName=OperationNameValue, ResultType=ActivityStatusValue, ResultDescription=OperationNameValue, operatingSystem=\"\")\n| order by TimeGenerated desc",
+    "ip_198_51_100_20": "// Activity from IP: 198.51.100.20 (Comox, CA)\n// Organization: AS852 TELUS Communications Inc.\n// Risk Level: LOW\nlet TargetIP = \"198.51.100.20\";\nlet TimeRange = 30d;\nunion isfuzzy=true\n    (SigninLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"SigninLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (AADNonInteractiveUserSignInLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AADNonInteractiveUserSignInLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (OfficeActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where ClientIP == TargetIP\n    | project TimeGenerated, LogSource=\"OfficeActivity\", UserPrincipalName=UserId, IPAddress=ClientIP, Location=\"\", AppDisplayName=Operation, ResultType=ResultStatus, ResultDescription=Operation, operatingSystem=\"\"),\n    (AuditLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where tostring(InitiatedBy.user.ipAddress) == TargetIP or tostring(InitiatedBy.app.ipAddress) == TargetIP\n    | project TimeGenerated, LogSource=\"AuditLogs\", UserPrincipalName=tostring(InitiatedBy.user.userPrincipalName), IPAddress=coalesce(tostring(InitiatedBy.user.ipAddress), tostring(InitiatedBy.app.ipAddress)), Location=\"\", AppDisplayName=OperationName, ResultType=Result, ResultDescription=OperationName, operatingSystem=\"\"),\n    (AzureActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where CallerIpAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AzureActivity\", UserPrincipalName=Caller, IPAddress=CallerIpAddress, Location=\"\", AppDisplayName=OperationNameValue, ResultType=ActivityStatusValue, ResultDescription=OperationNameValue, operatingSystem=\"\")\n| order by TimeGenerated desc",
+    "ip_198_51_100_50": "// Activity from IP: 198.51.100.50 (Vancouver, CA)\n// Organization: AS852 TELUS Communications Inc.\n// Risk Level: LOW\nlet TargetIP = \"198.51.100.50\";\nlet TimeRange = 30d;\nunion isfuzzy=true\n    (SigninLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"SigninLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (AADNonInteractiveUserSignInLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AADNonInteractiveUserSignInLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (OfficeActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where ClientIP == TargetIP\n    | project TimeGenerated, LogSource=\"OfficeActivity\", UserPrincipalName=UserId, IPAddress=ClientIP, Location=\"\", AppDisplayName=Operation, ResultType=ResultStatus, ResultDescription=Operation, operatingSystem=\"\"),\n    (AuditLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where tostring(InitiatedBy.user.ipAddress) == TargetIP or tostring(InitiatedBy.app.ipAddress) == TargetIP\n    | project TimeGenerated, LogSource=\"AuditLogs\", UserPrincipalName=tostring(InitiatedBy.user.userPrincipalName), IPAddress=coalesce(tostring(InitiatedBy.user.ipAddress), tostring(InitiatedBy.app.ipAddress)), Location=\"\", AppDisplayName=OperationName, ResultType=Result, ResultDescription=OperationName, operatingSystem=\"\"),\n    (AzureActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where CallerIpAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AzureActivity\", UserPrincipalName=Caller, IPAddress=CallerIpAddress, Location=\"\", AppDisplayName=OperationNameValue, ResultType=ActivityStatusValue, ResultDescription=OperationNameValue, operatingSystem=\"\")\n| order by TimeGenerated desc",
+    "ip_138_199_29_228": "// Activity from IP: 138.199.29.228 (London, GB)\n// Organization: AS212238 Datacamp Limited\n// Risk Level: MEDIUM\nlet TargetIP = \"138.199.29.228\";\nlet TimeRange = 30d;\nunion isfuzzy=true\n    (SigninLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"SigninLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (AADNonInteractiveUserSignInLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AADNonInteractiveUserSignInLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (OfficeActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where ClientIP == TargetIP\n    | project TimeGenerated, LogSource=\"OfficeActivity\", UserPrincipalName=UserId, IPAddress=ClientIP, Location=\"\", AppDisplayName=Operation, ResultType=ResultStatus, ResultDescription=Operation, operatingSystem=\"\"),\n    (AuditLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where tostring(InitiatedBy.user.ipAddress) == TargetIP or tostring(InitiatedBy.app.ipAddress) == TargetIP\n    | project TimeGenerated, LogSource=\"AuditLogs\", UserPrincipalName=tostring(InitiatedBy.user.userPrincipalName), IPAddress=coalesce(tostring(InitiatedBy.user.ipAddress), tostring(InitiatedBy.app.ipAddress)), Location=\"\", AppDisplayName=OperationName, ResultType=Result, ResultDescription=OperationName, operatingSystem=\"\"),\n    (AzureActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where CallerIpAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AzureActivity\", UserPrincipalName=Caller, IPAddress=CallerIpAddress, Location=\"\", AppDisplayName=OperationNameValue, ResultType=ActivityStatusValue, ResultDescription=OperationNameValue, operatingSystem=\"\")\n| order by TimeGenerated desc",
+    "ip_146_70_130_174": "// Activity from IP: 146.70.130.174 (Dublin, IE)\n// Organization: AS9009 M247 Europe SRL\n// Risk Level: MEDIUM\nlet TargetIP = \"146.70.130.174\";\nlet TimeRange = 30d;\nunion isfuzzy=true\n    (SigninLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"SigninLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (AADNonInteractiveUserSignInLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AADNonInteractiveUserSignInLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (OfficeActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where ClientIP == TargetIP\n    | project TimeGenerated, LogSource=\"OfficeActivity\", UserPrincipalName=UserId, IPAddress=ClientIP, Location=\"\", AppDisplayName=Operation, ResultType=ResultStatus, ResultDescription=Operation, operatingSystem=\"\"),\n    (AuditLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where tostring(InitiatedBy.user.ipAddress) == TargetIP or tostring(InitiatedBy.app.ipAddress) == TargetIP\n    | project TimeGenerated, LogSource=\"AuditLogs\", UserPrincipalName=tostring(InitiatedBy.user.userPrincipalName), IPAddress=coalesce(tostring(InitiatedBy.user.ipAddress), tostring(InitiatedBy.app.ipAddress)), Location=\"\", AppDisplayName=OperationName, ResultType=Result, ResultDescription=OperationName, operatingSystem=\"\"),\n    (AzureActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where CallerIpAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AzureActivity\", UserPrincipalName=Caller, IPAddress=CallerIpAddress, Location=\"\", AppDisplayName=OperationNameValue, ResultType=ActivityStatusValue, ResultDescription=OperationNameValue, operatingSystem=\"\")\n| order by TimeGenerated desc",
+    "ip_193_19_205_125": "// Activity from IP: 193.19.205.125 (Sao Paulo, BR)\n// Organization: AS203020 HostRoyale Technologies Pvt Ltd\n// Risk Level: MEDIUM\nlet TargetIP = \"193.19.205.125\";\nlet TimeRange = 30d;\nunion isfuzzy=true\n    (SigninLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"SigninLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (AADNonInteractiveUserSignInLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AADNonInteractiveUserSignInLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (OfficeActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where ClientIP == TargetIP\n    | project TimeGenerated, LogSource=\"OfficeActivity\", UserPrincipalName=UserId, IPAddress=ClientIP, Location=\"\", AppDisplayName=Operation, ResultType=ResultStatus, ResultDescription=Operation, operatingSystem=\"\"),\n    (AuditLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where tostring(InitiatedBy.user.ipAddress) == TargetIP or tostring(InitiatedBy.app.ipAddress) == TargetIP\n    | project TimeGenerated, LogSource=\"AuditLogs\", UserPrincipalName=tostring(InitiatedBy.user.userPrincipalName), IPAddress=coalesce(tostring(InitiatedBy.user.ipAddress), tostring(InitiatedBy.app.ipAddress)), Location=\"\", AppDisplayName=OperationName, ResultType=Result, ResultDescription=OperationName, operatingSystem=\"\"),\n    (AzureActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where CallerIpAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AzureActivity\", UserPrincipalName=Caller, IPAddress=CallerIpAddress, Location=\"\", AppDisplayName=OperationNameValue, ResultType=ActivityStatusValue, ResultDescription=OperationNameValue, operatingSystem=\"\")\n| order by TimeGenerated desc",
+    "ip_149_22_81_146": "// Activity from IP: 149.22.81.146 (Vancouver, CA)\n// Organization: AS212238 Datacamp Limited\n// Risk Level: MEDIUM\nlet TargetIP = \"149.22.81.146\";\nlet TimeRange = 30d;\nunion isfuzzy=true\n    (SigninLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"SigninLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (AADNonInteractiveUserSignInLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AADNonInteractiveUserSignInLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (OfficeActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where ClientIP == TargetIP\n    | project TimeGenerated, LogSource=\"OfficeActivity\", UserPrincipalName=UserId, IPAddress=ClientIP, Location=\"\", AppDisplayName=Operation, ResultType=ResultStatus, ResultDescription=Operation, operatingSystem=\"\"),\n    (AuditLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where tostring(InitiatedBy.user.ipAddress) == TargetIP or tostring(InitiatedBy.app.ipAddress) == TargetIP\n    | project TimeGenerated, LogSource=\"AuditLogs\", UserPrincipalName=tostring(InitiatedBy.user.userPrincipalName), IPAddress=coalesce(tostring(InitiatedBy.user.ipAddress), tostring(InitiatedBy.app.ipAddress)), Location=\"\", AppDisplayName=OperationName, ResultType=Result, ResultDescription=OperationName, operatingSystem=\"\"),\n    (AzureActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where CallerIpAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AzureActivity\", UserPrincipalName=Caller, IPAddress=CallerIpAddress, Location=\"\", AppDisplayName=OperationNameValue, ResultType=ActivityStatusValue, ResultDescription=OperationNameValue, operatingSystem=\"\")\n| order by TimeGenerated desc",
+    "ip_146_70_9_214": "// Activity from IP: 146.70.9.214 (Shek Kip Mei, HK)\n// Organization: AS9009 M247 Europe SRL\n// Risk Level: HIGH\nlet TargetIP = \"146.70.9.214\";\nlet TimeRange = 30d;\nunion isfuzzy=true\n    (SigninLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"SigninLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (AADNonInteractiveUserSignInLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AADNonInteractiveUserSignInLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (OfficeActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where ClientIP == TargetIP\n    | project TimeGenerated, LogSource=\"OfficeActivity\", UserPrincipalName=UserId, IPAddress=ClientIP, Location=\"\", AppDisplayName=Operation, ResultType=ResultStatus, ResultDescription=Operation, operatingSystem=\"\"),\n    (AuditLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where tostring(InitiatedBy.user.ipAddress) == TargetIP or tostring(InitiatedBy.app.ipAddress) == TargetIP\n    | project TimeGenerated, LogSource=\"AuditLogs\", UserPrincipalName=tostring(InitiatedBy.user.userPrincipalName), IPAddress=coalesce(tostring(InitiatedBy.user.ipAddress), tostring(InitiatedBy.app.ipAddress)), Location=\"\", AppDisplayName=OperationName, ResultType=Result, ResultDescription=OperationName, operatingSystem=\"\"),\n    (AzureActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where CallerIpAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AzureActivity\", UserPrincipalName=Caller, IPAddress=CallerIpAddress, Location=\"\", AppDisplayName=OperationNameValue, ResultType=ActivityStatusValue, ResultDescription=OperationNameValue, operatingSystem=\"\")\n| order by TimeGenerated desc",
+    "ip_20_120_96_152": "// Activity from IP: 20.120.96.152 (Washington, US)\n// Organization: AS8075 Microsoft Corporation\n// Risk Level: LOW\nlet TargetIP = \"20.120.96.152\";\nlet TimeRange = 30d;\nunion isfuzzy=true\n    (SigninLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"SigninLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (AADNonInteractiveUserSignInLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where IPAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AADNonInteractiveUserSignInLogs\", UserPrincipalName, IPAddress, Location, AppDisplayName, ResultType, ResultDescription),\n    (OfficeActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where ClientIP == TargetIP\n    | project TimeGenerated, LogSource=\"OfficeActivity\", UserPrincipalName=UserId, IPAddress=ClientIP, Location=\"\", AppDisplayName=Operation, ResultType=ResultStatus, ResultDescription=Operation, operatingSystem=\"\"),\n    (AuditLogs\n    | where TimeGenerated > ago(TimeRange)\n    | where tostring(InitiatedBy.user.ipAddress) == TargetIP or tostring(InitiatedBy.app.ipAddress) == TargetIP\n    | project TimeGenerated, LogSource=\"AuditLogs\", UserPrincipalName=tostring(InitiatedBy.user.userPrincipalName), IPAddress=coalesce(tostring(InitiatedBy.user.ipAddress), tostring(InitiatedBy.app.ipAddress)), Location=\"\", AppDisplayName=OperationName, ResultType=Result, ResultDescription=OperationName, operatingSystem=\"\"),\n    (AzureActivity\n    | where TimeGenerated > ago(TimeRange)\n    | where CallerIpAddress == TargetIP\n    | project TimeGenerated, LogSource=\"AzureActivity\", UserPrincipalName=Caller, IPAddress=CallerIpAddress, Location=\"\", AppDisplayName=OperationNameValue, ResultType=ActivityStatusValue, ResultDescription=OperationNameValue, operatingSystem=\"\")\n| order by TimeGenerated desc"
+};
+        
+        // Track if Lake Explorer has been opened
+        let lakeExplorerOpened = false;
+        
+        function copyKQL(event, queryType) {
+            event.stopPropagation();
+            const query = kqlQueries[queryType] || 'Query not available';
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(query).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                btn.style.color = '#7cbb00';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.color = '#00a1f1';
+                }, 2000);
+                
+                // Open Lake Explorer only on first click
+                if (!lakeExplorerOpened) {
+                    window.open('https://security.microsoft.com/lake-explorer', '_blank');
+                    lakeExplorerOpened = true;
+                }
+            });
+        }
+        
+        function openTimeline() {
+            document.getElementById('timelineModal').classList.add('active');
+        }
+        
+        function closeTimeline() {
+            document.getElementById('timelineModal').classList.remove('active');
+        }
+        
+        // Close modal on ESC or outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('timelineModal');
+            if (event.target === modal) {
+                closeTimeline();
+            }
+        }
+        
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeTimeline();
+            }
+        });
+        
+        // IP Intelligence Pagination
+        let currentAnomalyPage = 1;
+        const ipsPerPage = 4;
+        
+        function changeAnomalyPage(direction) {
+            const cards = document.querySelectorAll('.anomaly-card');
+            const totalPages = Math.ceil(cards.length / ipsPerPage);
+            
+            currentAnomalyPage += direction;
+            currentAnomalyPage = Math.max(1, Math.min(currentAnomalyPage, totalPages));
+            
+            cards.forEach(card => {
+                card.style.display = parseInt(card.dataset.page) === currentAnomalyPage ? 'block' : 'none';
+            });
+            
+            document.getElementById('currentPage').textContent = currentAnomalyPage;
+            document.getElementById('prevBtn').disabled = currentAnomalyPage === 1;
+            document.getElementById('nextBtn').disabled = currentAnomalyPage === totalPages;
+        }
+        
+        function sortIPCards() {
+            const sortBy = document.getElementById('ipSortSelect').value;
+            const ipGrid = document.querySelector('.ip-grid');
+            const cards = Array.from(ipGrid.querySelectorAll('.anomaly-card')); // SCOPED to ipGrid only!
+            
+            // Sort cards based on selection
+            cards.sort((a, b) => {
+                if (sortBy === 'last-seen') {
+                    // Sort by last seen date (newest first)
+                    const dateA = a.dataset.lastSeen || '1970-01-01 00:00:00';
+                    const dateB = b.dataset.lastSeen || '1970-01-01 00:00:00';
+                    return dateB.localeCompare(dateA);
+                } else {
+                    // Default: Sort by category priority first, then risk level
+                    // CRITICAL: Use isNaN check, NOT || 99, because parseInt("0") returns 0 which is falsy!
+                    const catA = parseInt(a.dataset.category);
+                    const catB = parseInt(b.dataset.category);
+                    const riskA = parseInt(a.dataset.risk);
+                    const riskB = parseInt(b.dataset.risk);
+                    
+                    const catAVal = isNaN(catA) ? 99 : catA;
+                    const catBVal = isNaN(catB) ? 99 : catB;
+                    const riskAVal = isNaN(riskA) ? 99 : riskA;
+                    const riskBVal = isNaN(riskB) ? 99 : riskB;
+                    
+                    if (catAVal !== catBVal) {
+                        return catAVal - catBVal;
+                    }
+                    return riskAVal - riskBVal;
+                }
+            });
+            
+            // Re-order cards in the DOM without destroying them
+            // This preserves all data attributes
+            cards.forEach((card, idx) => {
+                card.dataset.page = Math.floor(idx / ipsPerPage) + 1;
+                card.style.display = (idx < ipsPerPage) ? 'block' : 'none'; // Show first page only
+                ipGrid.appendChild(card); // appendChild moves the element if it already exists
+            });
+            
+            // Reset to page 1
+            currentAnomalyPage = 1;
+            const totalPages = Math.ceil(cards.length / ipsPerPage);
+            
+            // Update pagination controls
+            if (document.getElementById('currentPage')) {
+                document.getElementById('currentPage').textContent = 1;
+                document.getElementById('prevBtn').disabled = true;
+                document.getElementById('nextBtn').disabled = totalPages <= 1;
+            }
+        }
+        
+        // Security Incidents Pagination
+        let currentIncidentPage = 1;
+        const incidentsPerPage = 4;
+        
+        function changeIncidentPage(direction) {
+            const rows = document.querySelectorAll('.incident-row');
+            const totalPages = Math.ceil(rows.length / incidentsPerPage);
+            
+            currentIncidentPage += direction;
+            currentIncidentPage = Math.max(1, Math.min(currentIncidentPage, totalPages));
+            
+            rows.forEach(row => {
+                row.style.display = parseInt(row.dataset.page) === currentIncidentPage ? '' : 'none';
+            });
+            
+            document.getElementById('incCurrentPage').textContent = currentIncidentPage;
+            document.getElementById('incPrevBtn').disabled = currentIncidentPage === 1;
+            document.getElementById('incNextBtn').disabled = currentIncidentPage === totalPages;
+        }
+        
+        // Top Locations Pagination
+        let currentLocationPage = 1;
+        const locationsPerPage = 3;
+        
+        function changeLocationPage(direction) {
+            const rows = document.querySelectorAll('.location-row');
+            const totalPages = Math.ceil(rows.length / locationsPerPage);
+            
+            currentLocationPage += direction;
+            currentLocationPage = Math.max(1, Math.min(currentLocationPage, totalPages));
+            
+            rows.forEach(row => {
+                row.style.display = parseInt(row.dataset.page) === currentLocationPage ? '' : 'none';
+            });
+            
+            document.getElementById('locCurrentPage').textContent = currentLocationPage;
+            document.getElementById('locPrevBtn').disabled = currentLocationPage === 1;
+            document.getElementById('locNextBtn').disabled = currentLocationPage === totalPages;
+        }
+        
+        // Top Applications Pagination
+        let currentApplicationPage = 1;
+        const applicationsPerPage = 3;
+        
+        function changeApplicationPage(direction) {
+            const rows = document.querySelectorAll('.application-row');
+            const totalPages = Math.ceil(rows.length / applicationsPerPage);
+            
+            currentApplicationPage += direction;
+            currentApplicationPage = Math.max(1, Math.min(currentApplicationPage, totalPages));
+            
+            rows.forEach(row => {
+                row.style.display = parseInt(row.dataset.page) === currentApplicationPage ? '' : 'none';
+            });
+            
+            document.getElementById('appCurrentPage').textContent = currentApplicationPage;
+            document.getElementById('appPrevBtn').disabled = currentApplicationPage === 1;
+            document.getElementById('appNextBtn').disabled = currentApplicationPage === totalPages;
+        }
+        
+        // Column Resizing
+        (function() {
+            const resizeHandle = document.querySelector('.resize-handle');
+            const container = document.querySelector('.content');
+            const leftColumn = document.querySelector('.left-column');
+            const rightColumn = document.querySelector('.right-column');
+            
+            if (!resizeHandle || !container || !leftColumn || !rightColumn) return;
+            
+            let isResizing = false;
+            let startX = 0;
+            let startLeftWidth = 0;
+            let startRightWidth = 0;
+            
+            resizeHandle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startX = e.clientX;
+                
+                // Get current widths
+                const leftRect = leftColumn.getBoundingClientRect();
+                const rightRect = rightColumn.getBoundingClientRect();
+                startLeftWidth = leftRect.width;
+                startRightWidth = rightRect.width;
+                
+                // Prevent text selection during drag
+                document.body.style.userSelect = 'none';
+                document.body.style.cursor = 'col-resize';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                
+                const deltaX = e.clientX - startX;
+                const totalWidth = startLeftWidth + startRightWidth;
+                const newLeftWidth = Math.max(200, Math.min(totalWidth - 200, startLeftWidth + deltaX));
+                const newRightWidth = totalWidth - newLeftWidth;
+                
+                // Calculate fractions based on new widths
+                const leftFr = newLeftWidth / totalWidth * 5;  // Scale to ~5 total units
+                const rightFr = newRightWidth / totalWidth * 5;
+                
+                // Update grid template
+                container.style.gridTemplateColumns = `${leftFr}fr 5px ${rightFr}fr`;
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+                }
+            });
+        })();
+        
+        // Azure AD Audit Log Pagination
+        let currentAuditPage = 1;
+        const auditPerPage = 3;
+        
+        function changeAuditPage(direction) {
+            const rows = document.querySelectorAll('.audit-row');
+            const totalPages = Math.ceil(rows.length / auditPerPage);
+            
+            currentAuditPage += direction;
+            currentAuditPage = Math.max(1, Math.min(currentAuditPage, totalPages));
+            
+            rows.forEach(row => {
+                row.style.display = parseInt(row.dataset.page) === currentAuditPage ? '' : 'none';
+            });
+            
+            document.getElementById('auditCurrentPage').textContent = currentAuditPage;
+            document.getElementById('auditPrevBtn').disabled = currentAuditPage === 1;
+            document.getElementById('auditNextBtn').disabled = currentAuditPage === totalPages;
+        }
+    </script>
+        
+</body>
+</html>
+
