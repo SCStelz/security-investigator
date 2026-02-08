@@ -288,6 +288,8 @@ node --version      # Requires 18+ (needed for KQL Search MCP)
 If Node.js is missing: [Download](https://nodejs.org/) or run `winget install OpenJS.NodeJS.LTS` (Windows) / `brew install node` (macOS).
 
 Set up Python environment:
+
+```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
