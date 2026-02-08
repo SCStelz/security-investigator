@@ -1,0 +1,105 @@
+{
+  // ============================================================
+  // MCP Server Configuration Template
+  // ============================================================
+  // Copy this file to .vscode/mcp.json and configure as needed.
+  // The 5 required MCP servers are pre-configured below.
+  // The 3 MCP Apps (visualization) require building first — see README.
+  //
+  // Authentication:
+  //   - Sentinel Data Lake, Graph, and Triage: Browser-based Azure AD login on first use
+  //   - KQL Search: GitHub PAT with public_repo scope
+  //   - Microsoft Learn: No authentication required
+  // ============================================================
+
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "github-token",
+      "description": "GitHub Personal Access Token (public_repo scope) — https://github.com/settings/tokens/new",
+      "password": true
+    },
+    {
+      "type": "promptString",
+      "id": "sentinel-webhook-url",
+      "description": "Sentinel Incident Comment Webhook URL (Logic App) — optional, for incident commenting",
+      "password": true
+    }
+  ],
+
+  "servers": {
+    // ── Required MCP Servers (5) ────────────────────────────────
+
+    // 1. Sentinel Data Lake — KQL queries against Log Analytics workspace
+    //    Permissions: Log Analytics Reader (minimum), Sentinel Reader (recommended)
+    //    Docs: https://learn.microsoft.com/en-us/copilot/security/developer/mcp-get-started
+    "Sentinel-Data-MCP": {
+      "type": "http",
+      "url": "https://sentinel.microsoft.com/mcp/data-exploration"
+    },
+
+    // 2. Microsoft Graph — Entra ID identity, devices, risk detections
+    //    Permissions: User.Read.All, Device.Read.All, IdentityRiskEvent.Read.All
+    //    Docs: https://learn.microsoft.com/en-us/graph/mcp-server/get-started
+    "Graph-mcp-server": {
+      "type": "http",
+      "url": "https://mcp.svc.cloud.microsoft/enterprise"
+    },
+
+    // 3. Sentinel Triage — Advanced Hunting, Defender XDR incidents/alerts/entities
+    //    Permissions: SecurityReader role in Defender for Endpoint
+    //    Docs: https://learn.microsoft.com/en-us/azure/sentinel/datalake/sentinel-mcp-triage-tool
+    "Sentinel-Triage-MCP": {
+      "type": "http",
+      "url": "https://sentinel.microsoft.com/mcp/triage"
+    },
+
+    // 4. KQL Search — Schema intelligence, GitHub query discovery, ASIM validation
+    //    Prerequisite: GitHub PAT with public_repo scope
+    //    Docs: https://www.npmjs.com/package/kql-search-mcp
+    "kql-search": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "kql-search-mcp"],
+      "env": {
+        "GITHUB_TOKEN": "${input:github-token}",
+        "FAVORITE_REPOS": "Azure/Azure-Sentinel,microsoft/Microsoft-365-Defender-Hunting-Queries"
+      }
+    },
+
+    // 5. Microsoft Learn — Official docs search and code samples (free, no auth)
+    //    Docs: https://github.com/MicrosoftDocs/mcp
+    "microsoft-learn": {
+      "type": "http",
+      "url": "https://learn.microsoft.com/api/mcp"
+    },
+
+    // ── Optional: MCP Apps (Local Visualization Servers) ────────
+    // These require building first: cd mcp-apps/<app> && npm install && npm run build
+
+    // Interactive geographic attack maps
+    "sentinel-geomap": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp-apps/sentinel-geomap-server/dist/main.js", "--stdio"]
+    },
+
+    // Interactive heatmap visualizations
+    "sentinel-heatmap": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp-apps/sentinel-heatmap-server/dist/main.js", "--stdio"]
+    },
+
+    // Add comments to Sentinel incidents via Logic App webhook
+    // Requires Azure Logic App backend — see mcp-apps/sentinel-incident-comment/README.md
+    "sentinel-incident-comment": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp-apps/sentinel-incident-comment/dist/index.js", "--stdio"],
+      "env": {
+        "SENTINEL_COMMENT_WEBHOOK_URL": "${input:sentinel-webhook-url}"
+      }
+    }
+  }
+}

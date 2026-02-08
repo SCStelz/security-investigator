@@ -7,21 +7,27 @@ An investigation automation framework that combines **GitHub Copilot**, **VS Cod
 ### Quick Start (TL;DR)
 
 ```powershell
-# 1. Clone this repo and open in VS Code (required for Agent Skills)
+# 1. Clone and open in VS Code
 git clone https://github.com/SCStelz/security-investigator.git
 code security-investigator
 
-# 2. Install dependencies
+# 2. Set up Python environment
+python -m venv .venv
+.venv\Scripts\Activate.ps1          # Windows
+# source .venv/bin/activate          # macOS/Linux
 pip install -r requirements.txt
 
-# 3. Edit config.json with your workspace ID, tenant ID, and API keys
-#    (see config.json.template for the full list)
+# 3. Configure API keys
+copy config.json.template config.json
+# Edit config.json → add your Sentinel workspace ID, tenant ID, and API tokens
 
-# 4. Install the 5 required MCP servers (see MCP Server Setup below)
+# 4. Configure MCP servers
+copy .vscode\mcp.json.template .vscode\mcp.json
+# All 5 required servers are pre-configured — just needs a GitHub PAT on first use
 
-# 5. Ask GitHub Copilot:
-"What skills do you have access to?"
-"Investigate user@domain.com for the last 7 days"
+# 5. Open Copilot Chat (Ctrl+Shift+I) in Agent mode and ask:
+#    "What skills do you have access to?"
+#    "Investigate user@domain.com for the last 7 days"
 ```
 
 **For detailed workflows and KQL queries:**
@@ -199,6 +205,9 @@ security-investigator/
 ├── enrich_ips.py                # Standalone IP enrichment utility
 ├── cleanup_old_investigations.py # Automated cleanup (3+ days old)
 ├── config.json                  # Configuration (workspace IDs, tokens)
+├── config.json.template         # Config template (committed to Git)
+├── .vscode/
+│   └── mcp.json.template       # MCP server config template (copy to mcp.json)
 ├── requirements.txt             # Python dependencies
 ├── .github/
 │   ├── copilot-instructions.md  # Skill detection, universal patterns, routing
@@ -258,10 +267,15 @@ Each file uses a standardized metadata header for efficient `grep_search` discov
 
 ### Prerequisites
 
-- **Python 3.8+** with virtual environment
-- **GitHub Copilot** in VS Code
-- **Microsoft Sentinel Workspace** with Log Analytics access
-- **5 MCP Servers** — see [MCP Server Setup](#-mcp-server-setup) below
+| Requirement | Details |
+|-------------|---------|
+| **VS Code** | Version 1.99+ recommended (Agent mode + MCP support). [VS Code Insiders](https://code.visualstudio.com/insiders/) required for MCP Apps (visualization). |
+| **GitHub Copilot** | Active subscription — [Copilot Pro+](https://github.com/features/copilot), Business, or Enterprise. Agent mode must be enabled. |
+| **Python 3.8+** | For IP enrichment utility and report generation. |
+| **Node.js 18+** | Required for KQL Search MCP (`npx`) and building local MCP Apps. |
+| **Microsoft Sentinel** | Log Analytics workspace with data. You'll need the workspace GUID and tenant ID. |
+| **Azure AD Permissions** | See [MCP Server Setup](#-mcp-server-setup) for per-server permission requirements. |
+| **GitHub PAT** | `public_repo` scope — [Create one here](https://github.com/settings/tokens/new). Used by KQL Search MCP. |
 
 ### 1. Install Dependencies
 
@@ -282,6 +296,7 @@ Copy `config.json.template` to `config.json` and fill in your values:
   "ipinfo_token": null,
   "abuseipdb_token": null,
   "vpnapi_token": null,
+  "shodan_token": null,
   "output_dir": "reports"
 }
 ```
@@ -296,61 +311,37 @@ Copy `config.json.template` to `config.json` and fill in your values:
 | `shodan_token` | Optional | [Shodan](https://account.shodan.io/) API key — open ports, services, CVEs, OS detection, tags. Free InternetDB fallback if no key or credits exhausted |
 | `output_dir` | No | Directory for HTML reports (default: `reports`) |
 
-### 3. Build MCP Apps (Optional — Visualization Skills)
+### 3. Configure MCP Servers
 
-> ⚠️ **VS Code Insiders Required:** MCP Apps currently require [VS Code Insiders](https://code.visualstudio.com/insiders/).
+Copy the MCP server template (all 5 required servers + 3 optional MCP Apps are pre-configured):
 
-```bash
-cd mcp-apps/sentinel-geomap-server && npm install && npm run build
-cd ../sentinel-heatmap-server && npm install && npm run build
-cd ../sentinel-incident-comment && npm install && npm run build
-cd ../..
+```powershell
+copy .vscode/mcp.json.template .vscode/mcp.json
+```
+
+The template includes inline documentation for each server. On first use, VS Code will prompt for:
+- **Azure AD login** — browser-based auth for Sentinel Data Lake, Graph, and Triage servers
+- **GitHub PAT** — for KQL Search MCP (schema intelligence and query discovery)
+
+See [MCP Server Setup](#-mcp-server-setup) below for per-server permissions and installation guides.
+
+### 4. Build MCP Apps (Optional — Visualization Skills)
+
+> ⚠️ **VS Code Insiders Required:** MCP Apps currently require [VS Code Insiders](https://code.visualstudio.com/insiders/). Requires **Node.js 18+**.
+
+```powershell
+cd mcp-apps/sentinel-geomap-server; npm install; npm run build; cd ../..
+cd mcp-apps/sentinel-heatmap-server; npm install; npm run build; cd ../..
+cd mcp-apps/sentinel-incident-comment; npm install; npm run build; cd ../..
 ```
 
 The `sentinel-incident-comment` MCP App requires an Azure Logic App backend. See [mcp-apps/sentinel-incident-comment/README.md](mcp-apps/sentinel-incident-comment/README.md) for setup. Based on [stefanpems/mcp-add-comment-to-sentinel-incident](https://github.com/stefanpems/mcp-add-comment-to-sentinel-incident).
-
-### 4. Register MCP Apps in VS Code
-
-Create or update `.vscode/mcp.json`:
-
-```json
-{
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "sentinel-webhook-url",
-      "description": "Sentinel Incident Comment Webhook URL (Logic App)",
-      "password": true
-    }
-  ],
-  "servers": {
-    "sentinel-geomap": {
-      "command": "node",
-      "args": ["${workspaceFolder}/mcp-apps/sentinel-geomap-server/dist/main.js", "--stdio"],
-      "type": "stdio"
-    },
-    "sentinel-heatmap": {
-      "command": "node",
-      "args": ["${workspaceFolder}/mcp-apps/sentinel-heatmap-server/dist/main.js", "--stdio"],
-      "type": "stdio"
-    },
-    "sentinel-incident-comment": {
-      "command": "node",
-      "args": ["${workspaceFolder}/mcp-apps/sentinel-incident-comment/dist/index.js", "--stdio"],
-      "type": "stdio",
-      "env": {
-        "SENTINEL_COMMENT_WEBHOOK_URL": "${input:sentinel-webhook-url}"
-      }
-    }
-  }
-}
-```
 
 ---
 
 ## 🔌 MCP Server Setup
 
-The system **requires** five Model Context Protocol (MCP) servers. Investigations will fail without them.
+The system **requires** five Model Context Protocol (MCP) servers. All five are **pre-configured** in [.vscode/mcp.json.template](.vscode/mcp.json.template) — copy it to `.vscode/mcp.json` to get started (see [Step 3 above](#3-configure-mcp-servers)). The sections below document permissions, tools, and installation guides for each server.
 
 ### At a Glance
 
@@ -403,43 +394,15 @@ The system **requires** five Model Context Protocol (MCP) servers. Investigation
 1. Extensions panel → Search "KQL Search MCP" → Install
 2. Command Palette → `KQL Search MCP: Set GitHub Token`
 
-**Option B: NPX (`.vscode/mcp.json`)**
-```json
-{
-  "inputs": [
-    { "type": "promptString", "id": "github-token", "description": "GitHub PAT", "password": true }
-  ],
-  "servers": {
-    "kql-search": {
-      "command": "npx",
-      "args": ["-y", "kql-search-mcp"],
-      "env": {
-        "GITHUB_TOKEN": "${input:github-token}",
-        "FAVORITE_REPOS": "Azure/Azure-Sentinel,microsoft/Microsoft-365-Defender-Hunting-Queries"
-      }
-    }
-  }
-}
-```
+**Option B: NPX** — already configured in `.vscode/mcp.json.template`. Just needs a [GitHub PAT](https://github.com/settings/tokens/new) with `public_repo` scope (prompted on first use).
 
 **Tools (34):** Schema intelligence, query validation, GitHub search, ASIM support for 331+ tables.
-
-**Prerequisite:** [GitHub PAT](https://github.com/settings/tokens/new) with `public_repo` scope.
 
 ### 5. Microsoft Learn MCP Server
 
 **📖 [Installation Guide](https://github.com/MicrosoftDocs/mcp)**
 
-**One-click:** [Install in VS Code](https://vscode.dev/redirect/mcp/install?name=microsoft-learn&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Flearn.microsoft.com%2Fapi%2Fmcp%22%7D)
-
-**Manual (`.vscode/mcp.json`):**
-```json
-{
-  "servers": {
-    "microsoft-learn": { "type": "http", "url": "https://learn.microsoft.com/api/mcp" }
-  }
-}
-```
+**One-click:** [Install in VS Code](https://vscode.dev/redirect/mcp/install?name=microsoft-learn&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Flearn.microsoft.com%2Fapi%2Fmcp%22%7D) — or already configured in `.vscode/mcp.json.template`.
 
 **Tools:** `microsoft_docs_search`, `microsoft_docs_fetch`, `microsoft_code_sample_search`
 
@@ -447,22 +410,18 @@ No API key required — free, cloud-hosted by Microsoft.
 
 ### Verify Setup
 
-```powershell
-# Sentinel
-mcp_sentinel-mcp-2_list_sentinel_workspaces()
+Open **Copilot Chat** (`Ctrl+Shift+I`) in **Agent mode** and try these prompts:
 
-# Graph
-mcp_microsoft_mcp_microsoft_graph_get("/v1.0/me?$select=displayName")
+| Test | Prompt to type in Copilot Chat |
+|------|--------------------------------|
+| Sentinel Data Lake | `List my Sentinel workspaces` |
+| Microsoft Graph | `Look up my user profile in Graph` |
+| Sentinel Triage | `List recent security incidents` |
+| KQL Search | `What columns does the SigninLogs table have?` |
+| Microsoft Learn | `Search Microsoft docs for KQL query language` |
+| All skills | `What investigation skills do you have access to?` |
 
-# Sentinel Triage
-mcp_sentinel-tria_FetchAdvancedHuntingTablesOverview({"tableNames": ["DeviceInfo"]})
-
-# KQL Search
-mcp_kql-search_get_schema_statistics()
-
-# Microsoft Learn
-mcp_microsoft-lea_microsoft_docs_search({"query": "KQL query language"})
-```
+If any server fails, check the **MCP Servers** panel in VS Code (click the `{}` icon in the bottom status bar) to verify each server shows a green connected status.
 
 ---
 
@@ -517,15 +476,14 @@ Core packages: **requests** (HTTP client for enrichment APIs), **python-dateutil
 
 ### Verify Connectivity
 
+In **Copilot Chat** (Agent mode):
+- `"List my Sentinel workspaces"` — verifies Sentinel Data Lake MCP
+- `"Look up user@domain.com in Graph"` — verifies Graph MCP
+- `"List recent incidents"` — verifies Sentinel Triage MCP
+
+In **terminal**:
 ```powershell
-# Graph API
-mcp_microsoft_mcp_microsoft_graph_get("/v1.0/users/user@domain.com?$select=id,displayName")
-
-# Sentinel
-mcp_sentinel-mcp-2_list_sentinel_workspaces()
-
-# IP Enrichment
-python enrich_ips.py 8.8.8.8
+python enrich_ips.py 8.8.8.8    # Verifies IP enrichment API tokens
 ```
 
 ---

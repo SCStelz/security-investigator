@@ -32,7 +32,8 @@ authoring/
 drafts/
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/mcp.json.template
 .idea/
 *.swp
 *.swo
