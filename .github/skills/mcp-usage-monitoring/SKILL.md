@@ -757,8 +757,8 @@ SigninLogs
     ResourceDisplayName, IPAddress, 
     tostring(Status.errorCode) as ErrorCode,
     ConditionalAccessStatus, AuthenticationRequirement, ClientAppUsed,
-    tostring(DeviceDetail.operatingSystem) as OS,
-    tostring(LocationDetails.countryOrRegion) as Country
+    tostring(parse_json(DeviceDetail).operatingSystem) as OS,
+    tostring(parse_json(LocationDetails).countryOrRegion) as Country
 | order by TimeGenerated desc
 ```
 
@@ -1410,7 +1410,9 @@ CloudAppEvents
 // FIX (Feb 2026): Explicit tostring() casts on ResultType, ResultDescription,
 // ConditionalAccessStatus, AuthenticationRequirement to prevent union type mismatches
 // between SigninLogs and AADNonInteractiveUserSignInLogs. Removed ResourceId (inconsistent
-// across tables). Use LocationDetails.countryOrRegion directly (already dynamic) with tostring().
+// across tables). Use parse_json() wrapper on DeviceDetail and LocationDetails — these
+// columns may be stored as string (not dynamic) in Data Lake workspaces, causing
+// SemanticError on dot-notation access without parse_json().
 let azure_mcp_appid = "1950a258-227b-4e31-a9cf-717495945fc2";
 let signinlogs_interactive = SigninLogs
 | where TimeGenerated >= ago(90d)
@@ -1424,8 +1426,8 @@ let signinlogs_interactive = SigninLogs
     UserAgent, SignInType,
     ConditionalAccessStatus = tostring(ConditionalAccessStatus),
     AuthenticationRequirement = tostring(AuthenticationRequirement),
-    OS = tostring(DeviceDetail.operatingSystem),
-    Country = tostring(LocationDetails.countryOrRegion);
+    OS = tostring(parse_json(DeviceDetail).operatingSystem),
+    Country = tostring(parse_json(LocationDetails).countryOrRegion);
 let signinlogs_noninteractive = AADNonInteractiveUserSignInLogs
 | where TimeGenerated >= ago(90d)
 | where AppId == azure_mcp_appid
@@ -1438,8 +1440,8 @@ let signinlogs_noninteractive = AADNonInteractiveUserSignInLogs
     UserAgent, SignInType,
     ConditionalAccessStatus = tostring(ConditionalAccessStatus),
     AuthenticationRequirement = tostring(AuthenticationRequirement),
-    OS = tostring(DeviceDetail.operatingSystem),
-    Country = tostring(LocationDetails.countryOrRegion);
+    OS = tostring(parse_json(DeviceDetail).operatingSystem),
+    Country = tostring(parse_json(LocationDetails).countryOrRegion);
 union signinlogs_interactive, signinlogs_noninteractive
 | order by TimeGenerated desc
 ```
