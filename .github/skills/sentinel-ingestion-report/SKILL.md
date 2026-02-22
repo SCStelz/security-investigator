@@ -24,15 +24,15 @@ This skill generates a comprehensive **Sentinel Ingestion Analysis Report** cove
 
 ```
  ┌─────────────────────────────────────────────────────────────────┐
- │  YAML query files        PowerShell script        LLM render   │
- │  queries/phase1-5/  ──→  Invoke-IngestionScan  ──→  Phase 6    │
- │  (23 .yaml files)        .ps1 (~2600 lines)       (SKILL-     │
+ │  YAML query files        PowerShell script        LLM render    │
+ │  queries/phase1-5/  ──→  Invoke-IngestionScan  ──→  Phase 6     │
+ │  (23 .yaml files)        .ps1 (~2600 lines)       (SKILL-       │
  │                          • az monitor (KQL)        report.md)   │
  │                          • az rest (REST API)                   │
  │                          • az monitor table list                │
  │                          • Invoke-MgGraphRequest                │
  │                          ↓                                      │
- │                     temp/ingest_scratch_<ts>.md                  │
+ │                     temp/ingest_scratch_<ts>.md                 │
  │                     (~50 KB, 64 sections)                       │
  └─────────────────────────────────────────────────────────────────┘
 ```
