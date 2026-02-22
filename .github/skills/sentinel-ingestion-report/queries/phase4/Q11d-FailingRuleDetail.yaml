@@ -1,0 +1,18 @@
+id: ingestion-q11d
+name: Failing Analytic Rule Detail
+description: Top 20 failing rules from SentinelHealth. Failure-only rows with sample error message.
+phase: 4
+type: kql
+timespan: P{deepDiveDays}D
+query: |
+  SentinelHealth
+  | where TimeGenerated > ago({deepDiveDays}d)
+  | where SentinelResourceType == 'Analytics Rule'
+  | where Status == 'Failure'
+  | summarize
+      FailureCount = count(),
+      LastFailure = max(TimeGenerated),
+      SampleError = take_any(Description)
+      by SentinelResourceName
+  | order by FailureCount desc
+  | take 20

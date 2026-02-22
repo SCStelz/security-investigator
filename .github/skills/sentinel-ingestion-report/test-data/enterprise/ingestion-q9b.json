@@ -1,0 +1,366 @@
+[
+  {
+    "id": 5001,
+    "displayName": "TI map IP entity to SigninLogs",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "SigninLogs | where IPAddress in (ThreatIntelIndicators)",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5002,
+    "displayName": "TI map URL entity to CloudAppEvents",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "CloudAppEvents | where ActionType has 'url'\nThreatIntelIndicators",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5003,
+    "displayName": "TI map domain entity to DeviceNetworkEvents",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "DeviceNetworkEvents | where RemoteUrl in (ThreatIntelIndicators)",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5004,
+    "displayName": "TI map hash entity to DeviceFileEvents",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "DeviceFileEvents | where SHA256 in (ThreatIntelIndicators)",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5005,
+    "displayName": "TI map email entity to EmailEvents",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "EmailEvents | where SenderFromAddress in (ThreatIntelIndicators)",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5006,
+    "displayName": "Suspicious inbound connection to server",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "DeviceNetworkEvents | where ActionType == 'InboundConnectionAccepted'",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5007,
+    "displayName": "Credential access via LSASS",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "DeviceProcessEvents | where FileName == 'lsass.exe'",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5008,
+    "displayName": "Exchange server web shell detection",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "DeviceFileEvents | where FolderPath has 'inetpub'",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5009,
+    "displayName": "Anomalous sign-in pattern",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "SigninLogs | where RiskState == 'atRisk'",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5010,
+    "displayName": "Brute force RDP detection",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "DeviceLogonEvents | where LogonType == 'RemoteInteractive'",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5011,
+    "displayName": "Phishing email with attachment",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "EmailEvents | where AttachmentCount > 0 | where ThreatTypes has 'Phish'\nEmailAttachmentInfo",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5012,
+    "displayName": "Suspicious PowerShell download",
+    "isEnabled": true,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "DeviceProcessEvents | where FileName == 'powershell.exe' | where ProcessCommandLine has 'downloadstring'",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5013,
+    "displayName": "Test detection - suspended",
+    "isEnabled": false,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "SecurityEvent | where EventID == 4625",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  },
+  {
+    "id": 5014,
+    "displayName": "Draft - SOC triage rule",
+    "isEnabled": false,
+    "createdDateTime": "2025-11-20 3:00:00 PM",
+    "lastModifiedDateTime": "2026-01-15 10:30:00 AM",
+    "queryCondition": {
+      "queryText": "SecurityAlert | where AlertSeverity == 'Medium'",
+      "lastModifiedDateTime": ""
+    },
+    "schedule": {
+      "period": "1H",
+      "nextRunDateTime": "2026-02-20 2:00:00 AM"
+    },
+    "lastRunDetails": {
+      "lastRunDateTime": "2026-02-20 1:00:00 AM",
+      "status": "completed",
+      "failureReason": "",
+      "errorCode": ""
+    },
+    "detectionAction": {
+      "organizationalScope": "",
+      "alertTemplate": "",
+      "responseActions": []
+    }
+  }
+]

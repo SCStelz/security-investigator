@@ -1,0 +1,26 @@
+[
+  {
+    "Tier": "Analytics",
+    "TotalGB": 18851.55,
+    "BillableGB": 17450.55,
+    "TableCount": 60,
+    "PercentOfTotal": 96.6,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Tier": "Data Lake",
+    "TotalGB": 465.0,
+    "BillableGB": 465.0,
+    "TableCount": 4,
+    "PercentOfTotal": 2.4,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Tier": "Basic",
+    "TotalGB": 195.0,
+    "BillableGB": 195.0,
+    "TableCount": 1,
+    "PercentOfTotal": 1.0,
+    "TableName": "PrimaryResult"
+  }
+]

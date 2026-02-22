@@ -1,0 +1,11 @@
+# Q10: Table Tier Classification via Azure CLI
+# Fetches table plan metadata (Analytics, Basic, Auxiliary/Data Lake) from the workspace.
+# Azure CLI internally reports Data Lake tier as plan "Auxiliary" — always relabel as "Data Lake".
+# The Usage table does NOT have a TablePlan column; Azure CLI is the only programmatic source.
+
+id: ingestion-q10
+name: Table Tier Classification
+description: Fetch table plan metadata via az monitor log-analytics workspace table list
+phase: 3
+type: cli
+command: az monitor log-analytics workspace table list --resource-group {resource_group} --workspace-name {workspace_name} --subscription {subscription_id} --query "[].{name:name, plan:plan}" -o json

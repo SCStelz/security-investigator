@@ -44,6 +44,14 @@ When you need environment values (especially for Azure MCP Server calls), **read
 | `vpnapi_token` | `enrich_ips.py` | vpnapi.io API key |
 | `shodan_token` | `enrich_ips.py` | Shodan API key |
 
+### Prerequisites
+
+| Dependency | Required By | Setup |
+|------------|-------------|-------|
+| **Azure CLI** (`az`) | Azure MCP Server (underlying auth), `sentinel-ingestion-report` skill (`az rest` for rule inventory, `az monitor` for tier classification) | Install: [aka.ms/installazurecli](https://aka.ms/installazurecli). Authenticate: `az login --tenant <tenant_id>`. Set subscription: `az account set --subscription <subscription_id>` |
+
+> **Note:** Individual skills may have additional CLI dependencies documented in their own SKILL.md files. Check the skill file for skill-specific requirements before running a workflow.
+
 **When making Azure MCP Server calls**, always pass `tenant` and `subscription` from `config.json` to avoid the multi-tenant auth issue (DefaultAzureCredential may pick up the wrong tenant).
 
 ---
@@ -135,6 +143,7 @@ Before querying any table for the first time in a session, verify the schema:
 | **OfficeActivity** | Mailbox forwarding/redirect rules live here, **NOT in AuditLogs** | Filter by `OfficeWorkload == "Exchange"` and `Operation in~ ("New-InboxRule", "Set-InboxRule", "Set-Mailbox", "UpdateInboxRules")`. Check `Parameters` for `ForwardTo`, `RedirectTo`, `ForwardingSmtpAddress`. This table is the **primary source** for detecting email exfiltration via forwarding rules (MITRE T1114.003 / T1020). |
 | **OfficeActivity** | `Parameters` and `OperationProperties` are **string fields** containing JSON | Use `contains` or `has` for keyword matching, then `parse_json(Parameters)` to extract specific values. Do NOT query AuditLogs for mailbox rule changes — they only appear in OfficeActivity (Exchange workload). |
 | **Signinlogs_Anomalies_KQL_CL** | Custom `_CL` table names are **case-sensitive**. Table uses lowercase 'l' in "logs" — `Signinlogs` NOT `SigninLogs`. LLMs auto-correct this to match `SigninLogs` | Always copy exact table name `Signinlogs_Anomalies_KQL_CL`. If `SemanticError: Failed to resolve table`, verify casing first. If still fails, table may not exist in the workspace — skip gracefully |
+| **SentinelHealth** | `SentinelResourceType` values use **title-case with a space**: `"Analytics Rule"`, NOT `"Analytic rule"`. LLMs consistently generate the wrong casing/spelling, returning 0 results despite 30k+ rows in the table | Always use `SentinelResourceType == "Analytics Rule"` (capital A, capital R, "Analytics" with an 's'). Other valid values: `"Data connector"`, `"Automation rule"`. If query returns 0 rows, check this filter first |
 | **AADRiskySignIns** | Table does **NOT exist** in Sentinel Data Lake. Querying it returns `SemanticError: Failed to resolve table` | Use `AADUserRiskEvents` instead (contains Identity Protection risk detections). For sign-in-level risk data, use `SigninLogs` with `RiskLevelDuringSignIn` and `RiskState` columns |
 
 ### Step 4: Validate Before Execution
@@ -330,6 +339,7 @@ When explaining technical concepts, use **Microsoft Learn MCP** to ground respon
 | 📊 Visualization | **heatmap-visualization** | Interactive heatmap visualization for Sentinel data: attack patterns by time, activity grids, IP vs hour matrices, threat intel drill-down panels | "heatmap", "show heatmap", "visualize patterns", "activity grid" |
 | 🔧 Tooling & Monitoring | **kql-query-authoring** | KQL query creation using schema validation, community examples, Microsoft Learn | "write KQL", "create KQL query", "help with KQL", "query [table]" |
 | 🔧 Tooling & Monitoring | **mcp-usage-monitoring** | MCP server usage monitoring and audit: Graph MCP endpoint analysis, Sentinel MCP auth events, Azure MCP ARM operations, workspace query governance, MCP proportion analysis, sensitive API detection, off-hours activity, user attribution, MCP Usage Score with 5 health/risk dimensions. Supports inline chat and markdown file output | "MCP usage", "MCP server monitoring", "MCP activity", "MCP audit", "Graph MCP", "Sentinel MCP", "Azure MCP", "AI agent monitoring", "tool usage monitoring", "MCP breakdown", "who is using MCP" |
+| 🔧 Tooling & Monitoring | **sentinel-ingestion-report** | Sentinel workspace ingestion analysis: YAML-driven PowerShell pipeline gathers all data via az monitor/az rest/Graph API, writes a deterministic scratchpad, LLM renders the report. Covers table-level volume breakdown, tier classification (Analytics/Basic/Data Lake), SecurityEvent/Syslog/CommonSecurityLog deep dives, ingestion anomaly detection (24h and WoW), analytic rule inventory via REST API, rule health via SentinelHealth, detection coverage cross-reference, tier migration candidates with DL-eligibility lookup, license benefit analysis (DfS P2 500MB/server/day, M365 E5 data grant). **Post-report drill-down:** rule cross-referencing (AR via REST + CD via Graph API), ASIM parser dependency checks, error handling. Inline chat and markdown file output. **Companion files:** SKILL-report.md (rendering templates), SKILL-drilldown.md (drill-down patterns + pitfalls) | "ingestion report", "usage report", "data volume", "cost analysis", "table breakdown", "data lake tier", "ingestion anomaly", "cost optimization", "billable data", "workspace usage", "table ingestion", "SecurityEvent breakdown", "Defender for Servers benefit", "E5 ingestion benefit", "drill down", "which rules use", "rule cross-reference", "custom detection rules", "ASIM dependency", "ingestion drill-down" |
 
 ### Skill Detection Workflow
 
@@ -369,61 +379,39 @@ Incident investigation and threat hunting tools for Defender XDR and Sentinel:
 
 **Two KQL execution tools are available. Each has trade-offs:**
 
-> **Scope clarification:** `RunAdvancedHuntingQuery` operates through the **unified Advanced Hunting** in the Defender portal. When a Sentinel/Log Analytics workspace is connected to the unified portal, Advanced Hunting can query **both** Defender XDR-native tables (Device*, Email*, etc.) **and** connected Log Analytics workspace tables (e.g., `AzureDiagnostics`, `Syslog`, and other LA tables streamed into AH). It is NOT limited to Defender XDR data only.
+> **Key fact:** The LA workspace is connected to the unified Defender portal. Advanced Hunting can query **all** tables in the workspace — XDR-native tables (Device*, Email*, etc.), Sentinel-native tables (SigninLogs, AuditLogs, LAQueryLogs, etc.), and custom tables (`*_CL`). It is NOT limited to Defender XDR data only.
 
-| Factor | `RunAdvancedHuntingQuery` (Advanced Hunting — unified portal) | `mcp_sentinel-data_query_lake` (Sentinel Data Lake) |
-|--------|---------------------------------------------------------------|------------------------------------------------------|
-| **Cost** | Free (included in Defender license) | Billed per query (Log Analytics ingestion costs) |
+| Factor | `RunAdvancedHuntingQuery` (Advanced Hunting) | `mcp_sentinel-data_query_lake` (Sentinel Data Lake) |
+|--------|-----------------------------------------------|------------------------------------------------------|
+| **Cost** | Free for Analytics-tier tables (included in Defender license). **Note:** Tables on Auxiliary (Data Lake) or Basic plan still incur query costs even when queried via AH. | Billed per query (Log Analytics costs) |
 | **Retention** | 30 days | 90+ days (workspace-configured) |
-| **Timestamp column** | `Timestamp` | `TimeGenerated` |
-| **Safety filter** | MCP-level safety filter may block queries with offensive security keywords (e.g., PowerShell download patterns) | No additional safety filter beyond KQL validation |
+| **Timestamp column** | `Timestamp` for XDR-native tables; `TimeGenerated` for LA/Sentinel tables — use whichever the table requires | `TimeGenerated` |
+| **Safety filter** | MCP-level safety filter may block queries with offensive security keywords | No additional safety filter beyond KQL validation |
 | **Negation syntax** | `!has_any` and `!in~` may fail in `let` blocks — use `not()` wrappers | Standard KQL negation operators work reliably |
 
-#### Decision Logic
+#### Ad-Hoc Query Decision Logic
 
-For **every** KQL query, determine the tool based on the **table prefix**:
-
-**Step 1 — Identify table category:**
-
-| Category | Table prefixes / names | Tool |
-|----------|----------------------|------|
-| **Sentinel-native** | SigninLogs, AuditLogs, SecurityAlert, SecurityIncident, SecurityEvent, OfficeActivity, AADUserRiskEvents, Syslog, CommonSecurityLog, ThreatIntelligenceIndicator, Heartbeat, custom `*_CL` tables | **Data Lake only** |
-| **XDR-native — Advanced Hunting only** | `DeviceTvm*`, `AAD*Beta`, `EntraId*`, `Campaign*`, `Message*`, `DataSecurity*`, `Exposure*`, `Disruption*`, `GraphApi*`, `OAuth*`, `AI*` | **Advanced Hunting only** |
-| **Log Analytics via AH** | `AzureDiagnostics`, and other LA tables streamed into unified Advanced Hunting (workspace-dependent) | **Advanced Hunting only** (not a Defender table — available because LA workspace is connected to unified portal) |
-| **Available in both** | `Device*` (non-Tvm), `Alert*`, `Email*`, `Identity*`, `Cloud*`, `Behavior*`, `Url*`, `FileMaliciousContentInfo` | **See Step 2** |
-
-**Step 2 — For tables available in both, choose by context:**
+For **ad-hoc queries** (user-initiated, not part of a skill workflow), use this simple decision:
 
 | Condition | Tool | Reason |
 |-----------|------|--------|
-| **Lookback ≤ 30 days** (default) | **Advanced Hunting** | Free, guaranteed to exist, no connector dependency |
-| **Lookback > 30 days** | **Data Lake** | Advanced Hunting only retains 30 days |
-| **Query blocked by safety filter** | **Data Lake** | Data Lake has no MCP safety filter; adapt `Timestamp` → `TimeGenerated` |
-| **Data Lake returns "table not found"** | **Advanced Hunting** | XDR connector may not be streaming that table |
+| **Lookback ≤ 30 days** (any table) | **Advanced Hunting** | Free for Analytics-tier tables; Auxiliary/Basic tables still incur query costs |
+| **Lookback > 30 days** | **Data Lake** | AH only retains 30 days |
+| **Query blocked by AH safety filter** | **Data Lake** | Data Lake has no MCP safety filter |
+| **AH returns "table not found"** | **Data Lake** | Fallback for edge cases |
 
-**Step 3 — Timestamp adaptation:**
+**Default: Advanced Hunting first.** It covers all tables in the connected workspace. Note: querying Auxiliary (Data Lake) or Basic tier tables via AH still incurs per-query costs — AH is only free for Analytics-tier tables.
 
-When switching between tools, adapt the timestamp column:
-- Advanced Hunting → Data Lake: `Timestamp` → `TimeGenerated`
-- Data Lake → Advanced Hunting: `TimeGenerated` → `Timestamp`
+#### Skill File Override Rule
 
-**Step 4 — Pre-authored query files:**
+**When executing a skill workflow** (from `.github/skills/`), the skill's tool specifications take precedence over the ad-hoc rule above. If a skill file specifies `mcp_sentinel-data_query_lake` for a query, use Data Lake. If it specifies `RunAdvancedHuntingQuery`, use AH. Skills may choose a specific tool deliberately for reasons like retention requirements, safety filter avoidance, or tested compatibility.
 
-If the query is from a `.md` file in `queries/` or `.github/skills/`:
-- Uses `Timestamp` → run via **Advanced Hunting as-written** (it was authored for that tool). Only switch to Data Lake if lookback exceeds 30 days or the query is blocked by the safety filter.
-- Uses `TimeGenerated` → run via **Data Lake as-written** (it was authored for that tool). This applies even for `Cloud*` tables — skill authors chose Data Lake deliberately for 90-day retention coverage.
+#### Timestamp Adaptation
 
-#### Quick Reference
-
-| Table | Default Tool | Fallback |
-|-------|-------------|----------|
-| Sentinel-native (SigninLogs, AuditLogs, SecurityAlert, etc.) | Data Lake | — |
-| `Device*` (non-Tvm), `Alert*`, `Email*`, `Identity*`, `Cloud*` ≤ 30d | Advanced Hunting | Data Lake |
-| `Device*` (non-Tvm), `Alert*`, `Email*`, `Identity*`, `Cloud*` > 30d | Data Lake | Advanced Hunting |
-| `DeviceTvm*` | Advanced Hunting | — |
-| `AzureDiagnostics`, other LA tables in unified AH | Advanced Hunting | — |
-| `AAD*Beta`, `EntraId*`, `Exposure*`, `Message*`, other XDR-native AH-only | Advanced Hunting | — |
-| Custom tables (`*_CL`) | Data Lake | — |
+When switching between tools, adapt the timestamp column if needed:
+- XDR-native tables in AH use `Timestamp`
+- LA/Sentinel tables use `TimeGenerated` in **both** tools
+- When moving an XDR query to Data Lake: `Timestamp` → `TimeGenerated`
 
 ### KQL Search MCP
 GitHub-powered KQL query discovery and schema intelligence (331+ tables from Defender XDR, Sentinel, Azure Monitor):

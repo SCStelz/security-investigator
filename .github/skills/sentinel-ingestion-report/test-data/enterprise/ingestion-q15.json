@@ -1,0 +1,74 @@
+[
+  {
+    "DataType": "StorageBlobLogs",
+    "ThisWeekGB": 77.44,
+    "LastWeekGB": 34.33,
+    "ChangePercent": 125.6,
+    "DataType1": "StorageBlobLogs",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "GCPAuditLogs",
+    "ThisWeekGB": 8.19,
+    "LastWeekGB": 1.8,
+    "ChangePercent": 355.8,
+    "DataType1": "GCPAuditLogs",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AzureActivity",
+    "ThisWeekGB": 259.5,
+    "LastWeekGB": 225.99,
+    "ChangePercent": 14.8,
+    "DataType1": "AzureActivity",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "CloudAppEvents",
+    "ThisWeekGB": 102.56,
+    "LastWeekGB": 92.06,
+    "ChangePercent": 11.4,
+    "DataType1": "CloudAppEvents",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AWSCloudTrail",
+    "ThisWeekGB": 52.71,
+    "LastWeekGB": 76.16,
+    "ChangePercent": -30.8,
+    "DataType1": "AWSCloudTrail",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceRegistryEvents",
+    "ThisWeekGB": 45.21,
+    "LastWeekGB": 39.77,
+    "ChangePercent": 13.7,
+    "DataType1": "DeviceRegistryEvents",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "ThisWeekGB": 41.01,
+    "LastWeekGB": 61.54,
+    "ChangePercent": -33.3,
+    "DataType1": "AzureDiagnostics",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SentinelHealth",
+    "ThisWeekGB": 2.61,
+    "LastWeekGB": 2.44,
+    "ChangePercent": 6.9,
+    "DataType1": "SentinelHealth",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "OfficeActivity",
+    "ThisWeekGB": 29.06,
+    "LastWeekGB": 184.8,
+    "ChangePercent": -84.3,
+    "DataType1": "OfficeActivity",
+    "TableName": "PrimaryResult"
+  }
+]

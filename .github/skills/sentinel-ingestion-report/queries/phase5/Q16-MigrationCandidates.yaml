@@ -1,0 +1,13 @@
+id: ingestion-q16
+name: Tier Migration Candidates
+description: All billable tables with >0.01 GB — volume ranking for migration classification
+phase: 5
+type: kql
+timespan: P{deepDiveDays}D
+query: |
+  Usage
+  | where TimeGenerated > ago({deepDiveDays}d)
+  | where IsBillable == true
+  | summarize BillableGB = round(sum(Quantity) / 1024, 2) by DataType
+  | where BillableGB > 0.01
+  | order by BillableGB desc

@@ -1,0 +1,177 @@
+[
+  {
+    "EventID": 4624,
+    "EventCount": 1716090589,
+    "EstimatedGB": 1415.99,
+    "PercentOfTotal": 27.9,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4625,
+    "EventCount": 580332699,
+    "EstimatedGB": 606.85,
+    "PercentOfTotal": 11.9,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4672,
+    "EventCount": 465469846,
+    "EstimatedGB": 404.57,
+    "PercentOfTotal": 8.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4688,
+    "EventCount": 449515752,
+    "EstimatedGB": 379.28,
+    "PercentOfTotal": 7.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4689,
+    "EventCount": 373871880,
+    "EstimatedGB": 354.0,
+    "PercentOfTotal": 7.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4634,
+    "EventCount": 295519817,
+    "EstimatedGB": 303.43,
+    "PercentOfTotal": 6.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4663,
+    "EventCount": 364697695,
+    "EstimatedGB": 278.14,
+    "PercentOfTotal": 5.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4648,
+    "EventCount": 244658573,
+    "EstimatedGB": 202.28,
+    "PercentOfTotal": 4.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4776,
+    "EventCount": 231785259,
+    "EstimatedGB": 177.0,
+    "PercentOfTotal": 3.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4768,
+    "EventCount": 201783973,
+    "EstimatedGB": 151.71,
+    "PercentOfTotal": 3.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4769,
+    "EventCount": 163766736,
+    "EstimatedGB": 126.43,
+    "PercentOfTotal": 2.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 5156,
+    "EventCount": 121355243,
+    "EstimatedGB": 126.43,
+    "PercentOfTotal": 2.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 5158,
+    "EventCount": 120987484,
+    "EstimatedGB": 101.14,
+    "PercentOfTotal": 2.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4627,
+    "EventCount": 114277557,
+    "EstimatedGB": 101.14,
+    "PercentOfTotal": 2.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4703,
+    "EventCount": 70475737,
+    "EstimatedGB": 75.86,
+    "PercentOfTotal": 1.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4656,
+    "EventCount": 79506015,
+    "EstimatedGB": 75.86,
+    "PercentOfTotal": 1.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4670,
+    "EventCount": 53685143,
+    "EstimatedGB": 50.57,
+    "PercentOfTotal": 1.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4662,
+    "EventCount": 49981327,
+    "EstimatedGB": 40.46,
+    "PercentOfTotal": 0.8,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4658,
+    "EventCount": 40466957,
+    "EstimatedGB": 40.46,
+    "PercentOfTotal": 0.8,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4740,
+    "EventCount": 33659357,
+    "EstimatedGB": 25.29,
+    "PercentOfTotal": 0.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4720,
+    "EventCount": 14944329,
+    "EstimatedGB": 15.17,
+    "PercentOfTotal": 0.3,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4798,
+    "EventCount": 18878878,
+    "EstimatedGB": 15.17,
+    "PercentOfTotal": 0.3,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4726,
+    "EventCount": 10546707,
+    "EstimatedGB": 10.11,
+    "PercentOfTotal": 0.2,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 1102,
+    "EventCount": 2855863,
+    "EstimatedGB": 2.53,
+    "PercentOfTotal": 0.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "EventID": 4719,
+    "EventCount": 2889086,
+    "EstimatedGB": 2.53,
+    "PercentOfTotal": 0.0,
+    "TableName": "PrimaryResult"
+  }
+]

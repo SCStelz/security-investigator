@@ -1,0 +1,457 @@
+[
+  {
+    "TimeGenerated": "2026-02-01 12:00:00 AM",
+    "DailyGB": 181.702,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-02 12:00:00 AM",
+    "DailyGB": 189.97,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-03 12:00:00 AM",
+    "DailyGB": 202.836,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-04 12:00:00 AM",
+    "DailyGB": 200.17,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-05 12:00:00 AM",
+    "DailyGB": 226.582,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-06 12:00:00 AM",
+    "DailyGB": 223.506,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-07 12:00:00 AM",
+    "DailyGB": 192.367,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-08 12:00:00 AM",
+    "DailyGB": 158.389,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-09 12:00:00 AM",
+    "DailyGB": 210.395,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-10 12:00:00 AM",
+    "DailyGB": 190.217,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-11 12:00:00 AM",
+    "DailyGB": 199.934,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-12 12:00:00 AM",
+    "DailyGB": 214.689,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-13 12:00:00 AM",
+    "DailyGB": 190.049,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-14 12:00:00 AM",
+    "DailyGB": 163.111,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-15 12:00:00 AM",
+    "DailyGB": 182.143,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-16 12:00:00 AM",
+    "DailyGB": 216.726,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-17 12:00:00 AM",
+    "DailyGB": 200.027,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-18 12:00:00 AM",
+    "DailyGB": 219.007,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-19 12:00:00 AM",
+    "DailyGB": 230.336,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-20 12:00:00 AM",
+    "DailyGB": 189.018,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-21 12:00:00 AM",
+    "DailyGB": 188.723,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-22 12:00:00 AM",
+    "DailyGB": 184.179,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-23 12:00:00 AM",
+    "DailyGB": 206.192,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-24 12:00:00 AM",
+    "DailyGB": 196.684,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-25 12:00:00 AM",
+    "DailyGB": 237.941,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-26 12:00:00 AM",
+    "DailyGB": 206.004,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-27 12:00:00 AM",
+    "DailyGB": 193.456,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-02-28 12:00:00 AM",
+    "DailyGB": 158.802,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-01 12:00:00 AM",
+    "DailyGB": 190.482,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-02 12:00:00 AM",
+    "DailyGB": 219.751,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-03 12:00:00 AM",
+    "DailyGB": 230.218,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-04 12:00:00 AM",
+    "DailyGB": 226.235,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-05 12:00:00 AM",
+    "DailyGB": 216.277,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-06 12:00:00 AM",
+    "DailyGB": 238.759,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-07 12:00:00 AM",
+    "DailyGB": 170.693,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-08 12:00:00 AM",
+    "DailyGB": 178.015,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-09 12:00:00 AM",
+    "DailyGB": 231.364,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-10 12:00:00 AM",
+    "DailyGB": 220.512,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-11 12:00:00 AM",
+    "DailyGB": 233.026,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-12 12:00:00 AM",
+    "DailyGB": 218.393,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-13 12:00:00 AM",
+    "DailyGB": 224.94,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-14 12:00:00 AM",
+    "DailyGB": 156.654,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-15 12:00:00 AM",
+    "DailyGB": 164.337,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-16 12:00:00 AM",
+    "DailyGB": 203.575,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-17 12:00:00 AM",
+    "DailyGB": 192.789,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-18 12:00:00 AM",
+    "DailyGB": 200.663,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-19 12:00:00 AM",
+    "DailyGB": 193.881,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-20 12:00:00 AM",
+    "DailyGB": 202.988,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-21 12:00:00 AM",
+    "DailyGB": 181.544,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-22 12:00:00 AM",
+    "DailyGB": 170.115,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-23 12:00:00 AM",
+    "DailyGB": 207.733,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-24 12:00:00 AM",
+    "DailyGB": 199.464,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-25 12:00:00 AM",
+    "DailyGB": 202.422,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-26 12:00:00 AM",
+    "DailyGB": 236.883,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-27 12:00:00 AM",
+    "DailyGB": 222.031,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-28 12:00:00 AM",
+    "DailyGB": 180.424,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-29 12:00:00 AM",
+    "DailyGB": 161.942,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-30 12:00:00 AM",
+    "DailyGB": 226.204,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-03-31 12:00:00 AM",
+    "DailyGB": 197.092,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-01 12:00:00 AM",
+    "DailyGB": 208.21,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-02 12:00:00 AM",
+    "DailyGB": 239.603,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-03 12:00:00 AM",
+    "DailyGB": 221.617,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-04 12:00:00 AM",
+    "DailyGB": 178.222,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-05 12:00:00 AM",
+    "DailyGB": 183.609,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-06 12:00:00 AM",
+    "DailyGB": 232.056,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-07 12:00:00 AM",
+    "DailyGB": 228.616,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-08 12:00:00 AM",
+    "DailyGB": 200.47,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-09 12:00:00 AM",
+    "DailyGB": 190.335,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-10 12:00:00 AM",
+    "DailyGB": 204.916,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-11 12:00:00 AM",
+    "DailyGB": 166.018,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-12 12:00:00 AM",
+    "DailyGB": 163.623,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-13 12:00:00 AM",
+    "DailyGB": 237.205,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-14 12:00:00 AM",
+    "DailyGB": 233.781,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-15 12:00:00 AM",
+    "DailyGB": 204.876,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-16 12:00:00 AM",
+    "DailyGB": 222.412,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-17 12:00:00 AM",
+    "DailyGB": 209.042,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-18 12:00:00 AM",
+    "DailyGB": 193.311,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-19 12:00:00 AM",
+    "DailyGB": 174.082,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-20 12:00:00 AM",
+    "DailyGB": 202.314,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-21 12:00:00 AM",
+    "DailyGB": 201.375,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-22 12:00:00 AM",
+    "DailyGB": 217.571,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-23 12:00:00 AM",
+    "DailyGB": 202.204,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-24 12:00:00 AM",
+    "DailyGB": 218.766,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-25 12:00:00 AM",
+    "DailyGB": 192.605,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-26 12:00:00 AM",
+    "DailyGB": 171.574,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-27 12:00:00 AM",
+    "DailyGB": 199.969,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-28 12:00:00 AM",
+    "DailyGB": 240.016,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-29 12:00:00 AM",
+    "DailyGB": 214.903,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-04-30 12:00:00 AM",
+    "DailyGB": 193.362,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-05-01 12:00:00 AM",
+    "DailyGB": 191.108,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "TimeGenerated": "2026-05-02 12:00:00 AM",
+    "DailyGB": 159.347,
+    "TableName": "PrimaryResult"
+  }
+]

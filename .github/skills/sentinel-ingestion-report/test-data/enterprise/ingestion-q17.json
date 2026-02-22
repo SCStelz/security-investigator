@@ -1,0 +1,730 @@
+[
+  {
+    "Day": "2026-02-01 12:00:00 AM",
+    "TotalGB": 181.702,
+    "DFSP2GB": 16.757958,
+    "E5GB": 61.912236,
+    "RemainingGB": 103.031806,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-02 12:00:00 AM",
+    "TotalGB": 189.97,
+    "DFSP2GB": 22.434001,
+    "E5GB": 73.149443,
+    "RemainingGB": 94.386556,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-03 12:00:00 AM",
+    "TotalGB": 202.836,
+    "DFSP2GB": 23.120059,
+    "E5GB": 70.185795,
+    "RemainingGB": 109.530146,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-04 12:00:00 AM",
+    "TotalGB": 200.17,
+    "DFSP2GB": 21.477245,
+    "E5GB": 78.654715,
+    "RemainingGB": 100.03804,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-05 12:00:00 AM",
+    "TotalGB": 226.582,
+    "DFSP2GB": 24.531769,
+    "E5GB": 79.811993,
+    "RemainingGB": 122.238238,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-06 12:00:00 AM",
+    "TotalGB": 223.506,
+    "DFSP2GB": 21.501138,
+    "E5GB": 69.561177,
+    "RemainingGB": 132.443685,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-07 12:00:00 AM",
+    "TotalGB": 192.367,
+    "DFSP2GB": 16.83579,
+    "E5GB": 58.631325,
+    "RemainingGB": 116.899885,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-08 12:00:00 AM",
+    "TotalGB": 158.389,
+    "DFSP2GB": 17.536027,
+    "E5GB": 61.564738,
+    "RemainingGB": 79.288235,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-09 12:00:00 AM",
+    "TotalGB": 210.395,
+    "DFSP2GB": 22.140369,
+    "E5GB": 70.13309,
+    "RemainingGB": 118.121541,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-10 12:00:00 AM",
+    "TotalGB": 190.217,
+    "DFSP2GB": 20.224964,
+    "E5GB": 78.103834,
+    "RemainingGB": 91.888202,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-11 12:00:00 AM",
+    "TotalGB": 199.934,
+    "DFSP2GB": 21.918796,
+    "E5GB": 73.888124,
+    "RemainingGB": 104.12708,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-12 12:00:00 AM",
+    "TotalGB": 214.689,
+    "DFSP2GB": 22.048404,
+    "E5GB": 76.383968,
+    "RemainingGB": 116.256628,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-13 12:00:00 AM",
+    "TotalGB": 190.049,
+    "DFSP2GB": 22.937889,
+    "E5GB": 82.169554,
+    "RemainingGB": 84.941557,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-14 12:00:00 AM",
+    "TotalGB": 163.111,
+    "DFSP2GB": 19.136423,
+    "E5GB": 64.667984,
+    "RemainingGB": 79.306593,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-15 12:00:00 AM",
+    "TotalGB": 182.143,
+    "DFSP2GB": 16.930208,
+    "E5GB": 58.159972,
+    "RemainingGB": 107.05282,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-16 12:00:00 AM",
+    "TotalGB": 216.726,
+    "DFSP2GB": 21.976866,
+    "E5GB": 84.661134,
+    "RemainingGB": 110.088,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-17 12:00:00 AM",
+    "TotalGB": 200.027,
+    "DFSP2GB": 22.981272,
+    "E5GB": 75.076306,
+    "RemainingGB": 101.969422,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-18 12:00:00 AM",
+    "TotalGB": 219.007,
+    "DFSP2GB": 20.731481,
+    "E5GB": 78.731003,
+    "RemainingGB": 119.544516,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-19 12:00:00 AM",
+    "TotalGB": 230.336,
+    "DFSP2GB": 22.130212,
+    "E5GB": 70.056133,
+    "RemainingGB": 138.149655,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-20 12:00:00 AM",
+    "TotalGB": 189.018,
+    "DFSP2GB": 20.158359,
+    "E5GB": 80.445722,
+    "RemainingGB": 88.413919,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-21 12:00:00 AM",
+    "TotalGB": 188.723,
+    "DFSP2GB": 19.942598,
+    "E5GB": 63.507609,
+    "RemainingGB": 105.272793,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-22 12:00:00 AM",
+    "TotalGB": 184.179,
+    "DFSP2GB": 17.020661,
+    "E5GB": 68.237138,
+    "RemainingGB": 98.921201,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-23 12:00:00 AM",
+    "TotalGB": 206.192,
+    "DFSP2GB": 20.707075,
+    "E5GB": 83.80602,
+    "RemainingGB": 101.678905,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-24 12:00:00 AM",
+    "TotalGB": 196.684,
+    "DFSP2GB": 21.67947,
+    "E5GB": 75.498289,
+    "RemainingGB": 99.506241,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-25 12:00:00 AM",
+    "TotalGB": 237.941,
+    "DFSP2GB": 23.300429,
+    "E5GB": 82.436348,
+    "RemainingGB": 132.204223,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-26 12:00:00 AM",
+    "TotalGB": 206.004,
+    "DFSP2GB": 23.176529,
+    "E5GB": 77.26287,
+    "RemainingGB": 105.564601,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-27 12:00:00 AM",
+    "TotalGB": 193.456,
+    "DFSP2GB": 22.719511,
+    "E5GB": 76.993334,
+    "RemainingGB": 93.743155,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-02-28 12:00:00 AM",
+    "TotalGB": 158.802,
+    "DFSP2GB": 18.867359,
+    "E5GB": 62.945326,
+    "RemainingGB": 76.989315,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-01 12:00:00 AM",
+    "TotalGB": 190.482,
+    "DFSP2GB": 16.430481,
+    "E5GB": 61.127742,
+    "RemainingGB": 112.923777,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-02 12:00:00 AM",
+    "TotalGB": 219.751,
+    "DFSP2GB": 20.542916,
+    "E5GB": 75.862216,
+    "RemainingGB": 123.345868,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-03 12:00:00 AM",
+    "TotalGB": 230.218,
+    "DFSP2GB": 21.620434,
+    "E5GB": 83.302976,
+    "RemainingGB": 125.29459,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-04 12:00:00 AM",
+    "TotalGB": 226.235,
+    "DFSP2GB": 24.690886,
+    "E5GB": 79.144489,
+    "RemainingGB": 122.399625,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-05 12:00:00 AM",
+    "TotalGB": 216.277,
+    "DFSP2GB": 23.193855,
+    "E5GB": 73.532135,
+    "RemainingGB": 119.55101,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-06 12:00:00 AM",
+    "TotalGB": 238.759,
+    "DFSP2GB": 23.513082,
+    "E5GB": 84.433837,
+    "RemainingGB": 130.812081,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-07 12:00:00 AM",
+    "TotalGB": 170.693,
+    "DFSP2GB": 18.936725,
+    "E5GB": 59.815713,
+    "RemainingGB": 91.940562,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-08 12:00:00 AM",
+    "TotalGB": 178.015,
+    "DFSP2GB": 16.585352,
+    "E5GB": 63.015626,
+    "RemainingGB": 98.414022,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-09 12:00:00 AM",
+    "TotalGB": 231.364,
+    "DFSP2GB": 22.798491,
+    "E5GB": 80.562851,
+    "RemainingGB": 128.002658,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-10 12:00:00 AM",
+    "TotalGB": 220.512,
+    "DFSP2GB": 24.160524,
+    "E5GB": 75.301337,
+    "RemainingGB": 121.050139,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-11 12:00:00 AM",
+    "TotalGB": 233.026,
+    "DFSP2GB": 24.416504,
+    "E5GB": 73.172093,
+    "RemainingGB": 135.437403,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-12 12:00:00 AM",
+    "TotalGB": 218.393,
+    "DFSP2GB": 23.061449,
+    "E5GB": 80.244038,
+    "RemainingGB": 115.087513,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-13 12:00:00 AM",
+    "TotalGB": 224.94,
+    "DFSP2GB": 20.984533,
+    "E5GB": 76.240225,
+    "RemainingGB": 127.715242,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-14 12:00:00 AM",
+    "TotalGB": 156.654,
+    "DFSP2GB": 18.224362,
+    "E5GB": 62.161719,
+    "RemainingGB": 76.267919,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-15 12:00:00 AM",
+    "TotalGB": 164.337,
+    "DFSP2GB": 17.265787,
+    "E5GB": 63.286021,
+    "RemainingGB": 83.785192,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-16 12:00:00 AM",
+    "TotalGB": 203.575,
+    "DFSP2GB": 23.273107,
+    "E5GB": 76.711872,
+    "RemainingGB": 103.590021,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-17 12:00:00 AM",
+    "TotalGB": 192.789,
+    "DFSP2GB": 24.561838,
+    "E5GB": 80.658814,
+    "RemainingGB": 87.568348,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-18 12:00:00 AM",
+    "TotalGB": 200.663,
+    "DFSP2GB": 23.786084,
+    "E5GB": 77.438282,
+    "RemainingGB": 99.438634,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-19 12:00:00 AM",
+    "TotalGB": 193.881,
+    "DFSP2GB": 22.997891,
+    "E5GB": 84.836036,
+    "RemainingGB": 86.047073,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-20 12:00:00 AM",
+    "TotalGB": 202.988,
+    "DFSP2GB": 22.549005,
+    "E5GB": 75.249406,
+    "RemainingGB": 105.189589,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-21 12:00:00 AM",
+    "TotalGB": 181.544,
+    "DFSP2GB": 20.623849,
+    "E5GB": 62.752639,
+    "RemainingGB": 98.167512,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-22 12:00:00 AM",
+    "TotalGB": 170.115,
+    "DFSP2GB": 18.73444,
+    "E5GB": 63.848477,
+    "RemainingGB": 87.532083,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-23 12:00:00 AM",
+    "TotalGB": 207.733,
+    "DFSP2GB": 23.623392,
+    "E5GB": 82.822907,
+    "RemainingGB": 101.286701,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-24 12:00:00 AM",
+    "TotalGB": 199.464,
+    "DFSP2GB": 23.649924,
+    "E5GB": 81.835359,
+    "RemainingGB": 93.978717,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-25 12:00:00 AM",
+    "TotalGB": 202.422,
+    "DFSP2GB": 21.384797,
+    "E5GB": 76.905899,
+    "RemainingGB": 104.131304,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-26 12:00:00 AM",
+    "TotalGB": 236.883,
+    "DFSP2GB": 25.154582,
+    "E5GB": 73.740069,
+    "RemainingGB": 137.988349,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-27 12:00:00 AM",
+    "TotalGB": 222.031,
+    "DFSP2GB": 21.570502,
+    "E5GB": 83.962122,
+    "RemainingGB": 116.498376,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-28 12:00:00 AM",
+    "TotalGB": 180.424,
+    "DFSP2GB": 20.737933,
+    "E5GB": 66.69406,
+    "RemainingGB": 92.992007,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-29 12:00:00 AM",
+    "TotalGB": 161.942,
+    "DFSP2GB": 19.500689,
+    "E5GB": 65.67003,
+    "RemainingGB": 76.771281,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-30 12:00:00 AM",
+    "TotalGB": 226.204,
+    "DFSP2GB": 22.606843,
+    "E5GB": 76.838367,
+    "RemainingGB": 126.75879,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-03-31 12:00:00 AM",
+    "TotalGB": 197.092,
+    "DFSP2GB": 22.995719,
+    "E5GB": 83.85411,
+    "RemainingGB": 90.242171,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-01 12:00:00 AM",
+    "TotalGB": 208.21,
+    "DFSP2GB": 23.872521,
+    "E5GB": 73.87559,
+    "RemainingGB": 110.461889,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-02 12:00:00 AM",
+    "TotalGB": 239.603,
+    "DFSP2GB": 23.06638,
+    "E5GB": 77.816435,
+    "RemainingGB": 138.720185,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-03 12:00:00 AM",
+    "TotalGB": 221.617,
+    "DFSP2GB": 24.819604,
+    "E5GB": 75.522636,
+    "RemainingGB": 121.27476,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-04 12:00:00 AM",
+    "TotalGB": 178.222,
+    "DFSP2GB": 17.895843,
+    "E5GB": 66.717974,
+    "RemainingGB": 93.608183,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-05 12:00:00 AM",
+    "TotalGB": 183.609,
+    "DFSP2GB": 17.009667,
+    "E5GB": 57.46895,
+    "RemainingGB": 109.130383,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-06 12:00:00 AM",
+    "TotalGB": 232.056,
+    "DFSP2GB": 25.143573,
+    "E5GB": 70.654424,
+    "RemainingGB": 136.258003,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-07 12:00:00 AM",
+    "TotalGB": 228.616,
+    "DFSP2GB": 24.973279,
+    "E5GB": 79.556649,
+    "RemainingGB": 124.086072,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-08 12:00:00 AM",
+    "TotalGB": 200.47,
+    "DFSP2GB": 24.012188,
+    "E5GB": 72.736816,
+    "RemainingGB": 103.720996,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-09 12:00:00 AM",
+    "TotalGB": 190.335,
+    "DFSP2GB": 24.450724,
+    "E5GB": 73.618578,
+    "RemainingGB": 92.265698,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-10 12:00:00 AM",
+    "TotalGB": 204.916,
+    "DFSP2GB": 23.004045,
+    "E5GB": 73.626119,
+    "RemainingGB": 108.285836,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-11 12:00:00 AM",
+    "TotalGB": 166.018,
+    "DFSP2GB": 16.843505,
+    "E5GB": 66.310897,
+    "RemainingGB": 82.863598,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-12 12:00:00 AM",
+    "TotalGB": 163.623,
+    "DFSP2GB": 17.423656,
+    "E5GB": 57.579015,
+    "RemainingGB": 88.620329,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-13 12:00:00 AM",
+    "TotalGB": 237.205,
+    "DFSP2GB": 24.870869,
+    "E5GB": 72.917114,
+    "RemainingGB": 139.417017,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-14 12:00:00 AM",
+    "TotalGB": 233.781,
+    "DFSP2GB": 21.213298,
+    "E5GB": 70.981055,
+    "RemainingGB": 141.586647,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-15 12:00:00 AM",
+    "TotalGB": 204.876,
+    "DFSP2GB": 21.743464,
+    "E5GB": 76.724192,
+    "RemainingGB": 106.408344,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-16 12:00:00 AM",
+    "TotalGB": 222.412,
+    "DFSP2GB": 23.652351,
+    "E5GB": 71.556116,
+    "RemainingGB": 127.203533,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-17 12:00:00 AM",
+    "TotalGB": 209.042,
+    "DFSP2GB": 25.193649,
+    "E5GB": 84.524162,
+    "RemainingGB": 99.324189,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-18 12:00:00 AM",
+    "TotalGB": 193.311,
+    "DFSP2GB": 17.06081,
+    "E5GB": 65.197491,
+    "RemainingGB": 111.052699,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-19 12:00:00 AM",
+    "TotalGB": 174.082,
+    "DFSP2GB": 20.284659,
+    "E5GB": 62.955537,
+    "RemainingGB": 90.841804,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-20 12:00:00 AM",
+    "TotalGB": 202.314,
+    "DFSP2GB": 23.485597,
+    "E5GB": 81.098708,
+    "RemainingGB": 97.729695,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-21 12:00:00 AM",
+    "TotalGB": 201.375,
+    "DFSP2GB": 21.50928,
+    "E5GB": 73.838959,
+    "RemainingGB": 106.026761,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-22 12:00:00 AM",
+    "TotalGB": 217.571,
+    "DFSP2GB": 20.268511,
+    "E5GB": 81.296427,
+    "RemainingGB": 116.006062,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-23 12:00:00 AM",
+    "TotalGB": 202.204,
+    "DFSP2GB": 23.495172,
+    "E5GB": 73.018158,
+    "RemainingGB": 105.69067,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-24 12:00:00 AM",
+    "TotalGB": 218.766,
+    "DFSP2GB": 23.965121,
+    "E5GB": 82.55564,
+    "RemainingGB": 112.245239,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-25 12:00:00 AM",
+    "TotalGB": 192.605,
+    "DFSP2GB": 16.522647,
+    "E5GB": 68.595702,
+    "RemainingGB": 107.486651,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-26 12:00:00 AM",
+    "TotalGB": 171.574,
+    "DFSP2GB": 18.220368,
+    "E5GB": 67.53458,
+    "RemainingGB": 85.819052,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-27 12:00:00 AM",
+    "TotalGB": 199.969,
+    "DFSP2GB": 25.027206,
+    "E5GB": 69.995724,
+    "RemainingGB": 104.94607,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-28 12:00:00 AM",
+    "TotalGB": 240.016,
+    "DFSP2GB": 24.495612,
+    "E5GB": 81.593233,
+    "RemainingGB": 133.927155,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-29 12:00:00 AM",
+    "TotalGB": 214.903,
+    "DFSP2GB": 20.960202,
+    "E5GB": 80.992119,
+    "RemainingGB": 112.950679,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-04-30 12:00:00 AM",
+    "TotalGB": 193.362,
+    "DFSP2GB": 24.691928,
+    "E5GB": 73.901475,
+    "RemainingGB": 94.768597,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-05-01 12:00:00 AM",
+    "TotalGB": 191.108,
+    "DFSP2GB": 20.150483,
+    "E5GB": 74.039192,
+    "RemainingGB": 96.918325,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Day": "2026-05-02 12:00:00 AM",
+    "TotalGB": 159.347,
+    "DFSP2GB": 19.045161,
+    "E5GB": 68.684068,
+    "RemainingGB": 71.617771,
+    "TableName": "PrimaryResult"
+  }
+]

@@ -1,0 +1,19 @@
+id: ingestion-q8
+name: CommonSecurityLog by Activity
+description: Top 30 Activity x LogSeverity x DeviceAction by volume. Reveals filtering opportunities by event type.
+phase: 2
+type: kql
+timespan: P{deepDiveDays}D
+query: |
+  let _total = toscalar(CommonSecurityLog | where TimeGenerated > ago({deepDiveDays}d) | summarize round(sum(estimate_data_size(*)) / 1024.0 / 1024.0 / 1024.0, 4));
+  CommonSecurityLog
+  | where TimeGenerated > ago({deepDiveDays}d)
+  | summarize
+      EventCount = count(),
+      EstimatedGB = round(sum(estimate_data_size(*)) / 1024.0 / 1024.0 / 1024.0, 4),
+      DistinctSources = dcount(strcat(DeviceVendor, "|", DeviceProduct)),
+      DistinctSourceIPs = dcount(SourceIP)
+      by Activity, LogSeverity, DeviceAction
+  | extend PercentOfTotal = iff(_total > 0, round(100.0 * EstimatedGB / _total, 1), 0.0)
+  | order by EstimatedGB desc
+  | take 30

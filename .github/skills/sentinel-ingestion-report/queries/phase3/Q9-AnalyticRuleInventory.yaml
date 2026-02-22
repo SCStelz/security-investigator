@@ -1,0 +1,12 @@
+# Q9: Analytic Rule Inventory via Sentinel REST API
+# Fetches all Scheduled + NRT analytic rules from the workspace.
+# Returns displayName, ruleId, query text, enabled state, and kind.
+# The query text is needed for Phase 4 cross-reference (which tables rules target).
+
+id: ingestion-q9
+name: Analytic Rule Inventory
+description: Fetch Scheduled + NRT analytic rules via Sentinel REST API (az rest)
+phase: 3
+type: rest
+url: https://management.azure.com/subscriptions/{subscription_id}/resourceGroups/{resource_group}/providers/Microsoft.OperationalInsights/workspaces/{workspace_name}/providers/Microsoft.SecurityInsights/alertRules?api-version=2024-03-01
+jmespath: value[?kind=='Scheduled' || kind=='NRT'].{displayName:properties.displayName, ruleId:name, query:properties.query, enabled:properties.enabled, kind:kind}

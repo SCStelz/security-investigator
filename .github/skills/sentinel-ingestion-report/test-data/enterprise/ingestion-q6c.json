@@ -1,0 +1,272 @@
+[
+  {
+    "ProcessName": "sshd",
+    "Facility": "auth",
+    "EventCount": 773846590,
+    "EstimatedGB": 280.67,
+    "PercentOfTotal": 16.8,
+    "DistinctHosts": 7,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "systemd",
+    "Facility": "daemon",
+    "EventCount": 944567159,
+    "EstimatedGB": 252.6,
+    "PercentOfTotal": 15.1,
+    "DistinctHosts": 6,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "sudo",
+    "Facility": "authpriv",
+    "EventCount": 362010144,
+    "EstimatedGB": 112.27,
+    "PercentOfTotal": 6.7,
+    "DistinctHosts": 3,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "dockerd",
+    "Facility": "daemon",
+    "EventCount": 303693749,
+    "EstimatedGB": 98.24,
+    "PercentOfTotal": 5.9,
+    "DistinctHosts": 18,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "cron",
+    "Facility": "cron",
+    "EventCount": 323081267,
+    "EstimatedGB": 84.2,
+    "PercentOfTotal": 5.0,
+    "DistinctHosts": 18,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "kubelet",
+    "Facility": "daemon",
+    "EventCount": 331298453,
+    "EstimatedGB": 84.2,
+    "PercentOfTotal": 5.0,
+    "DistinctHosts": 4,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "auditd",
+    "Facility": "authpriv",
+    "EventCount": 197086474,
+    "EstimatedGB": 70.17,
+    "PercentOfTotal": 4.2,
+    "DistinctHosts": 9,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "nginx",
+    "Facility": "local0",
+    "EventCount": 206639738,
+    "EstimatedGB": 70.17,
+    "PercentOfTotal": 4.2,
+    "DistinctHosts": 10,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "rsyslogd",
+    "Facility": "syslog",
+    "EventCount": 156898452,
+    "EstimatedGB": 56.13,
+    "PercentOfTotal": 3.4,
+    "DistinctHosts": 7,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "containerd",
+    "Facility": "daemon",
+    "EventCount": 216350464,
+    "EstimatedGB": 56.13,
+    "PercentOfTotal": 3.4,
+    "DistinctHosts": 3,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "pam_unix",
+    "Facility": "auth",
+    "EventCount": 197000162,
+    "EstimatedGB": 56.13,
+    "PercentOfTotal": 3.4,
+    "DistinctHosts": 2,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "named",
+    "Facility": "daemon",
+    "EventCount": 115871824,
+    "EstimatedGB": 42.1,
+    "PercentOfTotal": 2.5,
+    "DistinctHosts": 11,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "postfix",
+    "Facility": "mail",
+    "EventCount": 147510426,
+    "EstimatedGB": 42.1,
+    "PercentOfTotal": 2.5,
+    "DistinctHosts": 4,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "kube-apiserver",
+    "Facility": "daemon",
+    "EventCount": 113029897,
+    "EstimatedGB": 42.1,
+    "PercentOfTotal": 2.5,
+    "DistinctHosts": 10,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "httpd",
+    "Facility": "local0",
+    "EventCount": 127011507,
+    "EstimatedGB": 42.1,
+    "PercentOfTotal": 2.5,
+    "DistinctHosts": 4,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "iptables",
+    "Facility": "kern",
+    "EventCount": 93519182,
+    "EstimatedGB": 28.07,
+    "PercentOfTotal": 1.7,
+    "DistinctHosts": 7,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "NetworkManager",
+    "Facility": "daemon",
+    "EventCount": 97366249,
+    "EstimatedGB": 28.07,
+    "PercentOfTotal": 1.7,
+    "DistinctHosts": 6,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "etcd",
+    "Facility": "daemon",
+    "EventCount": 107429673,
+    "EstimatedGB": 28.07,
+    "PercentOfTotal": 1.7,
+    "DistinctHosts": 2,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "coredns",
+    "Facility": "daemon",
+    "EventCount": 99923690,
+    "EstimatedGB": 28.07,
+    "PercentOfTotal": 1.7,
+    "DistinctHosts": 15,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "login",
+    "Facility": "auth",
+    "EventCount": 93323667,
+    "EstimatedGB": 28.07,
+    "PercentOfTotal": 1.7,
+    "DistinctHosts": 11,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "journald",
+    "Facility": "daemon",
+    "EventCount": 91875298,
+    "EstimatedGB": 28.07,
+    "PercentOfTotal": 1.7,
+    "DistinctHosts": 12,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "systemd-logind",
+    "Facility": "authpriv",
+    "EventCount": 108992413,
+    "EstimatedGB": 28.07,
+    "PercentOfTotal": 1.7,
+    "DistinctHosts": 12,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "polkitd",
+    "Facility": "authpriv",
+    "EventCount": 59425600,
+    "EstimatedGB": 21.05,
+    "PercentOfTotal": 1.3,
+    "DistinctHosts": 12,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "su",
+    "Facility": "auth",
+    "EventCount": 49761311,
+    "EstimatedGB": 14.03,
+    "PercentOfTotal": 0.8,
+    "DistinctHosts": 11,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "dovecot",
+    "Facility": "mail",
+    "EventCount": 50768065,
+    "EstimatedGB": 14.03,
+    "PercentOfTotal": 0.8,
+    "DistinctHosts": 7,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "dbus-daemon",
+    "Facility": "daemon",
+    "EventCount": 45400696,
+    "EstimatedGB": 14.03,
+    "PercentOfTotal": 0.8,
+    "DistinctHosts": 17,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "useradd",
+    "Facility": "authpriv",
+    "EventCount": 23167437,
+    "EstimatedGB": 7.02,
+    "PercentOfTotal": 0.4,
+    "DistinctHosts": 14,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "apt-get",
+    "Facility": "daemon",
+    "EventCount": 24500780,
+    "EstimatedGB": 7.02,
+    "PercentOfTotal": 0.4,
+    "DistinctHosts": 12,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "passwd",
+    "Facility": "authpriv",
+    "EventCount": 15525202,
+    "EstimatedGB": 4.21,
+    "PercentOfTotal": 0.3,
+    "DistinctHosts": 13,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "ProcessName": "rpm",
+    "Facility": "daemon",
+    "EventCount": 17084756,
+    "EstimatedGB": 4.21,
+    "PercentOfTotal": 0.3,
+    "DistinctHosts": 6,
+    "TableName": "PrimaryResult"
+  }
+]

@@ -1,0 +1,40 @@
+id: ingestion-q17
+name: License Benefit Analysis
+description: Daily billable ingestion broken into DfSP2-eligible, E5/XDR-eligible, and remaining
+phase: 5
+type: kql
+timespan: P{days}D
+query: |
+  let TotalBillable = Usage
+  | where IsBillable == true
+  | summarize TotalGB = sum(Quantity) / 1000 by Day = bin(TimeGenerated, 1d)
+  | extend TotalGB = todouble(TotalGB);
+  let DFSP2Eligible = Usage
+  | where IsBillable == true
+  | where DataType in ('SecurityAlert', 'SecurityBaseline', 'SecurityBaselineSummary',
+      'SecurityDetection', 'SecurityEvent', 'WindowsFirewall',
+      'MaliciousIPCommunication', 'SysmonEvent', 'ProtectionStatus',
+      'Update', 'UpdateSummary')
+  | summarize DFSP2GB = sum(Quantity) / 1000 by Day = bin(TimeGenerated, 1d)
+  | extend DFSP2GB = todouble(DFSP2GB);
+  let E5Eligible = Usage
+  | where IsBillable == true
+  | where DataType in ('SigninLogs', 'AuditLogs', 'AADNonInteractiveUserSignInLogs',
+      'AADServicePrincipalSignInLogs', 'AADManagedIdentitySignInLogs',
+      'AADProvisioningLogs', 'ADFSSignInLogs', 'McasShadowItReporting',
+      'InformationProtectionLogs_CL', 'DeviceEvents', 'DeviceFileEvents',
+      'DeviceImageLoadEvents', 'DeviceInfo', 'DeviceLogonEvents',
+      'DeviceNetworkEvents', 'DeviceNetworkInfo', 'DeviceProcessEvents',
+      'DeviceRegistryEvents', 'DeviceFileCertificateInfo',
+      'EmailAttachmentInfo', 'EmailEvents', 'EmailPostDeliveryEvents',
+      'EmailUrlInfo', 'IdentityLogonEvents', 'IdentityQueryEvents',
+      'IdentityDirectoryEvents', 'AlertEvidence', 'CloudAppEvents',
+      'DynamicEventCollection')
+  | summarize E5GB = sum(Quantity) / 1000 by Day = bin(TimeGenerated, 1d)
+  | extend E5GB = todouble(E5GB);
+  TotalBillable
+  | join kind=fullouter DFSP2Eligible on Day
+  | join kind=fullouter E5Eligible on Day
+  | extend RemainingGB = todouble(TotalGB) - coalesce(DFSP2GB, 0.0) - coalesce(E5GB, 0.0)
+  | project Day, TotalGB, DFSP2GB, E5GB, RemainingGB
+  | order by Day asc

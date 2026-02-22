@@ -1,0 +1,290 @@
+[
+  {
+    "Facility": "auth",
+    "SeverityLevel": "notice",
+    "EventCount": 707721228,
+    "EstimatedGB": 205.64,
+    "PercentOfTotal": 12.3,
+    "DistinctHosts": 14,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "daemon",
+    "SeverityLevel": "warning",
+    "EventCount": 624016832,
+    "EstimatedGB": 171.37,
+    "PercentOfTotal": 10.3,
+    "DistinctHosts": 9,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "auth",
+    "SeverityLevel": "info",
+    "EventCount": 434776417,
+    "EstimatedGB": 137.09,
+    "PercentOfTotal": 8.2,
+    "DistinctHosts": 11,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "daemon",
+    "SeverityLevel": "info",
+    "EventCount": 467310148,
+    "EstimatedGB": 114.25,
+    "PercentOfTotal": 6.8,
+    "DistinctHosts": 12,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "authpriv",
+    "SeverityLevel": "notice",
+    "EventCount": 304030037,
+    "EstimatedGB": 91.4,
+    "PercentOfTotal": 5.5,
+    "DistinctHosts": 15,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "kern",
+    "SeverityLevel": "warning",
+    "EventCount": 353695239,
+    "EstimatedGB": 91.4,
+    "PercentOfTotal": 5.5,
+    "DistinctHosts": 17,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "daemon",
+    "SeverityLevel": "notice",
+    "EventCount": 248547833,
+    "EstimatedGB": 68.55,
+    "PercentOfTotal": 4.1,
+    "DistinctHosts": 18,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "local0",
+    "SeverityLevel": "info",
+    "EventCount": 258696798,
+    "EstimatedGB": 68.55,
+    "PercentOfTotal": 4.1,
+    "DistinctHosts": 3,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "auth",
+    "SeverityLevel": "warning",
+    "EventCount": 168133301,
+    "EstimatedGB": 57.12,
+    "PercentOfTotal": 3.4,
+    "DistinctHosts": 6,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "authpriv",
+    "SeverityLevel": "info",
+    "EventCount": 226386262,
+    "EstimatedGB": 57.12,
+    "PercentOfTotal": 3.4,
+    "DistinctHosts": 6,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "kern",
+    "SeverityLevel": "info",
+    "EventCount": 161381283,
+    "EstimatedGB": 57.12,
+    "PercentOfTotal": 3.4,
+    "DistinctHosts": 17,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "user",
+    "SeverityLevel": "info",
+    "EventCount": 215871023,
+    "EstimatedGB": 57.12,
+    "PercentOfTotal": 3.4,
+    "DistinctHosts": 10,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "cron",
+    "SeverityLevel": "info",
+    "EventCount": 179552299,
+    "EstimatedGB": 45.7,
+    "PercentOfTotal": 2.7,
+    "DistinctHosts": 8,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "local3",
+    "SeverityLevel": "info",
+    "EventCount": 187151575,
+    "EstimatedGB": 45.7,
+    "PercentOfTotal": 2.7,
+    "DistinctHosts": 18,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "daemon",
+    "SeverityLevel": "err",
+    "EventCount": 98278188,
+    "EstimatedGB": 34.27,
+    "PercentOfTotal": 2.1,
+    "DistinctHosts": 7,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "kern",
+    "SeverityLevel": "notice",
+    "EventCount": 140239881,
+    "EstimatedGB": 34.27,
+    "PercentOfTotal": 2.1,
+    "DistinctHosts": 13,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "user",
+    "SeverityLevel": "notice",
+    "EventCount": 94129005,
+    "EstimatedGB": 34.27,
+    "PercentOfTotal": 2.1,
+    "DistinctHosts": 9,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "local0",
+    "SeverityLevel": "warning",
+    "EventCount": 106739036,
+    "EstimatedGB": 34.27,
+    "PercentOfTotal": 2.1,
+    "DistinctHosts": 14,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "local1",
+    "SeverityLevel": "info",
+    "EventCount": 119955409,
+    "EstimatedGB": 34.27,
+    "PercentOfTotal": 2.1,
+    "DistinctHosts": 5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "syslog",
+    "SeverityLevel": "info",
+    "EventCount": 121555272,
+    "EstimatedGB": 34.27,
+    "PercentOfTotal": 2.1,
+    "DistinctHosts": 17,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "auth",
+    "SeverityLevel": "err",
+    "EventCount": 59401941,
+    "EstimatedGB": 22.85,
+    "PercentOfTotal": 1.4,
+    "DistinctHosts": 8,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "authpriv",
+    "SeverityLevel": "warning",
+    "EventCount": 67679683,
+    "EstimatedGB": 22.85,
+    "PercentOfTotal": 1.4,
+    "DistinctHosts": 11,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "cron",
+    "SeverityLevel": "notice",
+    "EventCount": 83473796,
+    "EstimatedGB": 22.85,
+    "PercentOfTotal": 1.4,
+    "DistinctHosts": 8,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "local1",
+    "SeverityLevel": "notice",
+    "EventCount": 60799962,
+    "EstimatedGB": 22.85,
+    "PercentOfTotal": 1.4,
+    "DistinctHosts": 15,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "local3",
+    "SeverityLevel": "warning",
+    "EventCount": 76942051,
+    "EstimatedGB": 22.85,
+    "PercentOfTotal": 1.4,
+    "DistinctHosts": 16,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "mail",
+    "SeverityLevel": "info",
+    "EventCount": 87388007,
+    "EstimatedGB": 22.85,
+    "PercentOfTotal": 1.4,
+    "DistinctHosts": 5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "kern",
+    "SeverityLevel": "err",
+    "EventCount": 40967086,
+    "EstimatedGB": 11.42,
+    "PercentOfTotal": 0.7,
+    "DistinctHosts": 5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "user",
+    "SeverityLevel": "warning",
+    "EventCount": 43147064,
+    "EstimatedGB": 11.42,
+    "PercentOfTotal": 0.7,
+    "DistinctHosts": 10,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "local0",
+    "SeverityLevel": "err",
+    "EventCount": 37449771,
+    "EstimatedGB": 11.42,
+    "PercentOfTotal": 0.7,
+    "DistinctHosts": 7,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "mail",
+    "SeverityLevel": "warning",
+    "EventCount": 31446797,
+    "EstimatedGB": 11.42,
+    "PercentOfTotal": 0.7,
+    "DistinctHosts": 13,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "syslog",
+    "SeverityLevel": "notice",
+    "EventCount": 37422173,
+    "EstimatedGB": 11.42,
+    "PercentOfTotal": 0.7,
+    "DistinctHosts": 14,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Facility": "kern",
+    "SeverityLevel": "crit",
+    "EventCount": 11670734,
+    "EstimatedGB": 3.43,
+    "PercentOfTotal": 0.2,
+    "DistinctHosts": 12,
+    "TableName": "PrimaryResult"
+  }
+]

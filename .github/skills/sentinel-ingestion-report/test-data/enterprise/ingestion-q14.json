@@ -1,0 +1,65 @@
+[
+  {
+    "DataType": "StorageBlobLogs",
+    "Last24hGB": 5.08,
+    "Avg7dDailyGB": 2.34,
+    "DeviationPercent": 117,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AWSCloudTrail",
+    "Last24hGB": 1.76,
+    "Avg7dDailyGB": 4.1,
+    "DeviationPercent": -57,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "GCPAuditLogs",
+    "Last24hGB": 0.27,
+    "Avg7dDailyGB": 0.06,
+    "DeviationPercent": 352,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceRegistryEvents",
+    "Last24hGB": 2.05,
+    "Avg7dDailyGB": 1.51,
+    "DeviationPercent": 35,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceNetworkEvents",
+    "Last24hGB": 8.3,
+    "Avg7dDailyGB": 7.42,
+    "DeviationPercent": 12,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "Last24hGB": 1.37,
+    "Avg7dDailyGB": 2.05,
+    "DeviationPercent": -33,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SecurityEvent_Aux_CL",
+    "Last24hGB": 0.41,
+    "Avg7dDailyGB": 0.47,
+    "DeviationPercent": -12,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "OfficeActivity",
+    "Last24hGB": 0.94,
+    "Avg7dDailyGB": 4.68,
+    "DeviationPercent": -80,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AppTraces",
+    "Last24hGB": 4.29,
+    "Avg7dDailyGB": 1.42,
+    "DeviationPercent": 202,
+    "TableName": "PrimaryResult"
+  }
+]

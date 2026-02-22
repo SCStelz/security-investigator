@@ -1,0 +1,17 @@
+id: ingestion-q7
+name: CommonSecurityLog by DeviceVendor
+description: Top 20 DeviceVendor x DeviceProduct by CEF volume. Identifies high-volume security appliances.
+phase: 2
+type: kql
+timespan: P{deepDiveDays}D
+query: |
+  let _total = toscalar(CommonSecurityLog | where TimeGenerated > ago({deepDiveDays}d) | summarize round(sum(estimate_data_size(*)) / 1024.0 / 1024.0 / 1024.0, 4));
+  CommonSecurityLog
+  | where TimeGenerated > ago({deepDiveDays}d)
+  | summarize
+      EventCount = count(),
+      EstimatedGB = round(sum(estimate_data_size(*)) / 1024.0 / 1024.0 / 1024.0, 4)
+      by DeviceVendor, DeviceProduct
+  | extend PercentOfTotal = iff(_total > 0, round(100.0 * EstimatedGB / _total, 1), 0.0)
+  | order by EstimatedGB desc
+  | take 20

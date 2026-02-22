@@ -1,0 +1,22 @@
+id: ingestion-q12
+name: SecurityAlert Firing by Analytic Rule
+description: Top 30 alert-producing Sentinel analytic rules with severity distribution. ProviderName ASI Scheduled Alerts covers Scheduled, NRT, and solution-based rules.
+phase: 4
+type: kql
+timespan: P{days}D
+query: |
+  SecurityAlert
+  | where TimeGenerated > ago({days}d)
+  | where ProviderName == 'ASI Scheduled Alerts'
+  | extend RuleId = extract(@'_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$', 1, AlertType)
+  | summarize
+      AlertCount = count(),
+      FirstAlert = min(TimeGenerated),
+      LastAlert = max(TimeGenerated),
+      HighSev = countif(AlertSeverity == 'High'),
+      MediumSev = countif(AlertSeverity == 'Medium'),
+      LowSev = countif(AlertSeverity == 'Low'),
+      InfoSev = countif(AlertSeverity == 'Informational')
+      by AlertName, RuleId, ProductComponentName
+  | order by AlertCount desc
+  | take 30

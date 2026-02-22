@@ -1,0 +1,162 @@
+[
+  {
+    "DataType": "CommonSecurityLog",
+    "BillableGB": 3750.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 41.209,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "Syslog",
+    "BillableGB": 2760.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 30.33,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SecurityEvent",
+    "BillableGB": 2040.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 22.418,
+    "Solution": "Security",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SigninLogs",
+    "BillableGB": 1560.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 17.143,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AADNonInteractiveUserSignInLogs",
+    "BillableGB": 1170.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 12.857,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceProcessEvents",
+    "BillableGB": 855.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 9.396,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AzureActivity",
+    "BillableGB": 750.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 8.242,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceNetworkEvents",
+    "BillableGB": 705.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 7.747,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AuditLogs",
+    "BillableGB": 585.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 6.429,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceFileEvents",
+    "BillableGB": 510.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 5.604,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "OfficeActivity",
+    "BillableGB": 435.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 4.78,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AWSCloudTrail",
+    "BillableGB": 390.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 4.286,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "CloudAppEvents",
+    "BillableGB": 324.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 3.56,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceEvents",
+    "BillableGB": 285.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 3.132,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "StorageBlobLogs",
+    "BillableGB": 234.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 2.571,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "BillableGB": 195.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 2.143,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "EmailEvents",
+    "BillableGB": 174.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 1.912,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceRegistryEvents",
+    "BillableGB": 144.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 1.582,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AADManagedIdentitySignInLogs",
+    "BillableGB": 114.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 1.253,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceLogonEvents",
+    "BillableGB": 96.0,
+    "NonBillableGB": 0.0,
+    "AvgDailyGB": 1.055,
+    "Solution": "LogManagement",
+    "TableName": "PrimaryResult"
+  }
+]

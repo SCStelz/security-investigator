@@ -11,6 +11,8 @@ ENV/
 
 # Sensitive configuration
 config.json
+config.json.stelznet
+config.json.zava
 
 # Investigation data and reports (sensitive)
 # Keep the directories but ignore their contents

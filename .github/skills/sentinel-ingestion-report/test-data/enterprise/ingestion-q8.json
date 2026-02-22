@@ -1,0 +1,137 @@
+[
+  {
+    "Activity": "TRAFFIC",
+    "LogSeverity": "informational",
+    "DeviceAction": "allow",
+    "EventCount": 705409486,
+    "EstimatedGB": 437.13,
+    "PercentOfTotal": 30.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "TRAFFIC",
+    "LogSeverity": "informational",
+    "DeviceAction": "deny",
+    "EventCount": 653097807,
+    "EstimatedGB": 218.57,
+    "PercentOfTotal": 15.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "TRAFFIC",
+    "LogSeverity": "informational",
+    "DeviceAction": "drop",
+    "EventCount": 417219443,
+    "EstimatedGB": 145.71,
+    "PercentOfTotal": 10.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "THREAT",
+    "LogSeverity": "medium",
+    "DeviceAction": "alert",
+    "EventCount": 340606851,
+    "EstimatedGB": 116.57,
+    "PercentOfTotal": 8.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "URL-FILTERING",
+    "LogSeverity": "informational",
+    "DeviceAction": "allow",
+    "EventCount": 259675758,
+    "EstimatedGB": 87.43,
+    "PercentOfTotal": 6.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "THREAT",
+    "LogSeverity": "high",
+    "DeviceAction": "alert",
+    "EventCount": 158697786,
+    "EstimatedGB": 72.86,
+    "PercentOfTotal": 5.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "GLOBALPROTECT",
+    "LogSeverity": "informational",
+    "DeviceAction": "success",
+    "EventCount": 129737371,
+    "EstimatedGB": 72.86,
+    "PercentOfTotal": 5.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "SYSTEM",
+    "LogSeverity": "informational",
+    "DeviceAction": "n/a",
+    "EventCount": 162350697,
+    "EstimatedGB": 58.28,
+    "PercentOfTotal": 4.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "URL-FILTERING",
+    "LogSeverity": "warning",
+    "DeviceAction": "block",
+    "EventCount": 154083162,
+    "EstimatedGB": 58.28,
+    "PercentOfTotal": 4.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "THREAT",
+    "LogSeverity": "critical",
+    "DeviceAction": "block",
+    "EventCount": 131780616,
+    "EstimatedGB": 43.71,
+    "PercentOfTotal": 3.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "AUTHENTICATION",
+    "LogSeverity": "informational",
+    "DeviceAction": "success",
+    "EventCount": 98486367,
+    "EstimatedGB": 43.71,
+    "PercentOfTotal": 3.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "CONFIG",
+    "LogSeverity": "informational",
+    "DeviceAction": "n/a",
+    "EventCount": 53258759,
+    "EstimatedGB": 29.14,
+    "PercentOfTotal": 2.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "GLOBALPROTECT",
+    "LogSeverity": "warning",
+    "DeviceAction": "fail",
+    "EventCount": 89342584,
+    "EstimatedGB": 29.14,
+    "PercentOfTotal": 2.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "AUTHENTICATION",
+    "LogSeverity": "warning",
+    "DeviceAction": "failed",
+    "EventCount": 84110245,
+    "EstimatedGB": 29.14,
+    "PercentOfTotal": 2.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Activity": "WILDFIRE",
+    "LogSeverity": "high",
+    "DeviceAction": "alert",
+    "EventCount": 33513392,
+    "EstimatedGB": 14.57,
+    "PercentOfTotal": 1.0,
+    "TableName": "PrimaryResult"
+  }
+]

@@ -1,0 +1,24 @@
+id: ingestion-q17b
+name: E5-Eligible Per-Table Breakdown
+description: Per-table billable volume for all 29 E5-eligible tables
+phase: 5
+type: kql
+timespan: P{days}D
+query: |
+  Usage
+  | where TimeGenerated > ago({days}d)
+  | where IsBillable == true
+  | where DataType in ('SigninLogs', 'AuditLogs', 'AADNonInteractiveUserSignInLogs',
+      'AADServicePrincipalSignInLogs', 'AADManagedIdentitySignInLogs',
+      'AADProvisioningLogs', 'ADFSSignInLogs', 'McasShadowItReporting',
+      'InformationProtectionLogs_CL', 'DeviceEvents', 'DeviceFileEvents',
+      'DeviceImageLoadEvents', 'DeviceInfo', 'DeviceLogonEvents',
+      'DeviceNetworkEvents', 'DeviceNetworkInfo', 'DeviceProcessEvents',
+      'DeviceRegistryEvents', 'DeviceFileCertificateInfo',
+      'EmailAttachmentInfo', 'EmailEvents', 'EmailPostDeliveryEvents',
+      'EmailUrlInfo', 'IdentityLogonEvents', 'IdentityQueryEvents',
+      'IdentityDirectoryEvents', 'AlertEvidence', 'CloudAppEvents',
+      'DynamicEventCollection')
+  | summarize VolumeGB = round(sum(Quantity) / 1024, 3) by DataType
+  | where VolumeGB > 0
+  | order by VolumeGB desc

@@ -1,0 +1,19 @@
+id: ingestion-q1
+name: Usage by DataType with Billing Breakdown
+description: Top 20 tables ranked by billable volume with solution mapping
+phase: 1
+type: kql
+timespan: P{days}D
+query: |
+  Usage
+  | where TimeGenerated > ago({days}d)
+  | summarize
+      TotalGB = round(sum(Quantity) / 1024, 3),
+      BillableGB = round(sumif(Quantity, IsBillable == true) / 1024, 3),
+      NonBillableGB = round(sumif(Quantity, IsBillable == false) / 1024, 3),
+      DayCount = dcount(bin(TimeGenerated, 1d))
+      by DataType, Solution
+  | extend AvgDailyGB = iff(DayCount > 0, round(BillableGB / toreal(DayCount), 3), 0.0)
+  | project-away DayCount
+  | order by BillableGB desc
+  | take 20

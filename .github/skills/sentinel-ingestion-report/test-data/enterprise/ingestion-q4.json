@@ -1,0 +1,202 @@
+[
+  {
+    "Computer": "DC-002.contoso.com",
+    "EventCount": 140076011,
+    "EstimatedGB": 106.73,
+    "PercentOfTotal": 2.1,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "DC-006.contoso.com",
+    "EventCount": 115047912,
+    "EstimatedGB": 100.64,
+    "PercentOfTotal": 2.0,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "DC-003.fabrikam.local",
+    "EventCount": 114086951,
+    "EstimatedGB": 96.82,
+    "PercentOfTotal": 1.9,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "DC-005.fabrikam.local",
+    "EventCount": 98347073,
+    "EstimatedGB": 87.7,
+    "PercentOfTotal": 1.7,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "DC-004.northwind.com",
+    "EventCount": 104195593,
+    "EstimatedGB": 81.08,
+    "PercentOfTotal": 1.6,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "DC-001.fabrikam.local",
+    "EventCount": 85374809,
+    "EstimatedGB": 74.88,
+    "PercentOfTotal": 1.5,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "EXCH-001.contoso.com",
+    "EventCount": 53814087,
+    "EstimatedGB": 58.18,
+    "PercentOfTotal": 1.2,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "EXCH-003.northwind.com",
+    "EventCount": 69729903,
+    "EstimatedGB": 56.22,
+    "PercentOfTotal": 1.1,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "SQL-003.fabrikam.local",
+    "EventCount": 64988734,
+    "EstimatedGB": 54.07,
+    "PercentOfTotal": 1.1,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "SQL-010.fabrikam.local",
+    "EventCount": 51819282,
+    "EstimatedGB": 53.82,
+    "PercentOfTotal": 1.1,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "SQL-002.northwind.com",
+    "EventCount": 49685465,
+    "EstimatedGB": 48.82,
+    "PercentOfTotal": 1.0,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "SQL-004.northwind.com",
+    "EventCount": 48838456,
+    "EstimatedGB": 46.99,
+    "PercentOfTotal": 0.9,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "EXCH-004.contoso.com",
+    "EventCount": 61989882,
+    "EstimatedGB": 46.95,
+    "PercentOfTotal": 0.9,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "SQL-007.fabrikam.local",
+    "EventCount": 59122485,
+    "EstimatedGB": 44.71,
+    "PercentOfTotal": 0.9,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "SQL-005.fabrikam.local",
+    "EventCount": 45211151,
+    "EstimatedGB": 44.55,
+    "PercentOfTotal": 0.9,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "SQL-008.contoso.com",
+    "EventCount": 53391916,
+    "EstimatedGB": 43.3,
+    "PercentOfTotal": 0.9,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "EXCH-002.fabrikam.local",
+    "EventCount": 51538167,
+    "EstimatedGB": 40.39,
+    "PercentOfTotal": 0.8,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "SQL-001.northwind.com",
+    "EventCount": 46842817,
+    "EstimatedGB": 39.88,
+    "PercentOfTotal": 0.8,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "WEB-006.northwind.com",
+    "EventCount": 41827231,
+    "EstimatedGB": 39.15,
+    "PercentOfTotal": 0.8,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "HV-004.fabrikam.local",
+    "EventCount": 41674607,
+    "EstimatedGB": 38.17,
+    "PercentOfTotal": 0.8,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "HV-012.fabrikam.local",
+    "EventCount": 48088481,
+    "EstimatedGB": 37.11,
+    "PercentOfTotal": 0.7,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "HV-007.contoso.com",
+    "EventCount": 47329611,
+    "EstimatedGB": 36.96,
+    "PercentOfTotal": 0.7,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "WEB-010.contoso.com",
+    "EventCount": 44226794,
+    "EstimatedGB": 36.83,
+    "PercentOfTotal": 0.7,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "HV-001.fabrikam.local",
+    "EventCount": 35797382,
+    "EstimatedGB": 36.7,
+    "PercentOfTotal": 0.7,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "Computer": "HV-008.contoso.com",
+    "EventCount": 38178963,
+    "EstimatedGB": 35.63,
+    "PercentOfTotal": 0.7,
+    "TotalServers": 450,
+    "TableName": "PrimaryResult"
+  }
+]

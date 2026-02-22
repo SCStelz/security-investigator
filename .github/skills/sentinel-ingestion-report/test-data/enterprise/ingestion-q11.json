@@ -1,0 +1,9 @@
+{
+  "TotalRules": 249,
+  "TotalExec": 147159,
+  "TotalFail": 201,
+  "FailingRules": 4,
+  "NRTRules": 13,
+  "ScheduledRules": 236,
+  "TableName": "PrimaryResult"
+}

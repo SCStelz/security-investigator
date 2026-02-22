@@ -1,0 +1,18 @@
+id: ingestion-q6b
+name: Syslog by Facility and Severity
+description: Top 30 Facility x SeverityLevel combinations by volume. Maps directly to DCR severity-per-facility settings.
+phase: 2
+type: kql
+timespan: P{deepDiveDays}D
+query: |
+  let _total = toscalar(Syslog | where TimeGenerated > ago({deepDiveDays}d) | summarize round(sum(estimate_data_size(*)) / 1024.0 / 1024.0 / 1024.0, 4));
+  Syslog
+  | where TimeGenerated > ago({deepDiveDays}d)
+  | summarize
+      EventCount = count(),
+      EstimatedGB = round(sum(estimate_data_size(*)) / 1024.0 / 1024.0 / 1024.0, 4),
+      DistinctHosts = dcount(Computer)
+      by Facility, SeverityLevel
+  | extend PercentOfTotal = iff(_total > 0, round(100.0 * EstimatedGB / _total, 1), 0.0)
+  | order by EstimatedGB desc
+  | take 30

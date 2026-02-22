@@ -1,0 +1,30 @@
+[
+  {
+    "SentinelResourceName": "NRT First access credential added to Application or Service Principal where no credential was present",
+    "FailureCount": 23,
+    "LastFailure": "2026-02-18 3:45:12 AM",
+    "SampleError": "Rule's scheduled run at 02/18/2026 03:45:12 failed after numerous attempts. It will be re-executed over the next scheduled time.",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SentinelResourceName": "Suspicious process execution",
+    "FailureCount": 12,
+    "LastFailure": "2026-02-19 11:20:00 PM",
+    "SampleError": "Semantic error: 'DeviceProcessEvents' failed to resolve column 'InitiatingProcessIntegrityLevel'.",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SentinelResourceName": "GCP privilege escalation",
+    "FailureCount": 8,
+    "LastFailure": "2026-02-20 6:15:30 AM",
+    "SampleError": "Table 'GCPAuditLogs' has no data in the specified time range.",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SentinelResourceName": "Deprecated - Old brute force detection v1",
+    "FailureCount": 4,
+    "LastFailure": "2026-02-17 2:00:00 PM",
+    "SampleError": "Rule execution timed out after 300 seconds.",
+    "TableName": "PrimaryResult"
+  }
+]

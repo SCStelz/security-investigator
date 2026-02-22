@@ -1,0 +1,24 @@
+id: ingestion-q11
+name: Analytic Rule Execution Health Summary
+description: SentinelHealth rule execution summary — total rules, executions, failures, failing rule count. PartialSuccess treated as Success.
+phase: 4
+type: kql
+timespan: P{deepDiveDays}D
+query: |
+  SentinelHealth
+  | where TimeGenerated > ago({deepDiveDays}d)
+  | where SentinelResourceType == 'Analytics Rule'
+  | where OperationName in ('Scheduled analytics rule run', 'NRT analytics rule run')
+  | extend EffectiveStatus = iff(Status == 'Failure', 'Failure', 'Success')
+  | summarize
+      Executions = count(),
+      Successes = countif(EffectiveStatus == 'Success'),
+      Failures = countif(EffectiveStatus == 'Failure')
+      by SentinelResourceName, SentinelResourceKind
+  | summarize
+      TotalRules = dcount(SentinelResourceName),
+      TotalExec = sum(Executions),
+      TotalFail = sum(Failures),
+      FailingRules = dcountif(SentinelResourceName, Failures > 0),
+      NRTRules = dcountif(SentinelResourceName, SentinelResourceKind == 'NRT'),
+      ScheduledRules = dcountif(SentinelResourceName, SentinelResourceKind == 'Scheduled')

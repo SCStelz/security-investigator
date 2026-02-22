@@ -1,0 +1,11 @@
+{
+  "TotalGB": 19511.55,
+  "BillableGB": 18110.55,
+  "NonBillableGB": 1401.0,
+  "AvgDailyGB": 214.413,
+  "TotalTableCount": 65,
+  "BillableTableCount": 61,
+  "BillablePercent": 92.8,
+  "DayCount": 91,
+  "TableName": "PrimaryResult"
+}

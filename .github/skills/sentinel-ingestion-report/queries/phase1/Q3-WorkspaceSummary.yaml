@@ -1,0 +1,18 @@
+id: ingestion-q3
+name: Workspace Ingestion Summary
+description: Executive summary metrics - table count, billable totals, daily average
+phase: 1
+type: kql
+timespan: P{days}D
+query: |
+  Usage
+  | where TimeGenerated > ago({days}d)
+  | summarize
+      TotalTableCount = dcount(DataType),
+      TotalGB = round(sum(Quantity) / 1024, 3),
+      BillableGB = round(sumif(Quantity, IsBillable == true) / 1024, 3),
+      NonBillableGB = round(sumif(Quantity, IsBillable == false) / 1024, 3),
+      DayCount = dcount(bin(TimeGenerated, 1d)),
+      AvgDailyGB = round(sum(Quantity) / 1024 / dcount(bin(TimeGenerated, 1d)), 3),
+      BillableTableCount = dcountif(DataType, IsBillable == true)
+  | extend BillablePercent = round(100.0 * BillableGB / TotalGB, 1)

@@ -1,0 +1,182 @@
+[
+  {
+    "SourceHost": "lnx-k8s-master-01",
+    "EventCount": 467276364,
+    "EstimatedGB": 127.09,
+    "PercentOfTotal": 7.6,
+    "Facilities": "[\"local0\", \"mail\", \"daemon\"]",
+    "SeverityLevels": "[\"info\", \"crit\", \"notice\", \"err\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-jump-01",
+    "EventCount": 440648874,
+    "EstimatedGB": 119.44,
+    "PercentOfTotal": 7.1,
+    "Facilities": "[\"daemon\", \"auth\", \"user\", \"local3\", \"local0\"]",
+    "SeverityLevels": "[\"warning\", \"err\", \"info\", \"crit\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-web-01",
+    "EventCount": 464504730,
+    "EstimatedGB": 116.44,
+    "PercentOfTotal": 7.0,
+    "Facilities": "[\"auth\", \"local0\", \"local3\", \"user\", \"authpriv\", \"kern\"]",
+    "SeverityLevels": "[\"info\", \"warning\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-dns-01",
+    "EventCount": 425939272,
+    "EstimatedGB": 105.86,
+    "PercentOfTotal": 6.3,
+    "Facilities": "[\"mail\", \"local1\", \"auth\", \"daemon\"]",
+    "SeverityLevels": "[\"warning\", \"info\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-k8s-worker-02",
+    "EventCount": 376000317,
+    "EstimatedGB": 102.27,
+    "PercentOfTotal": 6.1,
+    "Facilities": "[\"mail\", \"local0\", \"cron\", \"auth\", \"local1\"]",
+    "SeverityLevels": "[\"err\", \"info\", \"crit\", \"notice\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "fw-edge-01",
+    "EventCount": 294797441,
+    "EstimatedGB": 100.7,
+    "PercentOfTotal": 6.0,
+    "Facilities": "[\"kern\", \"user\", \"local1\", \"local3\", \"local0\", \"daemon\"]",
+    "SeverityLevels": "[\"crit\", \"err\", \"notice\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-monitor-01",
+    "EventCount": 348476894,
+    "EstimatedGB": 98.71,
+    "PercentOfTotal": 5.9,
+    "Facilities": "[\"authpriv\", \"local1\", \"auth\", \"cron\"]",
+    "SeverityLevels": "[\"notice\", \"warning\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-docker-02",
+    "EventCount": 386839276,
+    "EstimatedGB": 98.53,
+    "PercentOfTotal": 5.9,
+    "Facilities": "[\"local0\", \"user\", \"daemon\", \"local1\", \"mail\", \"kern\"]",
+    "SeverityLevels": "[\"crit\", \"info\", \"notice\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-db-01",
+    "EventCount": 296146031,
+    "EstimatedGB": 95.47,
+    "PercentOfTotal": 5.7,
+    "Facilities": "[\"daemon\", \"authpriv\", \"local3\", \"user\", \"auth\", \"cron\"]",
+    "SeverityLevels": "[\"crit\", \"notice\", \"warning\", \"info\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "fw-core-01",
+    "EventCount": 343135240,
+    "EstimatedGB": 91.94,
+    "PercentOfTotal": 5.5,
+    "Facilities": "[\"local1\", \"local3\", \"daemon\", \"local0\", \"auth\"]",
+    "SeverityLevels": "[\"err\", \"info\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-db-02",
+    "EventCount": 230353825,
+    "EstimatedGB": 87.69,
+    "PercentOfTotal": 5.2,
+    "Facilities": "[\"user\", \"cron\", \"auth\", \"syslog\", \"local0\", \"local3\"]",
+    "SeverityLevels": "[\"warning\", \"notice\", \"info\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-web-02",
+    "EventCount": 226291002,
+    "EstimatedGB": 86.92,
+    "PercentOfTotal": 5.2,
+    "Facilities": "[\"syslog\", \"user\", \"daemon\"]",
+    "SeverityLevels": "[\"notice\", \"info\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-k8s-worker-01",
+    "EventCount": 263707282,
+    "EstimatedGB": 86.08,
+    "PercentOfTotal": 5.1,
+    "Facilities": "[\"cron\", \"local1\", \"local0\", \"daemon\", \"user\"]",
+    "SeverityLevels": "[\"info\", \"err\", \"notice\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-web-03",
+    "EventCount": 335592240,
+    "EstimatedGB": 84.55,
+    "PercentOfTotal": 5.1,
+    "Facilities": "[\"daemon\", \"local1\", \"mail\", \"auth\", \"local3\", \"local0\"]",
+    "SeverityLevels": "[\"warning\", \"crit\", \"info\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "fw-edge-02",
+    "EventCount": 291719953,
+    "EstimatedGB": 76.47,
+    "PercentOfTotal": 4.6,
+    "Facilities": "[\"cron\", \"auth\", \"local1\", \"user\"]",
+    "SeverityLevels": "[\"notice\", \"crit\", \"warning\", \"err\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-docker-01",
+    "EventCount": 180090881,
+    "EstimatedGB": 57.94,
+    "PercentOfTotal": 3.5,
+    "Facilities": "[\"syslog\", \"user\", \"cron\"]",
+    "SeverityLevels": "[\"info\", \"err\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-ntp-01",
+    "EventCount": 134163655,
+    "EstimatedGB": 43.05,
+    "PercentOfTotal": 2.6,
+    "Facilities": "[\"mail\", \"daemon\", \"local1\"]",
+    "SeverityLevels": "[\"info\", \"err\", \"notice\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-app-02",
+    "EventCount": 98237571,
+    "EstimatedGB": 36.98,
+    "PercentOfTotal": 2.2,
+    "Facilities": "[\"mail\", \"local3\", \"auth\", \"kern\", \"user\", \"authpriv\"]",
+    "SeverityLevels": "[\"err\", \"notice\", \"info\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-app-01",
+    "EventCount": 135911649,
+    "EstimatedGB": 33.94,
+    "PercentOfTotal": 2.0,
+    "Facilities": "[\"authpriv\", \"cron\", \"kern\", \"mail\", \"auth\", \"local0\"]",
+    "SeverityLevels": "[\"err\", \"crit\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "SourceHost": "lnx-ci-01",
+    "EventCount": 83553405,
+    "EstimatedGB": 21.31,
+    "PercentOfTotal": 1.3,
+    "Facilities": "[\"cron\", \"local3\", \"local0\", \"local1\", \"daemon\"]",
+    "SeverityLevels": "[\"warning\", \"info\"]",
+    "TableName": "PrimaryResult"
+  }
+]

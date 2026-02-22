@@ -1,0 +1,33 @@
+# Q10b: Tier Summary via KQL
+# Cross-references Usage data with table tier classification from Q10 (Azure CLI).
+# Computes per-tier TotalGB, BillableGB, TableCount, PercentOfTotal.
+# DEPENDS ON: Q10 output — the DataLakeTables and BasicTables arrays are populated at runtime.
+# NOTE: This query template has {datalake_tables} and {basic_tables} placeholders
+# that are replaced dynamically by the script after Q10 completes.
+
+id: ingestion-q10b
+name: Tier Summary
+description: Per-tier volume summary cross-referencing Usage with CLI tier classification
+phase: 3
+type: kql
+depends_on: ingestion-q10
+timespan: P{days}D
+query: |
+  let DataLakeTables = dynamic([{datalake_tables}]);
+  let BasicTables = dynamic([{basic_tables}]);
+  Usage
+  | where TimeGenerated > ago({days}d)
+  | extend Tier = case(
+      DataType in (DataLakeTables), 'Data Lake',
+      DataType in (BasicTables), 'Basic',
+      'Analytics'
+  )
+  | summarize
+      TotalGB = round(sum(Quantity) / 1024, 3),
+      BillableGB = round(sumif(Quantity, IsBillable == true) / 1024, 3),
+      TableCount = dcount(DataType)
+      by Tier
+  | extend PercentOfTotal = round(100.0 * TotalGB / toscalar(
+      Usage | where TimeGenerated > ago({days}d) | summarize round(sum(Quantity) / 1024, 3)
+  ), 1)
+  | order by BillableGB desc

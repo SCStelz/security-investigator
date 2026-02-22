@@ -1,0 +1,11 @@
+id: ingestion-q2
+name: Daily Ingestion Trend
+description: Daily ingestion trend for pattern analysis and peak/min detection
+phase: 1
+type: kql
+timespan: P{days}D
+query: |
+  Usage
+  | where TimeGenerated > ago({days}d)
+  | summarize DailyGB = round(sum(Quantity) / 1024, 3) by bin(TimeGenerated, 1d)
+  | order by TimeGenerated asc

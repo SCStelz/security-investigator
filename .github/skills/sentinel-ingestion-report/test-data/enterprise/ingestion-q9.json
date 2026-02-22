@@ -1,0 +1,1899 @@
+[
+  {
+    "displayName": "Multiple failed logon attempts",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4625",
+    "ruleId": "rule-0001-aaaa-bbbb-cccc-000000000001"
+  },
+  {
+    "displayName": "Brute force attack against user",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4625 | summarize count() by Account",
+    "ruleId": "rule-0002-aaaa-bbbb-cccc-000000000002"
+  },
+  {
+    "displayName": "Account lockout detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4740",
+    "ruleId": "rule-0003-aaaa-bbbb-cccc-000000000003"
+  },
+  {
+    "displayName": "User account created",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4720",
+    "ruleId": "rule-0004-aaaa-bbbb-cccc-000000000004"
+  },
+  {
+    "displayName": "User account deleted",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4726",
+    "ruleId": "rule-0005-aaaa-bbbb-cccc-000000000005"
+  },
+  {
+    "displayName": "User account enabled",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4722",
+    "ruleId": "rule-0006-aaaa-bbbb-cccc-000000000006"
+  },
+  {
+    "displayName": "User account disabled",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4725",
+    "ruleId": "rule-0007-aaaa-bbbb-cccc-000000000007"
+  },
+  {
+    "displayName": "Password reset attempt detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID in (4723, 4724)",
+    "ruleId": "rule-0008-aaaa-bbbb-cccc-000000000008"
+  },
+  {
+    "displayName": "Kerberos TGT request anomaly",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4768",
+    "ruleId": "rule-0009-aaaa-bbbb-cccc-000000000009"
+  },
+  {
+    "displayName": "Kerberos service ticket anomaly",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4769",
+    "ruleId": "rule-0010-aaaa-bbbb-cccc-000000000010"
+  },
+  {
+    "displayName": "NTLM authentication detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4776",
+    "ruleId": "rule-0011-aaaa-bbbb-cccc-000000000011"
+  },
+  {
+    "displayName": "Golden ticket activity detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4769 | where TicketEncryptionType == '0x17'",
+    "ruleId": "rule-0012-aaaa-bbbb-cccc-000000000012"
+  },
+  {
+    "displayName": "Logon with explicit credentials",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4648",
+    "ruleId": "rule-0013-aaaa-bbbb-cccc-000000000013"
+  },
+  {
+    "displayName": "Special privileges assigned to new logon",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4672",
+    "ruleId": "rule-0014-aaaa-bbbb-cccc-000000000014"
+  },
+  {
+    "displayName": "New process created - suspicious",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4688",
+    "ruleId": "rule-0015-aaaa-bbbb-cccc-000000000015"
+  },
+  {
+    "displayName": "Audit log cleared",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 1102",
+    "ruleId": "rule-0016-aaaa-bbbb-cccc-000000000016"
+  },
+  {
+    "displayName": "Scheduled task created on DC",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4698",
+    "ruleId": "rule-0017-aaaa-bbbb-cccc-000000000017"
+  },
+  {
+    "displayName": "Domain trust created",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4706",
+    "ruleId": "rule-0018-aaaa-bbbb-cccc-000000000018"
+  },
+  {
+    "displayName": "Group membership change - global",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID in (4728, 4729)",
+    "ruleId": "rule-0019-aaaa-bbbb-cccc-000000000019"
+  },
+  {
+    "displayName": "Group membership change - local",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID in (4732, 4733)",
+    "ruleId": "rule-0020-aaaa-bbbb-cccc-000000000020"
+  },
+  {
+    "displayName": "Group membership change - universal",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4756",
+    "ruleId": "rule-0021-aaaa-bbbb-cccc-000000000021"
+  },
+  {
+    "displayName": "Computer account created",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4741",
+    "ruleId": "rule-0022-aaaa-bbbb-cccc-000000000022"
+  },
+  {
+    "displayName": "Computer account changed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4742",
+    "ruleId": "rule-0023-aaaa-bbbb-cccc-000000000023"
+  },
+  {
+    "displayName": "Kerberos pre-auth failure",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4771",
+    "ruleId": "rule-0024-aaaa-bbbb-cccc-000000000024"
+  },
+  {
+    "displayName": "Firewall rule changed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID in (4946, 4947, 4948)",
+    "ruleId": "rule-0025-aaaa-bbbb-cccc-000000000025"
+  },
+  {
+    "displayName": "Network share accessed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 5140",
+    "ruleId": "rule-0026-aaaa-bbbb-cccc-000000000026"
+  },
+  {
+    "displayName": "Object access attempt",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4663",
+    "ruleId": "rule-0027-aaaa-bbbb-cccc-000000000027"
+  },
+  {
+    "displayName": "Audit policy changed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4719",
+    "ruleId": "rule-0028-aaaa-bbbb-cccc-000000000028"
+  },
+  {
+    "displayName": "Token right adjustment",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4703",
+    "ruleId": "rule-0029-aaaa-bbbb-cccc-000000000029"
+  },
+  {
+    "displayName": "Workstation locked/unlocked anomaly",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID in (4800, 4801)",
+    "ruleId": "rule-0030-aaaa-bbbb-cccc-000000000030"
+  },
+  {
+    "displayName": "WFP connection blocked",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 5157",
+    "ruleId": "rule-0031-aaaa-bbbb-cccc-000000000031"
+  },
+  {
+    "displayName": "Credential Manager read",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 5379",
+    "ruleId": "rule-0032-aaaa-bbbb-cccc-000000000032"
+  },
+  {
+    "displayName": "External device recognized",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 6416",
+    "ruleId": "rule-0033-aaaa-bbbb-cccc-000000000033"
+  },
+  {
+    "displayName": "Handle to sensitive object",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4656",
+    "ruleId": "rule-0034-aaaa-bbbb-cccc-000000000034"
+  },
+  {
+    "displayName": "Multiple password resets by user",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID in (4723, 4724)\nAuditLogs | where OperationName has 'password'",
+    "ruleId": "rule-0035-aaaa-bbbb-cccc-000000000035"
+  },
+  {
+    "displayName": "Successful logon from rare IP",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4624",
+    "ruleId": "rule-0036-aaaa-bbbb-cccc-000000000036"
+  },
+  {
+    "displayName": "Possible pass-the-hash activity",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4624 | where LogonType == 3",
+    "ruleId": "rule-0037-aaaa-bbbb-cccc-000000000037"
+  },
+  {
+    "displayName": "Possible pass-the-ticket activity",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4768",
+    "ruleId": "rule-0038-aaaa-bbbb-cccc-000000000038"
+  },
+  {
+    "displayName": "Privileged service called",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "SecurityEvent | where EventID == 4673",
+    "ruleId": "rule-0039-aaaa-bbbb-cccc-000000000039"
+  },
+  {
+    "displayName": "Security group enumeration",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID in (4798, 4799)",
+    "ruleId": "rule-0040-aaaa-bbbb-cccc-000000000040"
+  },
+  {
+    "displayName": "User right assigned",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4704",
+    "ruleId": "rule-0041-aaaa-bbbb-cccc-000000000041"
+  },
+  {
+    "displayName": "Kerberos policy changed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4713",
+    "ruleId": "rule-0042-aaaa-bbbb-cccc-000000000042"
+  },
+  {
+    "displayName": "Event logging shut down",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "SecurityEvent | where EventID == 1100",
+    "ruleId": "rule-0043-aaaa-bbbb-cccc-000000000043"
+  },
+  {
+    "displayName": "Permissions on object changed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4670",
+    "ruleId": "rule-0044-aaaa-bbbb-cccc-000000000044"
+  },
+  {
+    "displayName": "Boot Configuration Data loaded",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4826",
+    "ruleId": "rule-0045-aaaa-bbbb-cccc-000000000045"
+  },
+  {
+    "displayName": "Sign-in from unknown IP",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where ResultType == 0",
+    "ruleId": "rule-0046-aaaa-bbbb-cccc-000000000046"
+  },
+  {
+    "displayName": "Multiple failed sign-ins single user",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where ResultType != 0",
+    "ruleId": "rule-0047-aaaa-bbbb-cccc-000000000047"
+  },
+  {
+    "displayName": "Sign-in from blocked country",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where LocationDetails has 'CN'",
+    "ruleId": "rule-0048-aaaa-bbbb-cccc-000000000048"
+  },
+  {
+    "displayName": "MFA fatigue attack detection",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where ResultType == 50074",
+    "ruleId": "rule-0049-aaaa-bbbb-cccc-000000000049"
+  },
+  {
+    "displayName": "Impossible travel detection",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where RiskLevelDuringSignIn != 'none'",
+    "ruleId": "rule-0050-aaaa-bbbb-cccc-000000000050"
+  },
+  {
+    "displayName": "Legacy authentication attempt",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where ClientAppUsed !in ('Browser', 'Mobile Apps and Desktop clients')",
+    "ruleId": "rule-0051-aaaa-bbbb-cccc-000000000051"
+  },
+  {
+    "displayName": "Sign-in from anonymous IP",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where RiskLevelDuringSignIn == 'high'",
+    "ruleId": "rule-0052-aaaa-bbbb-cccc-000000000052"
+  },
+  {
+    "displayName": "Risky sign-in followed by MFA change",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where RiskLevelDuringSignIn != 'none'\nAuditLogs | where OperationName has 'MFA'",
+    "ruleId": "rule-0053-aaaa-bbbb-cccc-000000000053"
+  },
+  {
+    "displayName": "Token replay attack detection",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "SigninLogs | where TokenIssuerType == 'AzureAD'",
+    "ruleId": "rule-0054-aaaa-bbbb-cccc-000000000054"
+  },
+  {
+    "displayName": "Conditional Access policy bypass",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where ConditionalAccessStatus == 'notApplied'",
+    "ruleId": "rule-0055-aaaa-bbbb-cccc-000000000055"
+  },
+  {
+    "displayName": "Sign-in from Tor exit node",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where IPAddress has '185.'",
+    "ruleId": "rule-0056-aaaa-bbbb-cccc-000000000056"
+  },
+  {
+    "displayName": "AiTM phishing session detected",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "SigninLogs | where SessionId != ''",
+    "ruleId": "rule-0057-aaaa-bbbb-cccc-000000000057"
+  },
+  {
+    "displayName": "Password spray attack detection",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where ResultType == 50126",
+    "ruleId": "rule-0058-aaaa-bbbb-cccc-000000000058"
+  },
+  {
+    "displayName": "Suspicious consent grant",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs\nAuditLogs | where OperationName == 'Consent to application'",
+    "ruleId": "rule-0059-aaaa-bbbb-cccc-000000000059"
+  },
+  {
+    "displayName": "Sign-in from unfamiliar location",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where RiskState == 'atRisk'",
+    "ruleId": "rule-0060-aaaa-bbbb-cccc-000000000060"
+  },
+  {
+    "displayName": "Successful sign-in after multiple failures",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where ResultType == 0 | join kind=inner (SigninLogs | where ResultType != 0)",
+    "ruleId": "rule-0061-aaaa-bbbb-cccc-000000000061"
+  },
+  {
+    "displayName": "Sign-in from breached credential",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where RiskDetail has 'leaked'",
+    "ruleId": "rule-0062-aaaa-bbbb-cccc-000000000062"
+  },
+  {
+    "displayName": "Guest user sign-in anomaly",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where UserType == 'Guest'",
+    "ruleId": "rule-0063-aaaa-bbbb-cccc-000000000063"
+  },
+  {
+    "displayName": "Service principal sign-in failure spike",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AADServicePrincipalSignInLogs | where ResultType != 0",
+    "ruleId": "rule-0064-aaaa-bbbb-cccc-000000000064"
+  },
+  {
+    "displayName": "Managed identity anomalous sign-in",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AADNonInteractiveUserSignInLogs | where ResultType != 0",
+    "ruleId": "rule-0065-aaaa-bbbb-cccc-000000000065"
+  },
+  {
+    "displayName": "Non-interactive sign-in from new IP",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AADNonInteractiveUserSignInLogs | where IPAddress != ''",
+    "ruleId": "rule-0066-aaaa-bbbb-cccc-000000000066"
+  },
+  {
+    "displayName": "Non-interactive sign-in burst",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AADNonInteractiveUserSignInLogs | summarize count() by AppDisplayName",
+    "ruleId": "rule-0067-aaaa-bbbb-cccc-000000000067"
+  },
+  {
+    "displayName": "First access credential added",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "AuditLogs | where OperationName has 'credential'",
+    "ruleId": "rule-0068-aaaa-bbbb-cccc-000000000068"
+  },
+  {
+    "displayName": "Sign-in risk policy triggered",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where RiskLevelDuringSignIn in ('medium', 'high')",
+    "ruleId": "rule-0069-aaaa-bbbb-cccc-000000000069"
+  },
+  {
+    "displayName": "Cross-tenant sign-in detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where HomeTenantId != ResourceTenantId",
+    "ruleId": "rule-0070-aaaa-bbbb-cccc-000000000070"
+  },
+  {
+    "displayName": "Suspicious application consent",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where ResourceDisplayName has 'Graph'",
+    "ruleId": "rule-0071-aaaa-bbbb-cccc-000000000071"
+  },
+  {
+    "displayName": "Privileged role sign-in from new device",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs\nAuditLogs | where OperationName has 'role'",
+    "ruleId": "rule-0072-aaaa-bbbb-cccc-000000000072"
+  },
+  {
+    "displayName": "Excessive failed interactive sign-ins",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where ResultType != 0 | where IsInteractive == true",
+    "ruleId": "rule-0073-aaaa-bbbb-cccc-000000000073"
+  },
+  {
+    "displayName": "Unusual token lifetime detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where TokenIssuerType != ''",
+    "ruleId": "rule-0074-aaaa-bbbb-cccc-000000000074"
+  },
+  {
+    "displayName": "Sign-in from VPN exit node",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where NetworkLocationDetails has 'vpn'",
+    "ruleId": "rule-0075-aaaa-bbbb-cccc-000000000075"
+  },
+  {
+    "displayName": "Multi-geo sign-in within short window",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where Location != '' | summarize dcount(Location) by UserPrincipalName",
+    "ruleId": "rule-0076-aaaa-bbbb-cccc-000000000076"
+  },
+  {
+    "displayName": "Application credential added",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'credential'",
+    "ruleId": "rule-0077-aaaa-bbbb-cccc-000000000077"
+  },
+  {
+    "displayName": "Application permission granted",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName == 'Add app role assignment to service principal'",
+    "ruleId": "rule-0078-aaaa-bbbb-cccc-000000000078"
+  },
+  {
+    "displayName": "Conditional Access policy modified",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'conditional access'",
+    "ruleId": "rule-0079-aaaa-bbbb-cccc-000000000079"
+  },
+  {
+    "displayName": "User assigned to privileged role",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'role'",
+    "ruleId": "rule-0080-aaaa-bbbb-cccc-000000000080"
+  },
+  {
+    "displayName": "MFA method registration change",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'authentication method'",
+    "ruleId": "rule-0081-aaaa-bbbb-cccc-000000000081"
+  },
+  {
+    "displayName": "Privileged role activation via PIM",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'PIM'",
+    "ruleId": "rule-0082-aaaa-bbbb-cccc-000000000082"
+  },
+  {
+    "displayName": "Application ownership change",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'owner'",
+    "ruleId": "rule-0083-aaaa-bbbb-cccc-000000000083"
+  },
+  {
+    "displayName": "Bulk user creation detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName == 'Add user'",
+    "ruleId": "rule-0084-aaaa-bbbb-cccc-000000000084"
+  },
+  {
+    "displayName": "Cross-tenant access settings changed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'cross-tenant'",
+    "ruleId": "rule-0085-aaaa-bbbb-cccc-000000000085"
+  },
+  {
+    "displayName": "External identity provider added",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'identity provider'",
+    "ruleId": "rule-0086-aaaa-bbbb-cccc-000000000086"
+  },
+  {
+    "displayName": "Application consent granted - risky",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName == 'Consent to application' | where tostring(TargetResources) has 'Mail.Read'",
+    "ruleId": "rule-0087-aaaa-bbbb-cccc-000000000087"
+  },
+  {
+    "displayName": "Custom domain added to tenant",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'domain'",
+    "ruleId": "rule-0088-aaaa-bbbb-cccc-000000000088"
+  },
+  {
+    "displayName": "Directory role member added",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "AuditLogs | where OperationName has 'Add member to role'",
+    "ruleId": "rule-0089-aaaa-bbbb-cccc-000000000089"
+  },
+  {
+    "displayName": "Self-service password reset completed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'password'",
+    "ruleId": "rule-0090-aaaa-bbbb-cccc-000000000090"
+  },
+  {
+    "displayName": "Federation settings changed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'federation'",
+    "ruleId": "rule-0091-aaaa-bbbb-cccc-000000000091"
+  },
+  {
+    "displayName": "Group created with suspicious name",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName == 'Add group'",
+    "ruleId": "rule-0092-aaaa-bbbb-cccc-000000000092"
+  },
+  {
+    "displayName": "Multitenant application modified",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'application'",
+    "ruleId": "rule-0093-aaaa-bbbb-cccc-000000000093"
+  },
+  {
+    "displayName": "Tenant configuration change",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'tenant'",
+    "ruleId": "rule-0094-aaaa-bbbb-cccc-000000000094"
+  },
+  {
+    "displayName": "B2B invitation redeemed from risky country",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'invitation'",
+    "ruleId": "rule-0095-aaaa-bbbb-cccc-000000000095"
+  },
+  {
+    "displayName": "Service principal credential rotation",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'service principal'",
+    "ruleId": "rule-0096-aaaa-bbbb-cccc-000000000096"
+  },
+  {
+    "displayName": "Suspicious process execution",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName in~ ('powershell.exe', 'cmd.exe')",
+    "ruleId": "rule-0097-aaaa-bbbb-cccc-000000000097"
+  },
+  {
+    "displayName": "LOLBIN execution detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName in~ ('certutil.exe', 'mshta.exe', 'regsvr32.exe')",
+    "ruleId": "rule-0098-aaaa-bbbb-cccc-000000000098"
+  },
+  {
+    "displayName": "Process injection detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where ProcessCommandLine has 'inject'",
+    "ruleId": "rule-0099-aaaa-bbbb-cccc-000000000099"
+  },
+  {
+    "displayName": "Obfuscated PowerShell command",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where ProcessCommandLine has '-enc'",
+    "ruleId": "rule-0100-aaaa-bbbb-cccc-000000000100"
+  },
+  {
+    "displayName": "Fileless malware technique",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where InitiatingProcessFileName == 'wmiprvse.exe'",
+    "ruleId": "rule-0101-aaaa-bbbb-cccc-000000000101"
+  },
+  {
+    "displayName": "Credential dumping tool detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName in~ ('mimikatz.exe', 'procdump.exe')",
+    "ruleId": "rule-0102-aaaa-bbbb-cccc-000000000102"
+  },
+  {
+    "displayName": "Reconnaissance tool execution",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName in~ ('nmap.exe', 'masscan.exe')",
+    "ruleId": "rule-0103-aaaa-bbbb-cccc-000000000103"
+  },
+  {
+    "displayName": "Remote execution via PsExec",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName == 'psexec.exe'",
+    "ruleId": "rule-0104-aaaa-bbbb-cccc-000000000104"
+  },
+  {
+    "displayName": "Suspicious child process of Office app",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where InitiatingProcessFileName in~ ('WINWORD.EXE', 'EXCEL.EXE')",
+    "ruleId": "rule-0105-aaaa-bbbb-cccc-000000000105"
+  },
+  {
+    "displayName": "DLL sideloading detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents\nDeviceFileEvents | where FileName endswith '.dll'",
+    "ruleId": "rule-0106-aaaa-bbbb-cccc-000000000106"
+  },
+  {
+    "displayName": "Script interpreter anomaly",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName in~ ('wscript.exe', 'cscript.exe')",
+    "ruleId": "rule-0107-aaaa-bbbb-cccc-000000000107"
+  },
+  {
+    "displayName": "Renamed system binary detection",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where SHA256 != '' | where FileName !in~ ('svchost.exe')",
+    "ruleId": "rule-0108-aaaa-bbbb-cccc-000000000108"
+  },
+  {
+    "displayName": "Suspicious use of certutil",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName == 'certutil.exe' | where ProcessCommandLine has '-urlcache'",
+    "ruleId": "rule-0109-aaaa-bbbb-cccc-000000000109"
+  },
+  {
+    "displayName": "BITSAdmin abuse detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName == 'bitsadmin.exe'",
+    "ruleId": "rule-0110-aaaa-bbbb-cccc-000000000110"
+  },
+  {
+    "displayName": "Rare process execution on DC",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where DeviceName has 'DC'",
+    "ruleId": "rule-0111-aaaa-bbbb-cccc-000000000111"
+  },
+  {
+    "displayName": "Base64 encoded command execution",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where ProcessCommandLine matches regex '[A-Za-z0-9+/=]{50,}'",
+    "ruleId": "rule-0112-aaaa-bbbb-cccc-000000000112"
+  },
+  {
+    "displayName": "Lateral movement via WMI",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName == 'wmic.exe'",
+    "ruleId": "rule-0113-aaaa-bbbb-cccc-000000000113"
+  },
+  {
+    "displayName": "Persistence via registry run key",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents\nDeviceRegistryEvents | where RegistryKey has 'CurrentVersion\\Run'",
+    "ruleId": "rule-0114-aaaa-bbbb-cccc-000000000114"
+  },
+  {
+    "displayName": "Scheduled task creation via command line",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName == 'schtasks.exe' | where ProcessCommandLine has '/create'",
+    "ruleId": "rule-0115-aaaa-bbbb-cccc-000000000115"
+  },
+  {
+    "displayName": "Ransomware indicators detected",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "DeviceProcessEvents\nDeviceFileEvents | where FileName endswith '.encrypted'",
+    "ruleId": "rule-0116-aaaa-bbbb-cccc-000000000116"
+  },
+  {
+    "displayName": "Suspicious net.exe usage",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName in~ ('net.exe', 'net1.exe')",
+    "ruleId": "rule-0117-aaaa-bbbb-cccc-000000000117"
+  },
+  {
+    "displayName": "Remote desktop tool detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName in~ ('anydesk.exe', 'teamviewer.exe')",
+    "ruleId": "rule-0118-aaaa-bbbb-cccc-000000000118"
+  },
+  {
+    "displayName": "Cobalt Strike beacon indicator",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "DeviceProcessEvents\nDeviceNetworkEvents | where RemotePort in (443, 8443)",
+    "ruleId": "rule-0119-aaaa-bbbb-cccc-000000000119"
+  },
+  {
+    "displayName": "Data staging detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName in~ ('rar.exe', '7z.exe') | where ProcessCommandLine has '-p'",
+    "ruleId": "rule-0120-aaaa-bbbb-cccc-000000000120"
+  },
+  {
+    "displayName": "Suspicious service installation",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName == 'sc.exe' | where ProcessCommandLine has 'create'",
+    "ruleId": "rule-0121-aaaa-bbbb-cccc-000000000121"
+  },
+  {
+    "displayName": "C2 beaconing pattern detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemotePort in (443, 8080)",
+    "ruleId": "rule-0122-aaaa-bbbb-cccc-000000000122"
+  },
+  {
+    "displayName": "DNS tunneling detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemotePort == 53 | where RemoteUrl has 'dnscat'",
+    "ruleId": "rule-0123-aaaa-bbbb-cccc-000000000123"
+  },
+  {
+    "displayName": "Connection to known malicious IP",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemoteIP has '185.220.'",
+    "ruleId": "rule-0124-aaaa-bbbb-cccc-000000000124"
+  },
+  {
+    "displayName": "Unusual outbound port usage",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemotePort > 10000",
+    "ruleId": "rule-0125-aaaa-bbbb-cccc-000000000125"
+  },
+  {
+    "displayName": "Data exfiltration over DNS",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemotePort == 53",
+    "ruleId": "rule-0126-aaaa-bbbb-cccc-000000000126"
+  },
+  {
+    "displayName": "TOR network connection detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemotePort == 9001",
+    "ruleId": "rule-0127-aaaa-bbbb-cccc-000000000127"
+  },
+  {
+    "displayName": "SMB lateral movement detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemotePort == 445",
+    "ruleId": "rule-0128-aaaa-bbbb-cccc-000000000128"
+  },
+  {
+    "displayName": "RDP brute force detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemotePort == 3389",
+    "ruleId": "rule-0129-aaaa-bbbb-cccc-000000000129"
+  },
+  {
+    "displayName": "Suspicious outbound connection volume",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | summarize count() by RemoteIP",
+    "ruleId": "rule-0130-aaaa-bbbb-cccc-000000000130"
+  },
+  {
+    "displayName": "Connection to crypto mining pool",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemoteUrl has 'pool.mining'",
+    "ruleId": "rule-0131-aaaa-bbbb-cccc-000000000131"
+  },
+  {
+    "displayName": "IRC connection detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemotePort in (6667, 6697)",
+    "ruleId": "rule-0132-aaaa-bbbb-cccc-000000000132"
+  },
+  {
+    "displayName": "LDAP query to external IP",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemotePort == 389",
+    "ruleId": "rule-0133-aaaa-bbbb-cccc-000000000133"
+  },
+  {
+    "displayName": "Connection to bulletproof hosting",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemoteIP has '91.215.'",
+    "ruleId": "rule-0134-aaaa-bbbb-cccc-000000000134"
+  },
+  {
+    "displayName": "WinRM lateral movement",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemotePort in (5985, 5986)",
+    "ruleId": "rule-0135-aaaa-bbbb-cccc-000000000135"
+  },
+  {
+    "displayName": "Large data transfer detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where SentBytes > 100000000",
+    "ruleId": "rule-0136-aaaa-bbbb-cccc-000000000136"
+  },
+  {
+    "displayName": "Ransomware file extension detected",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "DeviceFileEvents | where FileName endswith '.encrypted' or FileName endswith '.locked'",
+    "ruleId": "rule-0137-aaaa-bbbb-cccc-000000000137"
+  },
+  {
+    "displayName": "Suspicious file in startup folder",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FolderPath has 'Startup'",
+    "ruleId": "rule-0138-aaaa-bbbb-cccc-000000000138"
+  },
+  {
+    "displayName": "Large file copy to removable drive",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FolderPath has 'USB'",
+    "ruleId": "rule-0139-aaaa-bbbb-cccc-000000000139"
+  },
+  {
+    "displayName": "Hosts file modification",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FileName == 'hosts'",
+    "ruleId": "rule-0140-aaaa-bbbb-cccc-000000000140"
+  },
+  {
+    "displayName": "Sensitive file access detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FolderPath has 'passwords' or FileName has 'credential'",
+    "ruleId": "rule-0141-aaaa-bbbb-cccc-000000000141"
+  },
+  {
+    "displayName": "Shadow copy deletion detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FileName has 'vssadmin'",
+    "ruleId": "rule-0142-aaaa-bbbb-cccc-000000000142"
+  },
+  {
+    "displayName": "Web shell file created",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FileName endswith '.aspx' | where FolderPath has 'wwwroot'",
+    "ruleId": "rule-0143-aaaa-bbbb-cccc-000000000143"
+  },
+  {
+    "displayName": "Suspicious DLL dropped",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FileName endswith '.dll' | where FolderPath has 'Temp'",
+    "ruleId": "rule-0144-aaaa-bbbb-cccc-000000000144"
+  },
+  {
+    "displayName": "Batch file created in temp",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FileName endswith '.bat' | where FolderPath has 'Temp'",
+    "ruleId": "rule-0145-aaaa-bbbb-cccc-000000000145"
+  },
+  {
+    "displayName": "SAM database access detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FileName has 'SAM'",
+    "ruleId": "rule-0146-aaaa-bbbb-cccc-000000000146"
+  },
+  {
+    "displayName": "NTDS.dit access detected",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "DeviceFileEvents | where FileName == 'ntds.dit'",
+    "ruleId": "rule-0147-aaaa-bbbb-cccc-000000000147"
+  },
+  {
+    "displayName": "Macro-enabled document dropped",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FileName endswith '.xlsm' or FileName endswith '.docm'",
+    "ruleId": "rule-0148-aaaa-bbbb-cccc-000000000148"
+  },
+  {
+    "displayName": "ISO/IMG file mounted",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FileName endswith '.iso' or FileName endswith '.img'",
+    "ruleId": "rule-0149-aaaa-bbbb-cccc-000000000149"
+  },
+  {
+    "displayName": "File created by suspicious process",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents\nDeviceProcessEvents",
+    "ruleId": "rule-0150-aaaa-bbbb-cccc-000000000150"
+  },
+  {
+    "displayName": "LNK file with hidden payload",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FileName endswith '.lnk'",
+    "ruleId": "rule-0151-aaaa-bbbb-cccc-000000000151"
+  },
+  {
+    "displayName": "SSH brute force attack",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "Syslog | where Facility == 'auth' | where SyslogMessage has 'Failed password'",
+    "ruleId": "rule-0152-aaaa-bbbb-cccc-000000000152"
+  },
+  {
+    "displayName": "Root privilege escalation",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "Syslog | where Facility == 'authpriv' | where SyslogMessage has 'sudo'",
+    "ruleId": "rule-0153-aaaa-bbbb-cccc-000000000153"
+  },
+  {
+    "displayName": "Syslog daemon restart",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "Syslog | where Facility == 'daemon' | where ProcessName == 'systemd'",
+    "ruleId": "rule-0154-aaaa-bbbb-cccc-000000000154"
+  },
+  {
+    "displayName": "Authentication failure burst",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "Syslog | where Facility == 'auth' | where SyslogMessage has 'authentication failure'",
+    "ruleId": "rule-0155-aaaa-bbbb-cccc-000000000155"
+  },
+  {
+    "displayName": "Suspicious cron job created",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "Syslog | where Facility == 'cron'",
+    "ruleId": "rule-0156-aaaa-bbbb-cccc-000000000156"
+  },
+  {
+    "displayName": "Kernel module loaded",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "Syslog | where Facility == 'kern' | where SyslogMessage has 'module'",
+    "ruleId": "rule-0157-aaaa-bbbb-cccc-000000000157"
+  },
+  {
+    "displayName": "Linux user created",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "Syslog | where Facility == 'authpriv' | where ProcessName == 'useradd'",
+    "ruleId": "rule-0158-aaaa-bbbb-cccc-000000000158"
+  },
+  {
+    "displayName": "Linux user deleted",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "Syslog | where Facility == 'authpriv' | where ProcessName == 'userdel'",
+    "ruleId": "rule-0159-aaaa-bbbb-cccc-000000000159"
+  },
+  {
+    "displayName": "Firewall rule change on Linux",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "Syslog | where ProcessName in ('iptables', 'nftables')",
+    "ruleId": "rule-0160-aaaa-bbbb-cccc-000000000160"
+  },
+  {
+    "displayName": "PAM authentication error",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "Syslog | where Facility == 'auth' | where SyslogMessage has 'pam_unix'",
+    "ruleId": "rule-0161-aaaa-bbbb-cccc-000000000161"
+  },
+  {
+    "displayName": "SELinux denial detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "Syslog | where Facility == 'kern' | where SyslogMessage has 'avc:  denied'",
+    "ruleId": "rule-0162-aaaa-bbbb-cccc-000000000162"
+  },
+  {
+    "displayName": "SSH key authentication from new IP",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "Syslog | where Facility == 'auth' | where ProcessName == 'sshd'",
+    "ruleId": "rule-0163-aaaa-bbbb-cccc-000000000163"
+  },
+  {
+    "displayName": "IDS alert - critical severity",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CommonSecurityLog | where LogSeverity == 10",
+    "ruleId": "rule-0164-aaaa-bbbb-cccc-000000000164"
+  },
+  {
+    "displayName": "Firewall deny from internal to external",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CommonSecurityLog | where DeviceAction == 'Deny'",
+    "ruleId": "rule-0165-aaaa-bbbb-cccc-000000000165"
+  },
+  {
+    "displayName": "Data loss prevention alert",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CommonSecurityLog | where DeviceVendor == 'Palo Alto Networks'",
+    "ruleId": "rule-0166-aaaa-bbbb-cccc-000000000166"
+  },
+  {
+    "displayName": "Anomalous firewall traffic pattern",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CommonSecurityLog | where Activity has 'traffic'",
+    "ruleId": "rule-0167-aaaa-bbbb-cccc-000000000167"
+  },
+  {
+    "displayName": "VPN connection from unusual country",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CommonSecurityLog | where DeviceVendor == 'Fortinet' | where Activity has 'vpn'",
+    "ruleId": "rule-0168-aaaa-bbbb-cccc-000000000168"
+  },
+  {
+    "displayName": "WAF attack blocked",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CommonSecurityLog | where DeviceProduct == 'FortiWeb'",
+    "ruleId": "rule-0169-aaaa-bbbb-cccc-000000000169"
+  },
+  {
+    "displayName": "Port scan detected by IDS",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CommonSecurityLog | where Activity has 'scan'",
+    "ruleId": "rule-0170-aaaa-bbbb-cccc-000000000170"
+  },
+  {
+    "displayName": "Malware detected by proxy",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CommonSecurityLog | where DeviceProduct == 'Zscaler'",
+    "ruleId": "rule-0171-aaaa-bbbb-cccc-000000000171"
+  },
+  {
+    "displayName": "URL category violation",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CommonSecurityLog | where Activity has 'URL'",
+    "ruleId": "rule-0172-aaaa-bbbb-cccc-000000000172"
+  },
+  {
+    "displayName": "Unusual protocol detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CommonSecurityLog | where DeviceAction == 'Alert'",
+    "ruleId": "rule-0173-aaaa-bbbb-cccc-000000000173"
+  },
+  {
+    "displayName": "Mailbox forwarding rule created",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "OfficeActivity | where OfficeWorkload == 'Exchange' | where Operation in ('New-InboxRule', 'Set-InboxRule')",
+    "ruleId": "rule-0174-aaaa-bbbb-cccc-000000000174"
+  },
+  {
+    "displayName": "Suspicious Teams meeting created",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "OfficeActivity | where OfficeWorkload == 'MicrosoftTeams'",
+    "ruleId": "rule-0175-aaaa-bbbb-cccc-000000000175"
+  },
+  {
+    "displayName": "Mass file download from SharePoint",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "OfficeActivity | where OfficeWorkload == 'SharePoint' | where Operation == 'FileDownloaded'",
+    "ruleId": "rule-0176-aaaa-bbbb-cccc-000000000176"
+  },
+  {
+    "displayName": "External sharing enabled",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "OfficeActivity | where Operation has 'SharingSet'",
+    "ruleId": "rule-0177-aaaa-bbbb-cccc-000000000177"
+  },
+  {
+    "displayName": "DLP policy matched",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "OfficeActivity | where Operation has 'DLP'",
+    "ruleId": "rule-0178-aaaa-bbbb-cccc-000000000178"
+  },
+  {
+    "displayName": "eDiscovery search started",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "OfficeActivity | where Operation has 'SearchStarted'",
+    "ruleId": "rule-0179-aaaa-bbbb-cccc-000000000179"
+  },
+  {
+    "displayName": "Mailbox permission changed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "OfficeActivity | where OfficeWorkload == 'Exchange' | where Operation has 'Permission'",
+    "ruleId": "rule-0180-aaaa-bbbb-cccc-000000000180"
+  },
+  {
+    "displayName": "Bulk email deletion detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "OfficeActivity | where OfficeWorkload == 'Exchange' | where Operation == 'HardDelete'",
+    "ruleId": "rule-0181-aaaa-bbbb-cccc-000000000181"
+  },
+  {
+    "displayName": "Admin audit log disabled",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "OfficeActivity | where Operation has 'AuditLog'",
+    "ruleId": "rule-0182-aaaa-bbbb-cccc-000000000182"
+  },
+  {
+    "displayName": "Power Automate flow created with external action",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "OfficeActivity | where OfficeWorkload == 'PowerAutomate'",
+    "ruleId": "rule-0183-aaaa-bbbb-cccc-000000000183"
+  },
+  {
+    "displayName": "Suspicious OAuth app consent",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CloudAppEvents | where ActionType == 'ConsentToApplication'",
+    "ruleId": "rule-0184-aaaa-bbbb-cccc-000000000184"
+  },
+  {
+    "displayName": "Mass download from cloud storage",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CloudAppEvents | where ActionType == 'FileDownloaded'",
+    "ruleId": "rule-0185-aaaa-bbbb-cccc-000000000185"
+  },
+  {
+    "displayName": "Cloud app high severity alert",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CloudAppEvents | where Application has 'Office'",
+    "ruleId": "rule-0186-aaaa-bbbb-cccc-000000000186"
+  },
+  {
+    "displayName": "Impossible travel in cloud apps",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CloudAppEvents | where ActionType has 'Login'",
+    "ruleId": "rule-0187-aaaa-bbbb-cccc-000000000187"
+  },
+  {
+    "displayName": "Risky cloud app usage detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CloudAppEvents | where Application !in ('Microsoft Office 365')",
+    "ruleId": "rule-0188-aaaa-bbbb-cccc-000000000188"
+  },
+  {
+    "displayName": "Cloud session anomaly",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CloudAppEvents | where ActionType == 'SessionActivity'",
+    "ruleId": "rule-0189-aaaa-bbbb-cccc-000000000189"
+  },
+  {
+    "displayName": "Shadow IT application detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CloudAppEvents | where ApplicationId != ''",
+    "ruleId": "rule-0190-aaaa-bbbb-cccc-000000000190"
+  },
+  {
+    "displayName": "Suspicious mailbox rule via API",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "CloudAppEvents | where ActionType has 'InboxRule'",
+    "ruleId": "rule-0191-aaaa-bbbb-cccc-000000000191"
+  },
+  {
+    "displayName": "Resource group deleted",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AzureActivity | where OperationNameValue has 'delete' | where ActivitySubstatusValue == 'OK'",
+    "ruleId": "rule-0192-aaaa-bbbb-cccc-000000000192"
+  },
+  {
+    "displayName": "Key vault access anomaly",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AzureActivity | where ResourceProviderValue == 'MICROSOFT.KEYVAULT'",
+    "ruleId": "rule-0193-aaaa-bbbb-cccc-000000000193"
+  },
+  {
+    "displayName": "Subscription-level role assignment",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AzureActivity | where OperationNameValue has 'roleAssignment'",
+    "ruleId": "rule-0194-aaaa-bbbb-cccc-000000000194"
+  },
+  {
+    "displayName": "Network security group modified",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AzureActivity | where OperationNameValue has 'networkSecurityGroups'",
+    "ruleId": "rule-0195-aaaa-bbbb-cccc-000000000195"
+  },
+  {
+    "displayName": "Storage account public access enabled",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AzureActivity | where OperationNameValue has 'storageAccounts'",
+    "ruleId": "rule-0196-aaaa-bbbb-cccc-000000000196"
+  },
+  {
+    "displayName": "VM deleted or deallocated",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AzureActivity | where OperationNameValue has 'virtualMachines/delete'",
+    "ruleId": "rule-0197-aaaa-bbbb-cccc-000000000197"
+  },
+  {
+    "displayName": "Diagnostic setting removed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AzureActivity | where OperationNameValue has 'diagnosticSettings/delete'",
+    "ruleId": "rule-0198-aaaa-bbbb-cccc-000000000198"
+  },
+  {
+    "displayName": "Azure policy assignment changed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AzureActivity | where OperationNameValue has 'policyAssignments'",
+    "ruleId": "rule-0199-aaaa-bbbb-cccc-000000000199"
+  },
+  {
+    "displayName": "Antivirus detection",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceEvents | where ActionType == 'AntivirusDetection'",
+    "ruleId": "rule-0200-aaaa-bbbb-cccc-000000000200"
+  },
+  {
+    "displayName": "Exploit guard block",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceEvents | where ActionType has 'ExploitGuard'",
+    "ruleId": "rule-0201-aaaa-bbbb-cccc-000000000201"
+  },
+  {
+    "displayName": "Tamper protection triggered",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "DeviceEvents | where ActionType == 'TamperProtection'",
+    "ruleId": "rule-0202-aaaa-bbbb-cccc-000000000202"
+  },
+  {
+    "displayName": "USB device connected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceEvents | where ActionType == 'UsbDriveMount'",
+    "ruleId": "rule-0203-aaaa-bbbb-cccc-000000000203"
+  },
+  {
+    "displayName": "Smart screen override",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceEvents | where ActionType == 'SmartScreenUrlWarning'",
+    "ruleId": "rule-0204-aaaa-bbbb-cccc-000000000204"
+  },
+  {
+    "displayName": "ASR rule triggered",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceEvents | where ActionType has 'AsrRule'",
+    "ruleId": "rule-0205-aaaa-bbbb-cccc-000000000205"
+  },
+  {
+    "displayName": "Controlled folder access blocked",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceEvents | where ActionType has 'ControlledFolderAccess'",
+    "ruleId": "rule-0206-aaaa-bbbb-cccc-000000000206"
+  },
+  {
+    "displayName": "Suspicious browser extension installed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceEvents | where ActionType == 'BrowserExtensionInstalled'",
+    "ruleId": "rule-0207-aaaa-bbbb-cccc-000000000207"
+  },
+  {
+    "displayName": "Phishing email delivered",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "EmailEvents | where ThreatTypes has 'Phish'",
+    "ruleId": "rule-0208-aaaa-bbbb-cccc-000000000208"
+  },
+  {
+    "displayName": "Malware attachment detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "EmailEvents | where ThreatTypes has 'Malware'",
+    "ruleId": "rule-0209-aaaa-bbbb-cccc-000000000209"
+  },
+  {
+    "displayName": "Email from spoofed sender",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "EmailEvents | where AuthenticationDetails has 'spf=fail'",
+    "ruleId": "rule-0210-aaaa-bbbb-cccc-000000000210"
+  },
+  {
+    "displayName": "Bulk email campaign detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "EmailEvents | where BulkComplaintLevel > 7",
+    "ruleId": "rule-0211-aaaa-bbbb-cccc-000000000211"
+  },
+  {
+    "displayName": "Executive impersonation attempt",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "EmailEvents | where Subject has 'CEO' or Subject has 'CFO'",
+    "ruleId": "rule-0212-aaaa-bbbb-cccc-000000000212"
+  },
+  {
+    "displayName": "Email with suspicious URL",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "EmailEvents\nEmailUrlInfo | where UrlDomain has 'suspicious'",
+    "ruleId": "rule-0213-aaaa-bbbb-cccc-000000000213"
+  },
+  {
+    "displayName": "ZAP action taken on email",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "EmailEvents | where LatestDeliveryAction == 'Junked'",
+    "ruleId": "rule-0214-aaaa-bbbb-cccc-000000000214"
+  },
+  {
+    "displayName": "High confidence phishing",
+    "enabled": true,
+    "kind": "NRT",
+    "query": "EmailEvents | where ThreatTypes has 'Phish' | where ConfidenceLevel == 'High'",
+    "ruleId": "rule-0215-aaaa-bbbb-cccc-000000000215"
+  },
+  {
+    "displayName": "Registry run key modification",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceRegistryEvents | where RegistryKey has 'CurrentVersion\\Run'",
+    "ruleId": "rule-0216-aaaa-bbbb-cccc-000000000216"
+  },
+  {
+    "displayName": "AMSI bypass registry change",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceRegistryEvents | where RegistryKey has 'AMSI'",
+    "ruleId": "rule-0217-aaaa-bbbb-cccc-000000000217"
+  },
+  {
+    "displayName": "WDigest credential caching enabled",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceRegistryEvents | where RegistryKey has 'WDigest'",
+    "ruleId": "rule-0218-aaaa-bbbb-cccc-000000000218"
+  },
+  {
+    "displayName": "UAC bypass registry modification",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceRegistryEvents | where RegistryKey has 'fodhelper'",
+    "ruleId": "rule-0219-aaaa-bbbb-cccc-000000000219"
+  },
+  {
+    "displayName": "Defender exclusion path added",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceRegistryEvents | where RegistryKey has 'Windows Defender\\Exclusions'",
+    "ruleId": "rule-0220-aaaa-bbbb-cccc-000000000220"
+  },
+  {
+    "displayName": "COM object hijacking detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceRegistryEvents | where RegistryKey has 'InprocServer32'",
+    "ruleId": "rule-0221-aaaa-bbbb-cccc-000000000221"
+  },
+  {
+    "displayName": "RDP brute force on endpoint",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceLogonEvents | where LogonType == 'RemoteInteractive'",
+    "ruleId": "rule-0222-aaaa-bbbb-cccc-000000000222"
+  },
+  {
+    "displayName": "New local admin logon",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceLogonEvents | where IsLocalAdmin == True",
+    "ruleId": "rule-0223-aaaa-bbbb-cccc-000000000223"
+  },
+  {
+    "displayName": "Interactive logon at unusual hour",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceLogonEvents | where LogonType == 'Interactive'",
+    "ruleId": "rule-0224-aaaa-bbbb-cccc-000000000224"
+  },
+  {
+    "displayName": "Service account interactive logon",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceLogonEvents | where AccountName has 'svc'",
+    "ruleId": "rule-0225-aaaa-bbbb-cccc-000000000225"
+  },
+  {
+    "displayName": "Failed logon on sensitive server",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceLogonEvents | where ActionType == 'LogonFailed'",
+    "ruleId": "rule-0226-aaaa-bbbb-cccc-000000000226"
+  },
+  {
+    "displayName": "LDAP brute force detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "IdentityLogonEvents | where Protocol == 'Ldap' | where ActionType == 'LogonFailed'",
+    "ruleId": "rule-0227-aaaa-bbbb-cccc-000000000227"
+  },
+  {
+    "displayName": "NTLM relay attack pattern",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "IdentityLogonEvents | where Protocol == 'Ntlm'",
+    "ruleId": "rule-0228-aaaa-bbbb-cccc-000000000228"
+  },
+  {
+    "displayName": "Kerberoasting pattern detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "IdentityLogonEvents | where Protocol == 'Kerberos'",
+    "ruleId": "rule-0229-aaaa-bbbb-cccc-000000000229"
+  },
+  {
+    "displayName": "DC shadow attack detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "IdentityLogonEvents | where ActionType has 'DCShadow'",
+    "ruleId": "rule-0230-aaaa-bbbb-cccc-000000000230"
+  },
+  {
+    "displayName": "Identity protection alert correlation",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "IdentityLogonEvents\nSigninLogs",
+    "ruleId": "rule-0231-aaaa-bbbb-cccc-000000000231"
+  },
+  {
+    "displayName": "AWS root account login",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AWSCloudTrail | where EventName == 'ConsoleLogin' | where UserIdentityType == 'Root'",
+    "ruleId": "rule-0232-aaaa-bbbb-cccc-000000000232"
+  },
+  {
+    "displayName": "AWS IAM policy changed",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AWSCloudTrail | where EventName has 'PutRolePolicy'",
+    "ruleId": "rule-0233-aaaa-bbbb-cccc-000000000233"
+  },
+  {
+    "displayName": "AWS S3 bucket made public",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AWSCloudTrail | where EventName has 'PutBucketAcl'",
+    "ruleId": "rule-0234-aaaa-bbbb-cccc-000000000234"
+  },
+  {
+    "displayName": "High severity alert correlation",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityAlert | where AlertSeverity == 'High'",
+    "ruleId": "rule-0235-aaaa-bbbb-cccc-000000000235"
+  },
+  {
+    "displayName": "Multi-stage attack detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityAlert\nSecurityIncident | where Severity == 'High'",
+    "ruleId": "rule-0236-aaaa-bbbb-cccc-000000000236"
+  },
+  {
+    "displayName": "Alert-to-incident correlation",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityAlert | where ProviderName has 'MDATP'",
+    "ruleId": "rule-0237-aaaa-bbbb-cccc-000000000237"
+  },
+  {
+    "displayName": "Fusion attack detection",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityAlert | where ProductName has 'Azure Sentinel'",
+    "ruleId": "rule-0238-aaaa-bbbb-cccc-000000000238"
+  },
+  {
+    "displayName": "Threat intelligence match",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "SecurityAlert\nThreatIntelligenceIndicator",
+    "ruleId": "rule-0239-aaaa-bbbb-cccc-000000000239"
+  },
+  {
+    "displayName": "MFA registration from suspicious IP",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where OperationName has 'authentication method'\nSigninLogs",
+    "ruleId": "rule-0240-aaaa-bbbb-cccc-000000000240"
+  },
+  {
+    "displayName": "Insider threat - mass download + USB",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents\nDeviceEvents | where ActionType == 'UsbDriveMount'",
+    "ruleId": "rule-0241-aaaa-bbbb-cccc-000000000241"
+  },
+  {
+    "displayName": "Unusual identity query pattern",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "IdentityQueryEvents | where ActionType has 'Query'",
+    "ruleId": "rule-0242-aaaa-bbbb-cccc-000000000242"
+  },
+  {
+    "displayName": "Identity directory change anomaly",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "IdentityDirectoryEvents | where ActionType has 'Group'",
+    "ruleId": "rule-0243-aaaa-bbbb-cccc-000000000243"
+  },
+  {
+    "displayName": "Email post-delivery action",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "EmailPostDeliveryEvents | where ActionType has 'ZAP'",
+    "ruleId": "rule-0244-aaaa-bbbb-cccc-000000000244"
+  },
+  {
+    "displayName": "Graph API anomaly detected",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "MicrosoftGraphActivityLogs | where ResponseStatusCode >= 400",
+    "ruleId": "rule-0245-aaaa-bbbb-cccc-000000000245"
+  },
+  {
+    "displayName": "URL click to malicious site",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "UrlClickEvents | where IsClickedThrough == True",
+    "ruleId": "rule-0246-aaaa-bbbb-cccc-000000000246"
+  },
+  {
+    "displayName": "Config change on managed server",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "ConfigurationChange | where ConfigChangeType has 'Software'",
+    "ruleId": "rule-0247-aaaa-bbbb-cccc-000000000247"
+  },
+  {
+    "displayName": "GCP privilege escalation",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "GCPAuditLogs | where OperationName has 'SetIamPolicy'",
+    "ruleId": "rule-0248-aaaa-bbbb-cccc-000000000248"
+  },
+  {
+    "displayName": "LA query exfiltration pattern",
+    "enabled": true,
+    "kind": "Scheduled",
+    "query": "LAQueryLogs | where ResponseRowCount > 10000",
+    "ruleId": "rule-0249-aaaa-bbbb-cccc-000000000249"
+  },
+  {
+    "displayName": "Deprecated - Old brute force detection v1",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "SecurityEvent | where EventID == 4625",
+    "ruleId": "rule-0250-aaaa-bbbb-cccc-000000000250"
+  },
+  {
+    "displayName": "Deprecated - Legacy sign-in rule",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "SigninLogs | where ResultType != 0",
+    "ruleId": "rule-0251-aaaa-bbbb-cccc-000000000251"
+  },
+  {
+    "displayName": "Test rule - DO NOT ENABLE",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "AuditLogs | where Category == 'Test'",
+    "ruleId": "rule-0252-aaaa-bbbb-cccc-000000000252"
+  },
+  {
+    "displayName": "Draft - Suspicious PowerShell v2",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "DeviceProcessEvents | where FileName == 'powershell.exe'",
+    "ruleId": "rule-0253-aaaa-bbbb-cccc-000000000253"
+  },
+  {
+    "displayName": "Disabled - Noisy DNS alert",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "DeviceNetworkEvents | where RemotePort == 53",
+    "ruleId": "rule-0254-aaaa-bbbb-cccc-000000000254"
+  },
+  {
+    "displayName": "Backup - Old firewall rule",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "CommonSecurityLog | where DeviceAction == 'Drop'",
+    "ruleId": "rule-0255-aaaa-bbbb-cccc-000000000255"
+  },
+  {
+    "displayName": "WIP - New email detection",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "EmailEvents | where Subject has 'invoice'",
+    "ruleId": "rule-0256-aaaa-bbbb-cccc-000000000256"
+  },
+  {
+    "displayName": "Archived - Syslog login v1",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "Syslog | where Facility == 'auth'",
+    "ruleId": "rule-0257-aaaa-bbbb-cccc-000000000257"
+  },
+  {
+    "displayName": "Deprecated - Config drift v1",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "ConfigurationChange",
+    "ruleId": "rule-0258-aaaa-bbbb-cccc-000000000258"
+  },
+  {
+    "displayName": "Test - Cloud app rule",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "CloudAppEvents | where ActionType == 'Test'",
+    "ruleId": "rule-0259-aaaa-bbbb-cccc-000000000259"
+  },
+  {
+    "displayName": "Deprecated - AzureActivity v1",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "AzureActivity | where OperationNameValue has 'write'",
+    "ruleId": "rule-0260-aaaa-bbbb-cccc-000000000260"
+  },
+  {
+    "displayName": "Disabled - Too many false positives",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "DeviceFileEvents | where FileName endswith '.tmp'",
+    "ruleId": "rule-0261-aaaa-bbbb-cccc-000000000261"
+  },
+  {
+    "displayName": "WIP - Identity correlation v2",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "IdentityLogonEvents",
+    "ruleId": "rule-0262-aaaa-bbbb-cccc-000000000262"
+  },
+  {
+    "displayName": "Test - Device logon pattern",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "DeviceLogonEvents",
+    "ruleId": "rule-0263-aaaa-bbbb-cccc-000000000263"
+  },
+  {
+    "displayName": "Deprecated - Old AWS rule",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "AWSCloudTrail | where EventName == 'ListBuckets'",
+    "ruleId": "rule-0264-aaaa-bbbb-cccc-000000000264"
+  },
+  {
+    "displayName": "Backup - Registry baseline",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "DeviceRegistryEvents",
+    "ruleId": "rule-0265-aaaa-bbbb-cccc-000000000265"
+  },
+  {
+    "displayName": "Disabled - OfficeActivity noise",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "OfficeActivity | where Operation == 'FileAccessed'",
+    "ruleId": "rule-0266-aaaa-bbbb-cccc-000000000266"
+  },
+  {
+    "displayName": "Deprecated - Graph v1",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "MicrosoftGraphActivityLogs",
+    "ruleId": "rule-0267-aaaa-bbbb-cccc-000000000267"
+  },
+  {
+    "displayName": "Test - Alert correlation v0",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "SecurityAlert",
+    "ruleId": "rule-0268-aaaa-bbbb-cccc-000000000268"
+  },
+  {
+    "displayName": "WIP - GCP logging v2",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "GCPAuditLogs",
+    "ruleId": "rule-0269-aaaa-bbbb-cccc-000000000269"
+  },
+  {
+    "displayName": "Deprecated - Heartbeat monitor",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "Heartbeat | where TimeGenerated > ago(5m)",
+    "ruleId": "rule-0270-aaaa-bbbb-cccc-000000000270"
+  },
+  {
+    "displayName": "Disabled - W3C log analysis",
+    "enabled": false,
+    "kind": "Scheduled",
+    "query": "W3CIISLog | where scStatus >= 500",
+    "ruleId": "rule-0271-aaaa-bbbb-cccc-000000000271"
+  }
+]

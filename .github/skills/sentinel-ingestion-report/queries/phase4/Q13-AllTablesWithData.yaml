@@ -1,0 +1,12 @@
+id: ingestion-q13
+name: All Tables with Usage Data
+description: All distinct DataType values from Usage — provides complete table list for Phase 4 cross-reference
+phase: 4
+type: kql
+timespan: P{days}D
+query: |
+  Usage
+  | where TimeGenerated > ago({days}d)
+  | where IsBillable == true
+  | distinct DataType
+  | order by DataType asc

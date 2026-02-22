@@ -1,0 +1,307 @@
+[
+  {
+    "DataType": "CommonSecurityLog",
+    "BillableGB": 291.67,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "Syslog",
+    "BillableGB": 214.67,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SecurityEvent",
+    "BillableGB": 158.67,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SigninLogs",
+    "BillableGB": 121.33,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AADNonInteractiveUserSignInLogs",
+    "BillableGB": 91.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceProcessEvents",
+    "BillableGB": 66.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AzureActivity",
+    "BillableGB": 58.33,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceNetworkEvents",
+    "BillableGB": 54.83,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AuditLogs",
+    "BillableGB": 45.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceFileEvents",
+    "BillableGB": 39.67,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "OfficeActivity",
+    "BillableGB": 33.83,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AWSCloudTrail",
+    "BillableGB": 30.33,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "CloudAppEvents",
+    "BillableGB": 25.2,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceEvents",
+    "BillableGB": 22.17,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "StorageBlobLogs",
+    "BillableGB": 18.2,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AzureDiagnostics",
+    "BillableGB": 15.17,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "EmailEvents",
+    "BillableGB": 13.53,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceRegistryEvents",
+    "BillableGB": 11.2,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AppTraces",
+    "BillableGB": 10.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AADManagedIdentitySignInLogs",
+    "BillableGB": 8.87,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceLogonEvents",
+    "BillableGB": 7.47,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SecurityAlert",
+    "BillableGB": 6.53,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AADServicePrincipalSignInLogs",
+    "BillableGB": 5.13,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AppDependencies",
+    "BillableGB": 5.13,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "IdentityLogonEvents",
+    "BillableGB": 4.2,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "Perf",
+    "BillableGB": 4.2,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceInfo",
+    "BillableGB": 3.73,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SecurityEvent_Aux_CL",
+    "BillableGB": 3.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SecurityIncident",
+    "BillableGB": 3.27,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "EmailAttachmentInfo",
+    "BillableGB": 2.8,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceNetworkInfo",
+    "BillableGB": 2.57,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "EmailUrlInfo",
+    "BillableGB": 2.33,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AppPerformanceCounters",
+    "BillableGB": 2.33,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "IdentityQueryEvents",
+    "BillableGB": 2.22,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "IdentityDirectoryEvents",
+    "BillableGB": 1.98,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceImageLoadEvents",
+    "BillableGB": 1.87,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SecurityEvent_SPLT_CL",
+    "BillableGB": 1.87,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AppRequests",
+    "BillableGB": 1.87,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AlertEvidence",
+    "BillableGB": 1.75,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AlertInfo",
+    "BillableGB": 1.4,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AADProvisioningLogs",
+    "BillableGB": 1.28,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceFileCertificateInfo",
+    "BillableGB": 1.17,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "EmailPostDeliveryEvents",
+    "BillableGB": 1.05,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "MicrosoftGraphActivityLogs",
+    "BillableGB": 0.93,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "UrlClickEvents",
+    "BillableGB": 0.89,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "LAQueryLogs",
+    "BillableGB": 0.82,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "ThreatIntelligenceIndicator",
+    "BillableGB": 0.7,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SentinelHealth",
+    "BillableGB": 0.65,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "ConfigurationChange",
+    "BillableGB": 0.58,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AADUserRiskEvents",
+    "BillableGB": 0.51,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "GCPAuditLogs",
+    "BillableGB": 0.47,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "Signinlogs_Anomalies_KQL_CL",
+    "BillableGB": 0.47,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "WindowsFirewall",
+    "BillableGB": 0.42,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "W3CIISLog",
+    "BillableGB": 0.35,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "McasShadowItReporting",
+    "BillableGB": 0.28,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "ADFSSignInLogs",
+    "BillableGB": 0.23,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DynamicEventCollection",
+    "BillableGB": 0.19,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "WindowsEvent",
+    "BillableGB": 0.12,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "SecurityRecommendation",
+    "BillableGB": 0.09,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "Event",
+    "BillableGB": 0.05,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "ContainerLogV2",
+    "BillableGB": 0.04,
+    "TableName": "PrimaryResult"
+  }
+]

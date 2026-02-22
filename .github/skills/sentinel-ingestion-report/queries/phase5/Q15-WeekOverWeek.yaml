@@ -1,0 +1,23 @@
+id: ingestion-q15
+name: Week-over-Week Comparison
+description: Tables with >20% WoW change OR >0.1 GB this week, min 0.01 GB floor
+phase: 5
+type: kql
+timespan: P{wowTotalDays}D
+query: |
+  let thisWeek = Usage
+  | where TimeGenerated > ago({deepDiveDays}d)
+  | summarize ThisWeekGB = round(sum(Quantity) / 1024, 2) by DataType;
+  let lastWeek = Usage
+  | where TimeGenerated between (ago({wowTotalDays}d) .. ago({deepDiveDays}d))
+  | summarize LastWeekGB = round(sum(Quantity) / 1024, 2) by DataType;
+  thisWeek
+  | join kind=fullouter lastWeek on DataType
+  | extend DataType = coalesce(DataType, DataType1),
+      ThisWeekGB = coalesce(ThisWeekGB, 0.0),
+      LastWeekGB = coalesce(LastWeekGB, 0.0)
+  | extend ChangePercent = iff(LastWeekGB == 0, 100.0, round(100.0 * (ThisWeekGB - LastWeekGB) / LastWeekGB, 1))
+  | where abs(ChangePercent) > 20 or ThisWeekGB > 0.1
+  | where max_of(ThisWeekGB, LastWeekGB) >= 0.01
+  | order by abs(ChangePercent) desc
+  | take 20

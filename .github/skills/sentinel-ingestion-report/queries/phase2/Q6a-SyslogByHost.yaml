@@ -1,0 +1,20 @@
+id: ingestion-q6a
+name: Syslog by Source Host
+description: Top 25 hosts by Syslog volume. Uses HostName when available to handle centralized forwarders.
+phase: 2
+type: kql
+timespan: P{deepDiveDays}D
+query: |
+  let _total = toscalar(Syslog | where TimeGenerated > ago({deepDiveDays}d) | summarize round(sum(estimate_data_size(*)) / 1024.0 / 1024.0 / 1024.0, 4));
+  Syslog
+  | where TimeGenerated > ago({deepDiveDays}d)
+  | extend SourceHost = iff(isnotempty(HostName) and HostName != Computer, HostName, Computer)
+  | summarize
+      EventCount = count(),
+      EstimatedGB = round(sum(estimate_data_size(*)) / 1024.0 / 1024.0 / 1024.0, 4),
+      Facilities = make_set(Facility),
+      SeverityLevels = make_set(SeverityLevel)
+      by SourceHost
+  | extend PercentOfTotal = iff(_total > 0, round(100.0 * EstimatedGB / _total, 1), 0.0)
+  | order by EstimatedGB desc
+  | take 25

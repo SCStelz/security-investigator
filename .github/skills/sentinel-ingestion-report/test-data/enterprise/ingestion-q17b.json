@@ -1,0 +1,142 @@
+[
+  {
+    "DataType": "SigninLogs",
+    "VolumeGB": 1560.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AADNonInteractiveUserSignInLogs",
+    "VolumeGB": 1170.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceProcessEvents",
+    "VolumeGB": 855.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceNetworkEvents",
+    "VolumeGB": 705.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AuditLogs",
+    "VolumeGB": 585.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceFileEvents",
+    "VolumeGB": 510.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "CloudAppEvents",
+    "VolumeGB": 324.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceEvents",
+    "VolumeGB": 285.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "EmailEvents",
+    "VolumeGB": 174.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceRegistryEvents",
+    "VolumeGB": 144.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AADManagedIdentitySignInLogs",
+    "VolumeGB": 114.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceLogonEvents",
+    "VolumeGB": 96.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AADServicePrincipalSignInLogs",
+    "VolumeGB": 66.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "IdentityLogonEvents",
+    "VolumeGB": 54.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceInfo",
+    "VolumeGB": 48.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "EmailAttachmentInfo",
+    "VolumeGB": 36.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceNetworkInfo",
+    "VolumeGB": 33.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "EmailUrlInfo",
+    "VolumeGB": 30.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "IdentityQueryEvents",
+    "VolumeGB": 28.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "IdentityDirectoryEvents",
+    "VolumeGB": 25.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceImageLoadEvents",
+    "VolumeGB": 24.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AlertEvidence",
+    "VolumeGB": 22.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "AADProvisioningLogs",
+    "VolumeGB": 16.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DeviceFileCertificateInfo",
+    "VolumeGB": 15.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "EmailPostDeliveryEvents",
+    "VolumeGB": 13.5,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "McasShadowItReporting",
+    "VolumeGB": 3.6,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "ADFSSignInLogs",
+    "VolumeGB": 3.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DataType": "DynamicEventCollection",
+    "VolumeGB": 2.4,
+    "TableName": "PrimaryResult"
+  }
+]

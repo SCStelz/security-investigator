@@ -1,0 +1,13 @@
+# Q9b: Custom Detection Rule Inventory via Microsoft Graph API
+# Fetches Custom Detection rules from Defender XDR via Graph beta endpoint.
+# Requires Microsoft.Graph.Authentication module + CustomDetection.Read.All scope.
+# May be skipped gracefully if module/auth unavailable — status recorded in scratchpad.
+
+id: ingestion-q9b
+name: Custom Detection Rules
+description: Fetch Custom Detection rules via Microsoft Graph PowerShell SDK
+phase: 3
+type: graph
+endpoint: /beta/security/rules/detectionRules
+select: id,displayName,isEnabled,queryCondition,schedule,detectionAction,lastRunDetails,createdDateTime,lastModifiedDateTime
+scope: CustomDetection.Read.All

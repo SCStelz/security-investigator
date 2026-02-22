@@ -1,0 +1,58 @@
+[
+  {
+    "DeviceVendor": "Palo Alto Networks",
+    "DeviceProduct": "PAN-OS",
+    "EventCount": 1773250228,
+    "EstimatedGB": 655.7,
+    "PercentOfTotal": 45.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DeviceVendor": "Fortinet",
+    "DeviceProduct": "FortiGate",
+    "EventCount": 847672289,
+    "EstimatedGB": 364.28,
+    "PercentOfTotal": 25.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DeviceVendor": "Cisco",
+    "DeviceProduct": "ASA",
+    "EventCount": 297090031,
+    "EstimatedGB": 174.85,
+    "PercentOfTotal": 12.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DeviceVendor": "Zscaler",
+    "DeviceProduct": "ZIA",
+    "EventCount": 222331922,
+    "EstimatedGB": 116.57,
+    "PercentOfTotal": 8.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DeviceVendor": "Check Point",
+    "DeviceProduct": "SmartDefense",
+    "EventCount": 125616936,
+    "EstimatedGB": 72.86,
+    "PercentOfTotal": 5.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DeviceVendor": "F5",
+    "DeviceProduct": "BIG-IP ASM",
+    "EventCount": 97330225,
+    "EstimatedGB": 43.71,
+    "PercentOfTotal": 3.0,
+    "TableName": "PrimaryResult"
+  },
+  {
+    "DeviceVendor": "Barracuda",
+    "DeviceProduct": "WAF",
+    "EventCount": 51067394,
+    "EstimatedGB": 29.14,
+    "PercentOfTotal": 2.0,
+    "TableName": "PrimaryResult"
+  }
+]

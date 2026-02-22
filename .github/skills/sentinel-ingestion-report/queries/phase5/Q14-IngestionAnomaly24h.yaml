@@ -1,0 +1,35 @@
+id: ingestion-q14
+name: Ingestion Anomaly Detection (24h vs same-weekday avg)
+description: >
+  Top 20 tables where last-24h ingestion deviates >50% from same-weekday
+  historical average (4-week lookback, min 3 data points). Falls back to
+  flat 7d daily average when insufficient same-weekday history exists.
+  Min 0.01 GB volume floor.
+phase: 5
+type: kql
+timespan: P30D
+query: |
+  let targetDow = dayofweek(ago(12h));
+  let last24h = Usage
+  | where TimeGenerated > ago(24h)
+  | summarize Last24hGB = round(sum(Quantity) / 1024, 2) by DataType;
+  let sameWeekday = Usage
+  | where TimeGenerated between (ago(29d) .. ago(1d))
+  | where dayofweek(TimeGenerated) == targetDow
+  | summarize WkdayTotalGB = sum(Quantity) / 1024,
+      WkdayCount = dcount(startofday(TimeGenerated)) by DataType;
+  let flatAvg = Usage
+  | where TimeGenerated between (ago(8d) .. ago(1d))
+  | summarize FlatAvgGB = round(sum(Quantity) / 1024 / 7, 2) by DataType;
+  last24h
+  | join kind=inner flatAvg on DataType
+  | join kind=leftouter sameWeekday on DataType
+  | extend Avg7dDailyGB = iff(isnotnull(WkdayCount) and WkdayCount >= 3,
+      round(WkdayTotalGB / WkdayCount, 2),
+      FlatAvgGB)
+  | extend DeviationPercent = round(100.0 * (Last24hGB - Avg7dDailyGB) / Avg7dDailyGB, 1)
+  | where abs(DeviationPercent) > 50
+  | where max_of(Last24hGB, Avg7dDailyGB) >= 0.01
+  | project DataType, Last24hGB, Avg7dDailyGB, DeviationPercent
+  | order by abs(DeviationPercent) desc
+  | take 20
