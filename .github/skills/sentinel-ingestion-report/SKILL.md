@@ -155,6 +155,7 @@ The `-Days` parameter drives three time windows used across all queries:
 | Dependency | Required By | Setup |
 |------------|-------------|-------|
 | **Azure CLI** (`az`) | All KQL queries (`az monitor log-analytics query`), analytic rule inventory (`az rest`), tier classification (`az monitor log-analytics workspace table list`) | Install: [aka.ms/installazurecli](https://aka.ms/installazurecli). Authenticate: `az login --tenant <tenant_id>` then `az account set --subscription <subscription_id>` |
+| **`log-analytics` extension** | `az monitor log-analytics query` (all KQL queries in Phases 1-5) | Install: `az extension add --name log-analytics`. Verify: `az extension list --query "[?name=='log-analytics']"` |
 | **Azure RBAC** | Azure CLI calls above | **Log Analytics Reader** on the workspace (KQL queries + table list). **Microsoft Sentinel Reader** on the workspace (analytic rule inventory via `az rest`) |
 | **Microsoft.Graph PowerShell** | Q9b (Custom Detection rules via `Invoke-MgGraphRequest`) | `Install-Module Microsoft.Graph.Authentication -Scope CurrentUser`. Required Graph scope: `CustomDetection.Read.All` (interactive consent on first run). PS1 skips gracefully if module not installed or auth fails |
 | **PowerShell 7.0+** | Parallel query execution | `ForEach-Object -Parallel` requires PS7+ |
