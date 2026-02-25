@@ -7,7 +7,8 @@
     custom detection rules using Invoke-MgGraphRequest (POST /beta/security/rules/detectionRules).
 
     Supports dry-run mode, duplicate checking (default: skip existing), and post-creation verification.
-    Manifest supports dynamic alert titles ({{ColumnName}} syntax), recommended actions, and response actions.
+    Manifest supports dynamic alert titles ({{ColumnName}} syntax) and recommended actions.
+    Response actions are always set to empty — automated response actions are prohibited.
 
 .PARAMETER ManifestPath
     Path to a JSON file containing an array of detection rule definitions.
@@ -92,14 +93,11 @@ function Build-RuleBody {
         $null
     }
 
-    # Response actions: optional array of action objects
-    # NOTE: Do NOT use if/else expression to assign @() — PowerShell pipeline
-    # swallows empty arrays in expressions, producing $null instead of @().
-    # This causes "responseActions": null in JSON, which the API rejects (400).
+    # Response actions: ALWAYS empty — automated response actions are prohibited.
+    # They must only be configured manually in the Defender portal after rule validation.
+    # NOTE: Must be @(), not $null — $null serializes to "responseActions": null which
+    # the API rejects with 400 Bad Request.
     $respActions = @()
-    if ($Rule.PSObject.Properties['responseActions'] -and $Rule.responseActions.Count -gt 0) {
-        $respActions = @($Rule.responseActions)
-    }
 
     $body = @{
         displayName    = $Rule.displayName

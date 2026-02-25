@@ -78,12 +78,23 @@ Custom detection queries have strict requirements that differ from Sentinel anal
 | Requirement | Detail |
 |-------------|--------|
 | **Timestamp column must be projected as-is** | The query MUST project the timestamp column **exactly as it appears in the source table** — `TimeGenerated` for Sentinel/LA tables, `Timestamp` for XDR-native tables. Do not alias one to the other (e.g., `Timestamp = TimeGenerated` causes `400 Bad Request`). See [Pitfall 1](#pitfall-1-timestamp-vs-timegenerated). |
-| **Row-level results with required columns** | Query output must include the timestamp column (`TimeGenerated` or `Timestamp` per source table), `DeviceName`, and `ReportId`. A bare `summarize count()` or `make_set()` fails because these columns are lost. However, `summarize` with `arg_max` IS allowed — see [Pitfall 3](#pitfall-3-summarize--allowed-only-with-row-level-output). |
-| **`ReportId` column required** | Must project a `ReportId` column. For tables without a native `ReportId`, use a proxy (e.g., `CallerProcessId`). |
-| **`DeviceName` column required** | Must project a `DeviceName` column. Alias from `Computer` if needed. |
+| **Event-unique columns (per table type)** | Required columns that uniquely identify the event differ by table family. A bare `summarize count()` or `make_set()` loses these columns and fails. `summarize` with `arg_max` IS allowed — see [Pitfall 3](#pitfall-3-summarize--allowed-only-with-row-level-output). See table below for per-type requirements. |
+| **Impacted asset identifier column** | The query must project at least one column whose name matches a valid `impactedAssets` identifier (e.g., `AccountUpn`, `DeviceName`, `DeviceId`). See [Impacted Asset Types](#impacted-asset-types) and [Pitfall 9](#pitfall-9-impactedassets-identifier-must-be-a-predefined-api-value). Queries without `project` or `summarize` typically return these columns automatically. |
 | **No `let` statements (NRT)** | **NRT rules (`schedule: "0"`) reject `let` entirely** — the API returns a generic `400 Bad Request`. This is **not documented by Microsoft** (empirically discovered Feb 2026) but consistently reproducible. Inline all dynamic arrays/lists directly in `where` clauses. Non-NRT rules (1H+) tolerate `let`. |
+| **Unique `displayName` AND `title`** | Both the rule `displayName` and the alert `title` must be unique across all custom detections. Duplicate `displayName` returns `409 Conflict`. Duplicate `title` returns `400 Bad Request`. |
 | **150 alerts per run** | Each rule generates a maximum of 150 alerts per execution. Tune the query to avoid alerting on normal day-to-day activity. |
+| **🔴 No response actions** | All rules deployed by this skill MUST use `"responseActions": []`. Automated response actions (isolate device, disable user, block file, etc.) are **PROHIBITED** — they must only be configured manually by a human operator in the Defender portal after the rule is validated. Never populate `responseActions` in manifests or API calls. |
 | **First run = 30-day backfill** | When a new rule is saved, it immediately runs against the past 30 days of data. Expect a burst of initial alerts if the query has broad coverage. |
+
+**Required event-unique columns by table type** ([MS Learn source](https://learn.microsoft.com/en-us/defender-xdr/custom-detection-rules#required-columns-in-the-query-results)):
+
+| Table Family | Required Columns (besides timestamp) |
+|-------------|---------------------------------------|
+| **MDE tables** (Device\*) | `DeviceId` AND `ReportId` |
+| **Alert\* tables** | None (just timestamp) |
+| **Observation\* tables** | `ObservationId` |
+| **All other XDR tables** | `ReportId` |
+| **Sentinel/LA tables** (AuditLogs, SigninLogs, SecurityEvent, OfficeActivity, etc.) | `ReportId` recommended (use proxy: `CorrelationId`, `OfficeObjectId`, `CallerProcessId`) but not strictly mandated by the docs |
 
 ### Query Adaptation Checklist
 
@@ -91,8 +102,8 @@ When converting a Sentinel query to custom detection format:
 
 1. ✅ Remove bare `summarize` — project raw rows instead. Exception: `summarize` with `arg_max` is allowed for threshold-based detections (see [Pitfall 3](#pitfall-3-summarize--allowed-only-with-row-level-output))
 2. ✅ Project the timestamp column as-is: `TimeGenerated = TimeGenerated` for Sentinel/LA tables, `Timestamp` for XDR tables. Never alias one to the other.
-3. ✅ Alias `Computer` → `DeviceName` (or use `DeviceId` if available)
-4. ✅ Add `ReportId` — use native `ReportId` if available, otherwise proxy (e.g., `CallerProcessId`). **Caveat:** proxy columns may contain empty strings for some events — this is acceptable but means those rows won't be individually identifiable in alert details
+3. ✅ Project the **impacted asset identifier column** — the column name must match a valid identifier from [Impacted Asset Types](#impacted-asset-types). Examples: `DeviceName = Computer` for device-focused detections, `AccountUpn = UserId` for user-focused. See [Pitfall 9](#pitfall-9-impactedassets-identifier-must-be-a-predefined-api-value).
+4. ✅ Project **event-unique columns** per table type — `DeviceId` + `ReportId` for MDE tables; `ReportId` for other XDR tables; recommended proxy `ReportId` for Sentinel tables (e.g., `ReportId = CorrelationId`). **Caveat:** proxy columns may contain empty strings for some events — acceptable but means those rows won't be individually identifiable in alert details.
 5. ✅ Add a time filter as the first `where` clause — prefer `ingestion_time() > ago(1h)` over `TimeGenerated > ago(1h)` (see tip below). **NRT exception:** For NRT rules (`schedule: "0"`), omit the time filter entirely — events are processed as they stream in, and the platform pre-filters automatically.
 6. ✅ Remove `let` variables for NRT rules — **NRT rejects `let` entirely** (generic 400 error, undocumented). Inline all dynamic arrays directly in `where` clauses. Non-NRT rules tolerate `let`.
 7. ✅ Validate via Advanced Hunting dry-run before deployment
@@ -139,8 +150,8 @@ SecurityEvent
 - Removed `let _Lookback` → hardcoded `ago(1h)`
 - Removed `summarize` → raw `project`
 - Added `TimeGenerated = TimeGenerated` (identity projection — mandatory)
-- Added `DeviceName = Computer` (mandatory column)
-- Added `ReportId = CallerProcessId` (proxy ReportId)
+- Added `DeviceName = Computer` (impacted asset identifier — device-focused detection)
+- Added `ReportId = CallerProcessId` (proxy ReportId — event-unique identifier)
 
 ---
 
@@ -211,7 +222,7 @@ Valid user identifiers: `accountObjectId`, `accountSid`, `accountUpn`, `accountN
 }
 ```
 
-Valid mailbox identifiers: `recipientEmailAddress`, `senderEmailAddress`, `senderObjectId`
+Valid mailbox identifiers: `recipientEmailAddress`, `senderFromAddress`, `senderMailFromAddress`, `senderEmailAddress`, `senderObjectId`
 
 ### Minimal Valid POST Body
 
@@ -247,9 +258,13 @@ Valid mailbox identifiers: `recipientEmailAddress`, `senderEmailAddress`, `sende
 
 > **`recommendedActions`**: Can be `null` or a string. The portal sets it to `null` by default.
 
-> **`responseActions`**: Array of automated response actions. Empty `[]` for alert-only rules. **Must be `[]`, not `null`** — sending `null` causes `400 Bad Request`. See [Pitfall 9](#pitfall-9-powershell-empty-array-swallowing--organizationalscope).
+> **`responseActions`**: **Must always be `[]`** — response actions are prohibited in LLM-authored detections (see [Critical Rules](#-critical-rules---read-first-)). Must be `[]`, not `null` — sending `null` causes `400 Bad Request`. See [Pitfall 10](#pitfall-10-powershell-empty-array-swallowing--organizationalscope).
 
 > **`organizationalScope`**: Omit this field entirely for tenant-wide rules (the API default). Including `"organizationalScope": null` explicitly may cause `400 Bad Request` in some API versions.
+
+> **Custom details (not shown above):** The API also supports a `customDetails` array of key-value pairs surfaced in the alert side panel. Each rule supports up to 20 KVPs with a combined 4KB size limit. Keys are display labels; values are query column names. See [MS Learn](https://learn.microsoft.com/en-us/defender-xdr/custom-detection-rules#add-custom-details-preview).
+
+> **Related evidence (not shown above):** Beyond `impactedAssets`, the entity mapping also supports linking **related evidence** entities (Process, File, Registry value, IP, OAuth application, DNS, Security group, URL, Mail cluster, Mail message). These provide correlation context but are not impacted assets. See [MS Learn](https://learn.microsoft.com/en-us/defender-xdr/custom-detection-rules#link-entities).
 
 ### Dynamic Alert Titles and Descriptions
 
@@ -411,7 +426,7 @@ Use the companion script [Deploy-CustomDetections.ps1](Deploy-CustomDetections.p
 
 ### Manifest Format
 
-See [example-manifest.json](example-manifest.json) for a complete 3-rule reference covering NRT, scheduled (with `summarize`/`arg_max`), and response action patterns.
+See [example-manifest.json](example-manifest.json) for a complete 2-rule reference covering NRT and scheduled (with `summarize`/`arg_max`) patterns.
 
 The script reads a JSON file containing an array of rule definitions:
 
@@ -568,13 +583,30 @@ The `recommendedActions` field is a `String` (not an array). Set to `null` if no
 
 Use `\r\n` (CRLF) for line breaks in the `queryText` field. In PowerShell here-strings or backtick-escaped strings, use `` `r`n ``. The portal uses `\r\n` format.
 
-### Pitfall 7: Duplicate Name Check
+### Pitfall 7: Duplicate Name AND Title Check
 
-The API enforces unique `displayName` across all custom detections. Attempting to create a rule with an existing name returns `409 Conflict`. The batch deployment script checks for duplicates by default — use `-Force` to override.
+The API enforces unique `displayName` AND unique `title` (alert title) across all custom detections. Duplicate `displayName` returns `409 Conflict`. Duplicate `title` returns `400 Bad Request`. The batch deployment script checks for `displayName` duplicates by default — use `-Force` to override. The MS Learn docs state both should be unique: "Detection name... make it unique" and "Alert title... make it unique".
 
 ### Pitfall 8: Alert Deduplication
 
 Custom detections automatically deduplicate alerts. If a detection fires twice on events with the **same entities, custom details, and dynamic details**, only one alert is created. This can happen when the lookback period is longer than the run frequency (e.g., 1H frequency with 4H lookback means 3 hours of overlap). Different events on the same entity produce separate alert entries under the same alert.
+
+### Pitfall 9: `impactedAssets` Identifier Must Be a Predefined API Value
+
+**The `identifier` field in `impactedAssets` must use one of the predefined values from the [Impacted Asset Types](#impacted-asset-types) section — NOT arbitrary query column names.** Using a custom column name (e.g., `"identifier": "TargetComputer"` or `"identifier": "Actor"`) causes a silent `400 InvalidInput` with an **empty error message**.
+
+This aligns with the [MS Learn docs](https://learn.microsoft.com/en-us/defender-xdr/custom-detection-rules#required-columns-in-the-query-results) which list specific "strong identifier" columns for impacted assets. The portal wizard enforces this via a dropdown; the Graph API rejects non-matching values silently.
+
+Additionally, the query MUST project a column whose name matches the chosen identifier (case-insensitive). If you use `"identifier": "accountUpn"`, the query must project an `AccountUpn` column (alias if needed: `AccountUpn = UserId`).
+
+| Wrong | Correct |
+|-------|---------|
+| `"identifier": "UserId"` | `"identifier": "accountUpn"` + project `AccountUpn = UserId` |
+| `"identifier": "Actor"` | `"identifier": "accountUpn"` + rename `Actor` → `AccountUpn` |
+| `"identifier": "TargetComputer"` | `"identifier": "deviceName"` + project `DeviceName = Computer` |
+| `"identifier": "TargetUPN"` | `"identifier": "accountUpn"` + rename `TargetUPN` → `AccountUpn` |
+
+> **DeviceId requirement:** For XDR-native tables (Device\*, Email\*, CloudAppEvents) with a device-type impactedAsset, the query must project `DeviceId` (not just `DeviceName`). Sentinel/LA tables (SecurityEvent, AuditLogs) do not require `DeviceId`.
 
 ---
 
@@ -625,9 +657,9 @@ adaptation_notes: "Straightforward — already row-level, add mandatory columns"
 | `schedule` | If cd_ready | `"0"` / `"1H"` / `"3H"` / `"12H"` / `"24H"` | Detection frequency. `"0"` = NRT (single-table, no joins/unions) |
 | `category` | If cd_ready | string | Alert category (see [API Reference](#api-reference) for valid values) |
 | `title` | No | string | Dynamic alert title with `{{ColumnName}}` placeholders. Falls back to query heading if omitted |
-| `impactedAssets` | If cd_ready | array | Asset entities to extract. Each entry: `type` (`device`/`user`/`mailbox`) + `identifier` (column name) |
+| `impactedAssets` | If cd_ready | array | Asset entities to extract. Each entry: `type` (`device`/`user`/`mailbox`) + `identifier` (predefined API value, e.g., `accountUpn`, `deviceName` — see [Impacted Asset Types](#impacted-asset-types)) |
 | `recommendedActions` | No | string | Triage guidance shown in the alert. Omit if not needed |
-| `responseActions` | No | array | Automated response actions (see [Response Actions Reference](#response-actions-reference)). Omit for alert-only |
+| `responseActions` | No | array | **PROHIBITED** — must always be omitted or empty `[]`. Response actions must only be configured manually in the Defender portal |
 | `adaptation_notes` | No | string | Human-readable notes on what adaptation is needed (for the summary table) |
 
 ### Queries NOT suitable for CD
@@ -652,135 +684,13 @@ This explicitly documents the assessment so the detection skill doesn't re-evalu
 
 If a query file has **no cd-metadata blocks**, the skill falls back to the manual Query Library Reference table below.
 
----
 
-## Response Actions Reference
-
-Custom detections support automated response actions. Add to the `responseActions` array:
-
-### Isolate Device
-
-```json
-{
-    "@odata.type": "#microsoft.graph.security.isolateDeviceResponseAction",
-    "isolationType": "full",
-    "identifier": "deviceId"
-}
-```
-
-### Restrict App Execution
-
-```json
-{
-    "@odata.type": "#microsoft.graph.security.restrictAppExecutionResponseAction",
-    "identifier": "deviceId"
-}
-```
-
-### Initiate Investigation
-
-```json
-{
-    "@odata.type": "#microsoft.graph.security.initiateInvestigationResponseAction",
-    "identifier": "deviceId"
-}
-```
-
-### Collect Investigation Package
-
-```json
-{
-    "@odata.type": "#microsoft.graph.security.collectInvestigationPackageResponseAction",
-    "identifier": "deviceId"
-}
-```
-
-### Run Antivirus Scan
-
-```json
-{
-    "@odata.type": "#microsoft.graph.security.runAntivirusScanResponseAction",
-    "identifier": "deviceId"
-}
-```
-
-### Mark User as Compromised
-
-Sets the user's risk level to "high" in Microsoft Entra ID, triggering Identity Protection policies:
-
-```json
-{
-    "@odata.type": "#microsoft.graph.security.markUserAsCompromisedResponseAction",
-    "identifier": "accountObjectId"
-}
-```
-
-Valid identifiers: `accountObjectId`, `initiatingProcessAccountObjectId`, `recipientObjectId`
-
-### Disable User
-
-Temporarily prevents the user from signing in. Requires a SID-based identifier:
-
-```json
-{
-    "@odata.type": "#microsoft.graph.security.disableUserResponseAction",
-    "identifier": "accountSid"
-}
-```
-
-Valid identifiers: `accountSid`, `initiatingProcessAccountSid`, `requestAccountSid`, `onPremSid`
-
-### Force Password Reset
-
-Prompts the user to change their password on next sign-in. Requires a SID-based identifier:
-
-```json
-{
-    "@odata.type": "#microsoft.graph.security.forceUserPasswordResetResponseAction",
-    "identifier": "accountSid"
-}
-```
-
-### Allow/Block File
-
-```json
-{
-    "@odata.type": "#microsoft.graph.security.blockFileResponseAction",
-    "identifier": "sha1"
-}
-```
-
-Valid identifiers: `sha1`, `initiatingProcessSHA1`, `sha256`, `initiatingProcessSHA256`
-
-### Quarantine File
-
-```json
-{
-    "@odata.type": "#microsoft.graph.security.quarantineFileResponseAction",
-    "identifier": "sha1"
-}
-```
-
-### Email Actions
-
-Requires `networkMessageId` and `recipientEmailAddress` columns in query output:
-
-```json
-{
-    "@odata.type": "#microsoft.graph.security.moveToDeletedItemsResponseAction",
-    "identifier": "networkMessageId"
-}
-```
-
-Other email action types: `moveToJunkResponseAction`, `moveToInboxResponseAction`, `softDeleteResponseAction`, `hardDeleteResponseAction`
-
-> **⚠️ Use response actions with caution.** Automated isolation, user disablement, or app restriction can cause operational disruption. Start with alert-only rules (`responseActions: []`) and add automation after tuning.
 
 ---
 
 ## Additional Pitfalls (Discovered in Practice)
 
-### Pitfall 9: PowerShell Empty Array Swallowing & `organizationalScope`
+### Pitfall 10: PowerShell Empty Array Swallowing & `organizationalScope`
 
 **Root cause (Feb 2026):** When using PowerShell `if/else` expressions to assign empty arrays, PowerShell swallows `@()` and produces `$null` instead:
 
@@ -795,10 +705,10 @@ if ($condition) { $x = @($items) }
 # Result: empty Object[] (serializes to [])
 ```
 
-This caused the batch deployment script to serialize `"responseActions": null` instead of `"responseActions": []`, which the API rejects with `400 Bad Request`.
+This caused array fields like `responseActions` and `mitreTechniques` to serialize as `null` instead of `[]`, which the API rejects with `400 Bad Request`.
 
-**Combined with `organizationalScope: null`** — including this field explicitly (even as `null`) was also rejected. The fix: omit `organizationalScope` entirely and use direct assignment for `$respActions`.
+**Combined with `organizationalScope: null`** — including this field explicitly (even as `null`) was also rejected. The fix: omit `organizationalScope` entirely and use direct assignment for array fields.
 
 **Symptoms:** All rules in a batch return `400 Bad Request`, but some may be silently created (see [Pitfall 2](#pitfall-2-silent-rule-creation-on-error-responses-400-and-409)). Manual deployment of the same rule body (without the null fields) succeeds.
 
-**Fixed in:** [Deploy-CustomDetections.ps1](Deploy-CustomDetections.ps1) — `$respActions` now uses direct assignment, `organizationalScope` removed from body.
+**Fixed in:** [Deploy-CustomDetections.ps1](Deploy-CustomDetections.ps1) — array fields now use direct assignment, `organizationalScope` removed from body.

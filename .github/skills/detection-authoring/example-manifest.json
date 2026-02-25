@@ -29,26 +29,5 @@
       { "type": "device", "identifier": "deviceName" }
     ],
     "responseActions": []
-  },
-  {
-    "displayName": "NRT - Example Detection with Response Action",
-    "title": "Critical Alert on {{DeviceName}}",
-    "queryText": "DeviceProcessEvents\n| where ActionType == \"ExampleAction\"\n| project Timestamp, DeviceName, DeviceId,\n    AccountName = InitiatingProcessAccountName,\n    AccountSid = InitiatingProcessAccountSid,\n    ReportId",
-    "schedule": "0",
-    "severity": "high",
-    "category": "Execution",
-    "mitreTechniques": ["T1059.001"],
-    "description": "Example detection with an automated response action. Isolates the device on detection.",
-    "recommendedActions": "Verify the isolation was appropriate. Review the process tree.",
-    "impactedAssets": [
-      { "type": "device", "identifier": "deviceId" }
-    ],
-    "responseActions": [
-      {
-        "@odata.type": "#microsoft.graph.security.isolateDeviceResponseAction",
-        "isolationType": "full",
-        "identifier": "deviceId"
-      }
-    ]
   }
 ]
