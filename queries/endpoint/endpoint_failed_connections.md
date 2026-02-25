@@ -36,7 +36,7 @@ category: "CredentialAccess"
 title: "Brute Force: {{FailedAttempts}} failed logons on {{DeviceName}} from {{RemoteIP}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Remove `| take 20` and `| order by` for production CD deployment. Threshold (>=5 attempts) is tunable per environment."
 -->
 ```kql

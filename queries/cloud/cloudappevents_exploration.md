@@ -510,7 +510,7 @@ category: "DefenseEvasion"
 title: "Cloud App Access via Anonymous Proxy — {{AccountDisplayName}}"
 impactedAssets:
   - type: "user"
-    identifier: "AccountDisplayName"
+    identifier: "accountName"
 recommendedActions: "Verify whether the user has legitimate business need for VPN/proxy. Review session activity for data exfiltration or config changes. Check SigninLogs for correlated risky sign-in events."
 responseActions: "Block IP at Conditional Access Named Locations. Revoke user refresh tokens. Investigate concurrent sessions."
 -->
@@ -538,7 +538,7 @@ category: "PrivilegeEscalation"
 title: "External User Performed Admin Operation — {{AccountDisplayName}}"
 impactedAssets:
   - type: "user"
-    identifier: "AccountDisplayName"
+    identifier: "accountName"
 recommendedActions: "Verify the external user identity and whether admin delegation is authorized. Check AuditLogs for B2B invitation and role assignment history."
 responseActions: "Revoke external user access. Remove admin role assignment. Review affected application/resource for unauthorized changes."
 -->
@@ -562,7 +562,7 @@ category: "DefenseEvasion"
 title: "Bulk Conditional Access Policy Changes — {{AccountDisplayName}}"
 impactedAssets:
   - type: "user"
-    identifier: "AccountDisplayName"
+    identifier: "accountName"
 recommendedActions: "Review which CA policies were modified and whether changes weaken security posture. Correlate with sign-in failures that resolved after changes. Check for policy rollbacks."
 responseActions: "Revert unauthorized CA policy changes. Lock admin account if compromised. Audit all CA policies for weakened conditions."
 -->
@@ -587,7 +587,7 @@ category: "CredentialAccess"
 title: "User Impersonation Detected — {{AccountDisplayName}}"
 impactedAssets:
   - type: "user"
-    identifier: "AccountDisplayName"
+    identifier: "accountName"
 recommendedActions: "Verify whether impersonation is authorized (delegated admin, support scenarios). Review impersonated actions for data access or privilege escalation."
 responseActions: "Disable impersonation permissions. Revoke session tokens for both impersonator and impersonated accounts. Alert SOC for containment."
 -->

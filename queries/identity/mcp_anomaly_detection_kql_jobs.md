@@ -900,7 +900,7 @@ category: "InitialAccess"
 title: "New Sensitive Graph Endpoint via MCP: {{EndpointCategory}}"
 impactedAssets:
   - type: "user"
-    identifier: "UserId"
+    identifier: "accountUpn"
 adaptation_notes: "Companion detection rule for KQL Job 1. Queries MCPGraphAnomalies_KQL_CL analytics tier table. Requires Job 1 to be running and promoting data."
 -->
 ```kql
@@ -955,7 +955,7 @@ category: "Collection"
 title: "Graph MCP Volume Spike: {{SpikeRatio}}x baseline"
 impactedAssets:
   - type: "user"
-    identifier: "UserId"
+    identifier: "accountUpn"
 adaptation_notes: "Companion detection rule for KQL Job 2. Queries MCPGraphAnomalies_KQL_CL. Requires Job 2 to be running."
 -->
 ```kql
@@ -1014,7 +1014,7 @@ category: "LateralMovement"
 title: "Cross-MCP Activity: {{MCPServersUsed}} servers by {{UserId}}"
 impactedAssets:
   - type: "user"
-    identifier: "UserId"
+    identifier: "accountUpn"
 adaptation_notes: "Companion detection rule for KQL Job 8. Queries MCPCrossMCPCorrelation_KQL_CL. Requires Job 8 to be running."
 -->
 ```kql
@@ -1075,7 +1075,7 @@ category: "InitialAccess"
 title: "New Azure MCP Server User: {{UserPrincipalName}}"
 impactedAssets:
   - type: "user"
-    identifier: "UserId"
+    identifier: "accountUpn"
 adaptation_notes: "Companion detection rule for KQL Job 5. Queries MCPAzureAnomalies_KQL_CL. Requires Job 5 to be running."
 -->
 ```kql
@@ -1132,7 +1132,7 @@ category: "Exfiltration"
 title: "Large MCP Data Retrieval: {{TotalRowsReturned}} rows"
 impactedAssets:
   - type: "user"
-    identifier: "AADEmail"
+    identifier: "accountUpn"
 adaptation_notes: "Companion detection rule for KQL Job 7. Queries MCPSentinelAnomalies_KQL_CL. AADEmail may contain an Object ID GUID for Sentinel Triage MCP (known limitation). Requires Job 7 to be running."
 -->
 ```kql

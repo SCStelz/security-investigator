@@ -82,7 +82,7 @@ category: "LateralMovement"
 title: "RDP Brute Force Success: {{FailedAttempts}} failures then logon on {{TargetComputer}} from {{SourceIP}}"
 impactedAssets:
   - type: "device"
-    identifier: "TargetComputer"
+    identifier: "deviceName"
 adaptation_notes: "Multi-let correlation query. CD supports `let` blocks. Remove `order by` for CD. Thresholds (failureThreshold=3, windowTime=10m) are tunable."
 -->
 ```kql
@@ -240,7 +240,7 @@ category: "LateralMovement"
 title: "RDP Spray: {{SourceIP}} targeted {{UniqueTargets}} systems"
 impactedAssets:
   - type: "device"
-    identifier: "SourceIP"
+    identifier: "deviceName"
 adaptation_notes: "Threshold-based spray detection. Each row = one spray instance from a source IP. Remove `order by` for CD. Thresholds (targetThreshold=5, windowTime=1h) are tunable."
 -->
 ```kql

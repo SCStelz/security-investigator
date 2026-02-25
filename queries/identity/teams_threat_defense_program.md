@@ -389,7 +389,7 @@ category: Exfiltration
 title: "High-volume Teams external messaging by {{SenderUPN}} to {{RecipientDomain}}"
 impactedAssets:
   - type: user
-    identifier: SenderUPN
+    identifier: accountUpn
 recommendedActions: "Review the user's recent Teams chat activity and confirm whether external communication is authorized. Check for data exfiltration indicators."
 responseActions:
   - "Revoke user sessions"
@@ -430,7 +430,7 @@ category: InitialAccess
 title: "Malicious Teams content detected — {{ThreatTypes}} from {{SenderDisplayName}}"
 impactedAssets:
   - type: mailbox
-    identifier: SenderEmailAddress
+    identifier: senderEmailAddress
 adaptation_notes: "SenderEmailAddress identifies the threat source. Parse RecipientDetails to extract the targeted internal user for impactedAssets if needed."
 -->
 ```kql
@@ -459,7 +459,7 @@ category: InitialAccess
 title: "Email bombing detected targeting {{RecipientEmailAddress}}"
 impactedAssets:
   - type: mailbox
-    identifier: RecipientEmailAddress
+    identifier: recipientEmailAddress
 recommendedActions: "Correlate with subsequent Teams calls or external chat activity (Storm-1811 pattern). Check for RMM tool installation."
 -->
 ```kql
@@ -485,7 +485,7 @@ category: InitialAccess
 title: "Storm-1811 pattern: email bomb victim {{TargetUPN}} contacted by external Teams user {{SenderDisplayName}}"
 impactedAssets:
   - type: user
-    identifier: TargetUPN
+    identifier: targetAccountUpn
 recommendedActions: "Confirm whether the user was social-engineered into installing RMM tools. Check DeviceProcessEvents for Quick Assist, AnyDesk, TeamViewer."
 responseActions:
   - "Isolate device if RMM tool found"
@@ -525,7 +525,7 @@ category: InitialAccess
 title: "External Teams help desk impersonation by {{SenderDisplayName}}"
 impactedAssets:
   - type: mailbox
-    identifier: SenderEmailAddress
+    identifier: senderEmailAddress
 adaptation_notes: "SenderEmailAddress is the external impersonator. RecipientDetails contains the internal victim but requires parsing for clean impactedAssets."
 recommendedActions: "Verify whether internal users interacted with the external sender. Check for subsequent RMM tool installation or credential harvesting."
 -->
@@ -560,9 +560,9 @@ category: Execution
 title: "Vishing → RMM: {{FileName}} launched on {{DeviceName}} after help desk chat with {{VictimUPN}}"
 impactedAssets:
   - type: device
-    identifier: DeviceName
+    identifier: deviceName
   - type: user
-    identifier: VictimUPN
+    identifier: accountUpn
 recommendedActions: "Isolate device immediately. Review DeviceProcessEvents timeline for post-RMM lateral movement, credential theft, and payload drops."
 responseActions:
   - "Isolate device via MDE"
@@ -614,7 +614,7 @@ category: CredentialAccess
 title: "Device code authentication by {{UserPrincipalName}} from {{Country}}"
 impactedAssets:
   - type: user
-    identifier: UserPrincipalName
+    identifier: accountUpn
 adaptation_notes: "Sentinel Data Lake query using SigninLogs. For CD, adapt to AADSignInEventsBeta with `LogonType == 'deviceCode'` and `Timestamp` column. See Query 20 for the AH equivalent."
 recommendedActions: "Verify whether device code auth was legitimate (IoT/conference room scenario). If unexpected, revoke sessions and investigate for token theft."
 -->
@@ -648,7 +648,7 @@ category: InitialAccess
 title: "External Teams impersonation chat targeting {{TargetUPN}} from {{SenderDisplayName}}"
 impactedAssets:
   - type: user
-    identifier: TargetUPN
+    identifier: targetAccountUpn
 recommendedActions: "Check if the internal user engaged with the external sender. Look for credential harvesting, file downloads, or RMM tool installation."
 -->
 ```kql
@@ -683,7 +683,7 @@ category: Execution
 title: "RMM tool {{FileName}} launched after Teams activity on {{DeviceName}}"
 impactedAssets:
   - type: device
-    identifier: DeviceName
+    identifier: deviceName
 recommendedActions: "Verify RMM launch was authorized. If unexpected, isolate device and review process timeline for lateral movement."
 responseActions:
   - "Isolate device via MDE"
@@ -906,9 +906,9 @@ category: Execution
 title: "TeamsPhisher pattern: external chat → {{FileName}} execution by {{TargetUPN}} on {{DeviceName}}"
 impactedAssets:
   - type: user
-    identifier: TargetUPN
+    identifier: targetAccountUpn
   - type: device
-    identifier: DeviceName
+    identifier: deviceName
 recommendedActions: "Isolate device. Review process chain for malware payload (DarkGate, JSSloader). Block attacker tenant."
 responseActions:
   - "Isolate device via MDE"
@@ -954,7 +954,7 @@ category: InitialAccess
 title: "Malicious URL click-through in Teams by {{AccountUpn}} ({{ClickCount}} clicks)"
 impactedAssets:
   - type: user
-    identifier: AccountUpn
+    identifier: accountUpn
 recommendedActions: "Check if the user's device was compromised post-click. Review endpoint timeline for payload execution."
 -->
 ```kql
@@ -1005,7 +1005,7 @@ category: Execution
 title: "Suspicious DLL {{FileName}} loaded via Teams on {{DeviceName}}"
 impactedAssets:
   - type: device
-    identifier: DeviceName
+    identifier: deviceName
 recommendedActions: "Investigate the DLL origin and signing status. Check if Teams was trojanized or if this is a sideloading attempt."
 responseActions:
   - "Isolate device via MDE"
@@ -1080,7 +1080,7 @@ category: CredentialAccess
 title: "Device code auth success by {{AccountUpn}} from {{Country}} — risk: {{RiskLevelDuringSignIn}}"
 impactedAssets:
   - type: user
-    identifier: AccountUpn
+    identifier: accountUpn
 recommendedActions: "Verify device code auth was legitimate. If unexpected, revoke all sessions immediately and investigate for token theft."
 responseActions:
   - "Revoke user sessions"
@@ -1126,7 +1126,7 @@ category: CommandAndControl
 title: "Teams connector/bot activity: {{ActionType}} — {{AppName}} by {{AccountDisplayName}}"
 impactedAssets:
   - type: user
-    identifier: AccountDisplayName
+    identifier: accountName
 adaptation_notes: "AccountDisplayName may not be a clean UPN. Consider adding AccountObjectId for entity mapping. Review AppName values to tune out legitimate connectors."
 recommendedActions: "Verify the connector/bot/app is legitimate. Check for ConvoC2 indicators and Adaptive Card abuse."
 -->

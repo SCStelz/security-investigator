@@ -427,7 +427,7 @@ category: Persistence
 title: "Storage RBAC change: {{Action}} by {{Caller}} in {{ResourceGroup}}"
 impactedAssets:
   - type: user
-    identifier: Caller
+    identifier: accountName
 adaptation_notes: "AzureActivity table — available in AH as well. Reduce lookback from 30d to `ago(1d)` for scheduled detection. Filter `Properties_d` further for specific high-privilege role definitions (e.g., Storage Blob Data Owner)."
 -->
 ```kql
@@ -461,7 +461,7 @@ category: Persistence
 title: "Container ACL changed on {{AccountName}} by {{RequesterUpn}}"
 impactedAssets:
   - type: user
-    identifier: RequesterUpn
+    identifier: accountUpn
 adaptation_notes: "StorageBlobLogs is Sentinel-only. For AH-based CD, adapt to use AzureActivity with OperationName matching container ACL operations. Reduce lookback from 30d to `ago(1d)`."
 -->
 ```kql
@@ -489,7 +489,7 @@ category: DefenseEvasion
 title: "Storage firewall/network rule modified by {{Caller}} in {{ResourceGroup}}"
 impactedAssets:
   - type: user
-    identifier: Caller
+    identifier: accountName
 adaptation_notes: "Reduce lookback from 30d to `ago(1d)` for scheduled detection. Review Properties_d to distinguish between tightening vs loosening of firewall rules."
 -->
 ```kql
@@ -523,7 +523,7 @@ category: DefenseEvasion
 title: "Diagnostic settings {{Action}} on storage by {{Caller}}"
 impactedAssets:
   - type: user
-    identifier: Caller
+    identifier: accountName
 adaptation_notes: "Reduce lookback from 30d to `ago(1d)`. Filter specifically for deletion events (`diagnosticSettings/delete`) as high-severity, modifications as medium."
 -->
 ```kql
@@ -556,7 +556,7 @@ category: DefenseEvasion
 title: "Defender for Storage pricing change by {{Caller}}"
 impactedAssets:
   - type: user
-    identifier: Caller
+    identifier: accountName
 adaptation_notes: "Reduce lookback from 30d to `ago(1d)`. High-severity detection — disabling Defender for Storage is a strong indicator of defense evasion."
 responseActions:
   - "Re-enable Defender for Storage immediately"
@@ -717,7 +717,7 @@ category: Exfiltration
 title: "$web container write on {{AccountName}} by {{RequesterUpn}} from {{CallerIpAddress}}"
 impactedAssets:
   - type: user
-    identifier: RequesterUpn
+    identifier: accountUpn
 adaptation_notes: "StorageBlobLogs is Sentinel-only. For AH-based CD, use AzureActivity or CloudStorageAggregatedEvents. Reduce lookback from 30d to `ago(1d)`. High-value detection — $web container is always publicly accessible."
 recommendedActions: "Verify the upload is legitimate. $web container content is publicly accessible and may expose sensitive data."
 -->
@@ -748,7 +748,7 @@ category: Exfiltration
 title: "Cross-account blob copy: {{SourceAccount}} → {{DestAccount}} by {{RequesterUpn}}"
 impactedAssets:
   - type: user
-    identifier: RequesterUpn
+    identifier: accountUpn
 adaptation_notes: "StorageBlobLogs is Sentinel-only. For AH-based CD, adapt to CloudStorageAggregatedEvents or use as Sentinel analytic rule."
 recommendedActions: "Verify the cross-account copy is authorized. Check if source or destination accounts are external to the organization."
 -->
@@ -903,7 +903,7 @@ category: Reconnaissance
 title: "Suspicious storage access pattern on {{StorageAccount}} from {{IPAddress}}"
 impactedAssets:
   - type: user
-    identifier: AccountUpn
+    identifier: accountUpn
 adaptation_notes: "CloudStorageAggregatedEvents is AH-native. Reduce lookback from 30d to `ago(1d)` for scheduled detection. The built-in filters (FailedOperationsCount > 10, AnonymousSuccessfulOperations > 50) provide good signal."
 -->
 ```kql

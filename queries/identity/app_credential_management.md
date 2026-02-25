@@ -58,7 +58,7 @@ category: "Persistence"
 title: "App Credential Change: {{CredentialAction}} {{CredentialType}} on {{TargetName}} by {{Actor}}"
 impactedAssets:
   - type: "user"
-    identifier: "Actor"
+    identifier: "accountUpn"
 adaptation_notes: "Reduce `ago(90d)` to `ago(1d)` or shorter for scheduled detection. Row-level output per credential change event. The `in~` filter list for OperationName includes trailing spaces — preserve them."
 -->
 ```kql
@@ -196,7 +196,7 @@ category: "Persistence"
 title: "New App Registration: {{AppName}} created by {{Actor}}"
 impactedAssets:
   - type: "user"
-    identifier: "Actor"
+    identifier: "accountUpn"
 adaptation_notes: "Reduce `ago(90d)` to `ago(1d)` for scheduled detection. Row-level output per new app registration event."
 -->
 ```kql
@@ -232,7 +232,7 @@ category: "Persistence"
 title: "New App with Immediate Credential: {{AppName}} — credential added {{TimeDelta}}s after creation"
 impactedAssets:
   - type: "user"
-    identifier: "AppName"
+    identifier: "servicePrincipalName"
 adaptation_notes: "Multi-let correlation query: new app registration joined with credential operations within 5 minutes. Reduce `ago(90d)` to `ago(1d)` for scheduled detection. High-signal — scripted persistence setup."
 -->
 ```kql
@@ -278,7 +278,7 @@ category: "PrivilegeEscalation"
 title: "App Ownership Change: {{NewOwner}} added to {{TargetName}} by {{Actor}}"
 impactedAssets:
   - type: "user"
-    identifier: "Actor"
+    identifier: "accountUpn"
 adaptation_notes: "Reduce `ago(90d)` to `ago(1d)` for scheduled detection. Row-level output per ownership change event. High-signal when followed by credential modifications (see follow-up query)."
 -->
 ```kql
@@ -321,9 +321,9 @@ category: "Persistence"
 title: "Ownership→Credential Chain: {{TargetName}} — owner added by {{OwnerAddedBy}}, credential changed by {{CredentialChangeBy}} {{DaysAfterOwnerChange}}d later"
 impactedAssets:
   - type: "user"
-    identifier: "OwnerAddedBy"
+    identifier: "accountUpn"
   - type: "user"
-    identifier: "CredentialChangeBy"
+    identifier: "accountUpn"
 adaptation_notes: "Multi-let correlation query: ownership change joined with credential modification within 7 days on same app. Very high-signal for persistence via app takeover. Reduce `ago(90d)` to `ago(7d)` for scheduled detection."
 -->
 ```kql
@@ -368,7 +368,7 @@ category: "CredentialAccess"
 title: "Consent/Permission Change: {{OperationName}} on {{TargetName}} by {{Actor}}"
 impactedAssets:
   - type: "user"
-    identifier: "Actor"
+    identifier: "accountUpn"
 adaptation_notes: "Reduce `ago(90d)` to `ago(1d)` for scheduled detection. Row-level output per consent/permission event. Covers illicit consent grant attack (T1550.001)."
 -->
 ```kql

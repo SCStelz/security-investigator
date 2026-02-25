@@ -283,7 +283,7 @@ category: "CredentialAccess"
 title: "AiTM Token Replay: {{AccountDisplayName}} session used from multiple countries"
 impactedAssets:
   - type: "user"
-    identifier: "AccountDisplayName"
+    identifier: "accountName"
 adaptation_notes: "Multi-let join query. CD supports `let` blocks. High-signal detection for AiTM proxy attacks."
 -->
 ```kql
@@ -318,7 +318,7 @@ category: "CredentialAccess"
 title: "AiTM Token Replay: {{UserPrincipalName}} session from {{OriginalCountry}} replayed from {{ReplayCountry}}"
 impactedAssets:
   - type: "user"
-    identifier: "UserPrincipalName"
+    identifier: "accountUpn"
 adaptation_notes: "Sentinel Data Lake variant of Q1. Uses `parse_json(LocationDetails)` for country extraction."
 -->
 ```kql
@@ -358,7 +358,7 @@ category: "CredentialAccess"
 title: "AiTM Full Chain: {{UserPrincipalName}} phished then {{RiskEventType}} detected"
 impactedAssets:
   - type: "user"
-    identifier: "UserPrincipalName"
+    identifier: "accountUpn"
 adaptation_notes: "Multi-source correlation (EmailEvents + AADUserRiskEvents). Row-level output per risk event. 30d lookback is within CD limits."
 -->
 ```kql
@@ -388,11 +388,11 @@ Attackers register a new MFA method (including FIDO2 keys) after AiTM compromise
 cd_ready: true
 schedule: "3H"
 category: "Persistence"
-title: "Post-AiTM MFA Registration: {{OperationName}} for risky user"
+title: "Post-AiTM MFA Registration: {{OperationName}} by {{AccountUpn}}"
 impactedAssets:
   - type: "user"
-    identifier: "TargetResources"
-adaptation_notes: "Cross-table correlation (AADUserRiskEvents + AuditLogs). The `has_any (RiskyUsers)` pattern works for moderate user volumes. For large environments, consider limiting the `let` subquery."
+    identifier: "accountUpn"
+adaptation_notes: "Cross-table correlation (AADUserRiskEvents + AuditLogs). The `has_any (RiskyUsers)` pattern works for moderate user volumes. For large environments, consider limiting the `let` subquery. Must extract AccountUpn from InitiatedBy dynamic field (coalesce with Identity fallback). Use CorrelationId as proxy ReportId."
 -->
 ```kql
 // Post-AiTM: New MFA method registration following risky sign-in
@@ -427,7 +427,7 @@ category: "Collection"
 title: "Post-AiTM Inbox Rule: {{RawEventData.Name}} created during anomalous token session"
 impactedAssets:
   - type: "user"
-    identifier: "AccountObjectId"
+    identifier: "accountObjectId"
 adaptation_notes: "Advanced Hunting only — uses AlertInfo + AlertEvidence + CloudAppEvents with `materialize()`. Multi-let pipeline. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -460,9 +460,9 @@ category: "Exfiltration"
 title: "Inbox Forwarding Rule: {{Operation}} by {{UserId}}"
 impactedAssets:
   - type: "user"
-    identifier: "UserId"
+    identifier: "accountUpn"
   - type: "mailbox"
-    identifier: "UserId"
+    identifier: "accountUpn"
 adaptation_notes: "Sentinel Data Lake (OfficeActivity). Row-level events with clear exfiltration indicators. `Parameters` is a string field — use `has` for keyword matching."
 -->
 ```kql
@@ -550,9 +550,9 @@ category: "CommandAndControl"
 title: "AiTM Network Connection: {{DeviceName}} → {{RemoteUrl}} ({{ResponseCategory}})"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
   - type: "user"
-    identifier: "InitiatingProcessAccountName"
+    identifier: "initiatingAccountName"
 adaptation_notes: "Row-level events from DeviceEvents. The `has_any` filter on RemoteUrl for login/office keywords may be broad — tune for your environment. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -584,7 +584,7 @@ category: "PrivilegeEscalation"
 title: "Post-AiTM PIM Activation: {{OperationName}} by compromised user"
 impactedAssets:
   - type: "user"
-    identifier: "InitiatedBy"
+    identifier: "accountUpn"
 adaptation_notes: "Cross-table correlation (AADUserRiskEvents + AuditLogs). Same `has_any (AiTMUsers)` pattern as Q4. For large environments, consider limiting the `let` subquery."
 -->
 ```kql

@@ -59,7 +59,7 @@ category: "DefenseEvasion"
 title: "PXA Stealer: Python masquerading as svchost.exe on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "High-signal detection. Minimal adaptation needed — already returns row-level events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -102,7 +102,7 @@ category: "CommandAndControl"
 title: "PXA Stealer: C2 connection from Python-as-svchost on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Row-level network events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -182,7 +182,7 @@ category: "DefenseEvasion"
 title: "svchost.exe running outside System32 on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "High-signal, low-FP detection. Row-level events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -227,7 +227,7 @@ category: "DefenseEvasion"
 title: "Process Injection: cvtres.exe spawned by fake svchost on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "High-signal, very specific detection. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -267,7 +267,7 @@ category: "DefenseEvasion"
 title: "DLL Sideloading: Renamed {{InitiatingProcessVersionInfoOriginalFileName}} loading DLLs on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Remove `| take 200` for production CD. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -310,7 +310,7 @@ category: "DefenseEvasion"
 title: "LOLBin: certutil decode/download on {{DeviceName}} by {{AccountName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Row-level events. Low FP in most environments. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -347,7 +347,7 @@ category: "DefenseEvasion"
 title: "Renamed AutoIt Binary: {{FileName}} (original: AutoIt3.exe) on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Row-level events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -380,7 +380,7 @@ category: "DefenseEvasion"
 title: "Eternidade: AutoIt executing .log script on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Companion to Q8 main query. Targets specific .log script pattern. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -416,7 +416,7 @@ category: "Execution"
 title: "Suspicious Python Execution: {{FileName}} with obfuscation on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Remove `| take 200`. Broad query — may need environment-specific tuning of `has_any` keywords. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -466,7 +466,7 @@ category: "Persistence"
 title: "Suspicious Registry Run Key: {{RegistryValueName}} on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Row-level events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -514,7 +514,7 @@ category: "Persistence"
 title: "Suspicious Scheduled Task created by {{InitiatingProcessFileName}} on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Row-level events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -546,7 +546,7 @@ category: "Persistence"
 title: "CrystalPDF Scheduled Task persistence on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "CrystalPDF-specific variant. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -584,7 +584,7 @@ category: "Execution"
 title: "Encoded/Download PowerShell on {{DeviceName}} by {{AccountName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Remove `| take 200`. Broad keyword set may need tuning. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -630,7 +630,7 @@ category: "Execution"
 title: "VBS Dropper: File dropped to Temp from Downloads on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -659,7 +659,7 @@ category: "Execution"
 title: "Eternidade: wscript launching batch installer on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Companion to Q13 main query. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -695,7 +695,7 @@ category: "InitialAccess"
 title: "PXA Stealer: Suspicious PDF/image archive extraction on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Very specific detection with narrow scope. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -734,7 +734,7 @@ category: "Collection"
 title: "Data Staging: ZIP archive created in temp by {{InitiatingProcessFileName}} on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Remove `| take 200`. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -778,7 +778,7 @@ category: "CredentialAccess"
 title: "Browser Credential Access: {{FileName}} accessed by {{InitiatingProcessFileName}} on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Remove `| take 200`. May need additional browser/security tool exclusions per environment. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -820,7 +820,7 @@ category: "CommandAndControl"
 title: "CrystalPDF C2 Connection from {{DeviceName}} to {{RemoteIP}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -860,7 +860,7 @@ category: "Discovery"
 title: "System Discovery: {{FileName}} from suspicious parent {{InitiatingProcessFileName}} on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake. The dual filter on InitiatingProcessFileName + InitiatingProcessVersionInfoOriginalFileName narrows scope well."
 -->
 ```kql
@@ -934,7 +934,7 @@ category: "CommandAndControl"
 title: "Known Infostealer C2: {{DeviceName}} connected to {{RemoteIP}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "IOC-based detection — high priority, low FP. Schedule 1H for rapid response. IOC list should be updated as new indicators are published. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -975,7 +975,7 @@ category: "CommandAndControl"
 title: "Known Infostealer C2 Domain: {{DeviceName}} connected to {{RemoteUrl}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "IOC-based detection — high priority, low FP. Schedule 1H for rapid response. IOC list should be updated as new indicators are published. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -1021,7 +1021,7 @@ category: "Execution"
 title: "Known Infostealer Hash: {{FileName}} ({{SHA256}}) on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "IOC-based detection — high priority, low FP. Schedule 1H for rapid response. Hash list should be updated as new indicators are published. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -1061,7 +1061,7 @@ category: "DefenseEvasion"
 title: "Known Infostealer Hash in File Event: {{FileName}} ({{SHA256}}) on {{DeviceName}}"
 impactedAssets:
   - type: "device"
-    identifier: "DeviceName"
+    identifier: "deviceName"
 adaptation_notes: "Companion to Q22 process hash query — covers file creation/modification events. Same IOC list maintenance notes apply. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
@@ -1105,7 +1105,7 @@ category: "InitialAccess"
 title: "Infostealer Phishing: {{FileType}} attachment from {{SenderFromDomain}} to {{RecipientEmailAddress}}"
 impactedAssets:
   - type: "mailbox"
-    identifier: "RecipientEmailAddress"
+    identifier: "recipientEmailAddress"
 adaptation_notes: "Remove `| take 200`. The join on EmailEvents may need ThreatTypes filter adjusted for environment. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
 -->
 ```kql
