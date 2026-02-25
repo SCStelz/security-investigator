@@ -30,6 +30,10 @@ This query collection helps security analysts understand the types of events, ac
 
 **Use Case:** Understanding normal vs. anomalous action types; identifying unexpected spikes in specific operations.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Baseline aggregation query — summarizes action type frequency across all events. No row-level alert logic or identifiable impacted assets."
+-->
 ```kql
 // Top 20 action types by frequency (last 7 days)
 CloudAppEvents
@@ -66,6 +70,10 @@ KQLQueryCompleted               296
 
 **Use Case:** Understanding cloud app adoption; detecting shadow IT; monitoring application usage patterns.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Baseline aggregation query — summarizes event and user counts per application. No row-level detection or threshold-based alerting."
+-->
 ```kql
 // Application distribution - which cloud apps generate most events
 CloudAppEvents
@@ -101,6 +109,10 @@ Amazon Web Services              208         1
 
 **Use Case:** Categorizing events into buckets (Basic operations, Administrative, User interactions); building detection rules by activity type.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Baseline aggregation query — categorizes events by ActivityType. Exploration tool for understanding event composition, not a detection."
+-->
 ```kql
 // Activity types breakdown with sample action types
 CloudAppEvents
@@ -136,6 +148,10 @@ Interactwithcopilot    71          ["CopilotInteraction"]
 
 **Use Case:** Privilege escalation detection; unauthorized admin activity; IAM role changes; compliance auditing.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes admin operations by ActionType with take 15. Exploration/hunting tool; could be adapted to detect specific high-risk admin actions as individual row-level alerts."
+-->
 ```kql
 // Admin operations analysis
 CloudAppEvents
@@ -181,6 +197,10 @@ Update application.               10               2             ["Microsoft 365
 
 **Use Case:** Guest account abuse detection; data exfiltration monitoring; unauthorized external access.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes external user activity by ActionType. Exploration tool for external access patterns, not a detection."
+-->
 ```kql
 // External user activity
 CloudAppEvents
@@ -226,6 +246,10 @@ Search                    1                    8           ["Microsoft 365"]
 
 **Use Case:** Data classification; access pattern analysis; compliance monitoring; change tracking.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes events by ObjectType with take 15. Exploration tool for understanding accessed object categories."
+-->
 ```kql
 // Events by object type with action examples
 CloudAppEvents
@@ -266,6 +290,10 @@ File                             29          ["FileAccessed", "FileSyncUploadedF
 
 **Use Case:** Impossible travel detection; threat actor infrastructure identification; VPN/proxy abuse monitoring.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes geographic patterns per application with calculated AnonymousProxyPercent. See Alert Rule 1 below for a CD-ready anonymous proxy detection."
+-->
 ```kql
 // Geographic distribution (anonymous proxies vs regular connections)
 CloudAppEvents
@@ -311,6 +339,10 @@ Microsoft Exchange Online        1818         0                     0.00        
 
 **Use Case:** Capacity planning; anomaly detection; incident correlation; workload pattern analysis.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Time-series aggregation query — bins events by day and application for trend visualization. Baseline tool, not a detection."
+-->
 ```kql
 // Daily event trend over last 7 days
 CloudAppEvents
@@ -350,6 +382,10 @@ TimeGenerated           Application                 EventCount
 
 **Use Case:** Privilege abuse detection; delegated access monitoring; potential account takeover indicators.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes impersonation events by Application. See Alert Rule 4 below for a CD-ready impersonation detection."
+-->
 ```kql
 // Impersonation events (if any)
 CloudAppEvents
@@ -389,6 +425,10 @@ CloudAppEvents
 
 **Use Case:** Incident investigation; understanding event schema; validating detection logic; training.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Investigation sampling query — projects selected fields with take 50. Schema exploration tool, not a detection."
+-->
 ```kql
 // Sample events with key details
 CloudAppEvents
@@ -463,6 +503,17 @@ CloudAppEvents
 ## Alert Rule Recommendations
 
 ### Alert Rule 1: Anonymous Proxy Usage
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "DefenseEvasion"
+title: "Cloud App Access via Anonymous Proxy — {{AccountDisplayName}}"
+impactedAssets:
+  - type: "user"
+    identifier: "AccountDisplayName"
+recommendedActions: "Verify whether the user has legitimate business need for VPN/proxy. Review session activity for data exfiltration or config changes. Check SigninLogs for correlated risky sign-in events."
+responseActions: "Block IP at Conditional Access Named Locations. Revoke user refresh tokens. Investigate concurrent sessions."
+-->
 ```kql
 CloudAppEvents
 | where TimeGenerated > ago(1h)
@@ -480,6 +531,17 @@ CloudAppEvents
 ---
 
 ### Alert Rule 2: External User Admin Operations
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "PrivilegeEscalation"
+title: "External User Performed Admin Operation — {{AccountDisplayName}}"
+impactedAssets:
+  - type: "user"
+    identifier: "AccountDisplayName"
+recommendedActions: "Verify the external user identity and whether admin delegation is authorized. Check AuditLogs for B2B invitation and role assignment history."
+responseActions: "Revoke external user access. Remove admin role assignment. Review affected application/resource for unauthorized changes."
+-->
 ```kql
 CloudAppEvents
 | where TimeGenerated > ago(1h)
@@ -493,6 +555,17 @@ CloudAppEvents
 ---
 
 ### Alert Rule 3: Bulk Conditional Access Changes
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "DefenseEvasion"
+title: "Bulk Conditional Access Policy Changes — {{AccountDisplayName}}"
+impactedAssets:
+  - type: "user"
+    identifier: "AccountDisplayName"
+recommendedActions: "Review which CA policies were modified and whether changes weaken security posture. Correlate with sign-in failures that resolved after changes. Check for policy rollbacks."
+responseActions: "Revert unauthorized CA policy changes. Lock admin account if compromised. Audit all CA policies for weakened conditions."
+-->
 ```kql
 CloudAppEvents
 | where TimeGenerated > ago(1h)
@@ -507,6 +580,17 @@ CloudAppEvents
 ---
 
 ### Alert Rule 4: Impersonation Activity
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "CredentialAccess"
+title: "User Impersonation Detected — {{AccountDisplayName}}"
+impactedAssets:
+  - type: "user"
+    identifier: "AccountDisplayName"
+recommendedActions: "Verify whether impersonation is authorized (delegated admin, support scenarios). Review impersonated actions for data access or privilege escalation."
+responseActions: "Disable impersonation permissions. Revoke session tokens for both impersonator and impersonated accounts. Alert SOC for containment."
+-->
 ```kql
 CloudAppEvents
 | where TimeGenerated > ago(1h)
@@ -555,6 +639,10 @@ CloudAppEvents
 
 ## Advanced Investigation Query
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Parameter-dependent investigation query — uses let targetUser variable for targeted user analysis with 30-day lookback. Aggregation with ThreatScore calculation. Not suitable for CD."
+-->
 ```kql
 // Comprehensive user investigation across all cloud apps
 let targetUser = "user@domain.com";

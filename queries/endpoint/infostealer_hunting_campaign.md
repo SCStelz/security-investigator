@@ -52,6 +52,16 @@ This hunting campaign targets TTPs documented in the Microsoft Defender Security
 
 **Why this matters:** Legitimate `svchost.exe` is always located in `C:\Windows\System32\` and has `OriginalFileName = svchost.exe`. A Python binary renamed to `svchost.exe` will retain its original `VersionInfoOriginalFileName` of `pythonw.exe` or `python.exe`.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "DefenseEvasion"
+title: "PXA Stealer: Python masquerading as svchost.exe on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "High-signal detection. Minimal adaptation needed — already returns row-level events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Python interpreter masquerading as svchost.exe — child process activity
 // Source: Microsoft Security Blog - PXA Stealer Campaign 1
@@ -85,6 +95,16 @@ DeviceProcessEvents
 **MITRE:** T1036.005, T1071.001  
 **Purpose:** Detect network connections initiated by a Python interpreter disguised as `svchost.exe`. PXA Stealer uses this to communicate with C2 and exfiltrate stolen data via Telegram.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "CommandAndControl"
+title: "PXA Stealer: C2 connection from Python-as-svchost on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Row-level network events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Network connections from Python masquerading as svchost.exe
 // Source: Microsoft Security Blog - PXA Stealer Campaign 1
@@ -115,6 +135,10 @@ DeviceNetworkEvents
 
 **Tuning Note:** This is a broad query. The exclusion list filters common false positives from legitimate software updaters. Review and expand the exclusion list for your environment.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregates by CurrentName/OriginalName/SHA256 with `summarize count()`. Broad detection that requires per-environment tuning of exclusion list. Better suited as a hunting query; use Q1/Q2/Q4 for targeted CD rules."
+-->
 ```kql
 // Hunt: Broad binary renaming detection — FileName vs OriginalFileName mismatch
 // Catches Python-as-svchost, renamed AutoIt, and other masquerading
@@ -151,6 +175,16 @@ DeviceProcessEvents
 **MITRE:** T1036.005  
 **Purpose:** Legitimate `svchost.exe` ONLY runs from `C:\Windows\System32\`. Any instance outside that path is highly suspicious — could be renamed Python, malware, or another masquerading binary.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "DefenseEvasion"
+title: "svchost.exe running outside System32 on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "High-signal, low-FP detection. Row-level events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: svchost.exe executing from non-standard locations
 // Legitimate svchost ONLY runs from C:\Windows\System32\
@@ -186,6 +220,16 @@ DeviceProcessEvents
 **MITRE:** T1055 (Process Injection)  
 **Purpose:** PXA Stealer Campaign 2 uses `cvtres.exe` (Microsoft Resource File To COFF Object Conversion Utility) spawned by a fake `svchost.exe` that is NOT in `System32`. This indicates process injection or hollowing.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "DefenseEvasion"
+title: "Process Injection: cvtres.exe spawned by fake svchost on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "High-signal, very specific detection. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: cvtres.exe spawned by svchost.exe outside System32 (process injection)
 // Source: Microsoft Security Blog - PXA Stealer Campaign 2
@@ -216,6 +260,16 @@ DeviceProcessEvents
 **MITRE:** T1574.002 (Hijack Execution Flow: DLL Side-Loading)  
 **Purpose:** Detect processes where a renamed binary loads unexpected DLLs, a technique used by PXA Stealer for defense evasion.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "DefenseEvasion"
+title: "DLL Sideloading: Renamed {{InitiatingProcessVersionInfoOriginalFileName}} loading DLLs on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Remove `| take 200` for production CD. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: DLL sideloading — unexpected DLL loads by processes with mismatched names
 DeviceEvents
@@ -249,6 +303,16 @@ DeviceEvents
 **MITRE:** T1140 (Deobfuscate/Decode Files or Information)  
 **Purpose:** PXA Stealer uses `certutil.exe` to decode obfuscated payloads. Hunt for certutil decode operations, especially those targeting non-certificate files.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "DefenseEvasion"
+title: "LOLBin: certutil decode/download on {{DeviceName}} by {{AccountName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Row-level events. Low FP in most environments. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: certutil.exe used to decode payloads (LOLBin abuse)
 // Legitimate use is rare outside PKI administration
@@ -276,6 +340,16 @@ DeviceProcessEvents
 **MITRE:** T1218 (Signed Binary Proxy Execution)  
 **Purpose:** Eternidade Stealer campaign uses a renamed AutoIt interpreter to execute malicious `.log` scripts. Detect AutoIt binaries running with non-standard names.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "DefenseEvasion"
+title: "Renamed AutoIt Binary: {{FileName}} (original: AutoIt3.exe) on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Row-level events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Renamed AutoIt interpreter executing scripts
 // Source: Microsoft Security Blog - Eternidade Stealer via WhatsApp
@@ -299,6 +373,16 @@ DeviceProcessEvents
 | order by Timestamp desc
 ```
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "DefenseEvasion"
+title: "Eternidade: AutoIt executing .log script on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Companion to Q8 main query. Targets specific .log script pattern. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: AutoIt executing malicious .log scripts (Eternidade pattern)
 DeviceProcessEvents
@@ -325,6 +409,16 @@ DeviceProcessEvents
 **MITRE:** T1059.006 (Command and Scripting Interpreter: Python)  
 **Purpose:** Detect Python interpreters executing obfuscated code, a core PXA Stealer technique. Looks for Python processes with suspicious command-line patterns.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "Execution"
+title: "Suspicious Python Execution: {{FileName}} with obfuscation on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Remove `| take 200`. Broad query — may need environment-specific tuning of `has_any` keywords. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Python processes with suspicious execution patterns
 // Covers both legitimate python.exe and renamed python binaries
@@ -365,6 +459,16 @@ DeviceProcessEvents
 **MITRE:** T1547.001 (Boot or Logon Autostart Execution: Registry Run Keys)  
 **Purpose:** PXA Stealer establishes persistence via registry Run keys. Detect suspicious entries, especially those pointing to Python scripts, renamed binaries, or user-writable paths.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "Persistence"
+title: "Suspicious Registry Run Key: {{RegistryValueName}} on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Row-level events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Suspicious registry Run key creation for persistence
 DeviceRegistryEvents
@@ -403,6 +507,16 @@ DeviceRegistryEvents
 **MITRE:** T1053.005 (Scheduled Task/Job: Scheduled Task)  
 **Purpose:** CrystalPDF and PXA Stealer create scheduled tasks for persistence. Detect suspicious task creation, especially by processes with mismatched version info.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "Persistence"
+title: "Suspicious Scheduled Task created by {{InitiatingProcessFileName}} on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Row-level events. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Scheduled task creation by suspicious processes
 // Source: CrystalPDF and PXA Stealer persistence
@@ -425,6 +539,16 @@ DeviceEvents
 | order by Timestamp desc
 ```
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "Persistence"
+title: "CrystalPDF Scheduled Task persistence on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "CrystalPDF-specific variant. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: CrystalPDF-specific scheduled task persistence
 DeviceEvents
@@ -453,6 +577,16 @@ DeviceEvents
 **MITRE:** T1059.001 (PowerShell), T1204.002 (User Execution: Malicious File)  
 **Purpose:** PXA Stealer and Eternidade Stealer use PowerShell to download and execute payloads. Detect encoded or download-related PowerShell activity.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "Execution"
+title: "Encoded/Download PowerShell on {{DeviceName}} by {{AccountName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Remove `| take 200`. Broad keyword set may need tuning. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: PowerShell with encoded commands or download activity
 // Common across PXA Stealer, Eternidade, and other infostealer campaigns
@@ -489,6 +623,16 @@ DeviceProcessEvents
 **MITRE:** T1059.005 (Visual Basic), T1059.003 (Windows Command Shell)  
 **Purpose:** Eternidade Stealer starts with an obfuscated VBS that drops a batch file, which launches PowerShell downloaders. Detect this multi-stage dropper chain.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "Execution"
+title: "VBS Dropper: File dropped to Temp from Downloads on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: VBS files from Downloads folder dropping batch and archive files
 // Source: Microsoft Security Blog - Eternidade Stealer via WhatsApp
@@ -508,6 +652,16 @@ DeviceFileEvents
 | order by Timestamp desc
 ```
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "Execution"
+title: "Eternidade: wscript launching batch installer on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Companion to Q13 main query. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: wscript.exe launching batch installers (Eternidade dropper chain)
 DeviceProcessEvents
@@ -534,6 +688,16 @@ DeviceProcessEvents
 **MITRE:** T1204.002  
 **Purpose:** PXA Stealer Campaign 2 extracts payloads embedded in seemingly legitimate PDF files with image extensions. Detect decompression targeting PDF-like paths with image file extraction.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "InitialAccess"
+title: "PXA Stealer: Suspicious PDF/image archive extraction on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Very specific detection with narrow scope. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Suspicious archive extraction to Public folder with PDF/image content
 // Source: Microsoft Security Blog - PXA Stealer Campaign 2
@@ -563,6 +727,16 @@ DeviceProcessEvents
 **MITRE:** T1560.001 (Archive Collected Data: Archive via Utility), T1005  
 **Purpose:** Infostealers collect browser credentials, cookies, and wallet data into ZIP archives before exfiltration. Detect suspicious archive creation from temp/staging directories.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "Collection"
+title: "Data Staging: ZIP archive created in temp by {{InitiatingProcessFileName}} on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Remove `| take 200`. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: ZIP archive creation in temp/staging directories
 // Common exfiltration preparation across all infostealer campaigns
@@ -597,6 +771,16 @@ DeviceFileEvents
 **MITRE:** T1555.003 (Credentials from Password Stores: Credentials from Web Browsers)  
 **Purpose:** All infostealer campaigns in this blog target browser credential stores (Chrome, Firefox, Edge). Detect suspicious process access to these sensitive files.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "CredentialAccess"
+title: "Browser Credential Access: {{FileName}} accessed by {{InitiatingProcessFileName}} on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Remove `| take 200`. May need additional browser/security tool exclusions per environment. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Suspicious access to browser credential and cookie stores
 DeviceFileEvents
@@ -629,6 +813,16 @@ DeviceFileEvents
 **MITRE:** T1071.001 (Application Layer Protocol: Web Protocols)  
 **Purpose:** Detect network connections initiated by the CrystalPDF malware to its C2 infrastructure.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "CommandAndControl"
+title: "CrystalPDF C2 Connection from {{DeviceName}} to {{RemoteIP}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Network connections from CrystalPDF malware
 // Source: Microsoft Security Blog - CrystalPDF campaign
@@ -659,6 +853,16 @@ DeviceNetworkEvents
 **MITRE:** T1082 (System Information Discovery)  
 **Purpose:** Infostealers perform system discovery using WMI queries and Python system calls to fingerprint the victim machine before data collection.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "Discovery"
+title: "System Discovery: {{FileName}} from suspicious parent {{InitiatingProcessFileName}} on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake. The dual filter on InitiatingProcessFileName + InitiatingProcessVersionInfoOriginalFileName narrows scope well."
+-->
 ```kql
 // Hunt: System discovery commands from suspicious parent processes
 DeviceProcessEvents
@@ -691,6 +895,10 @@ DeviceProcessEvents
 **MITRE:** T1070.004 (Indicator Removal: File Deletion)  
 **Purpose:** Infostealers delete their staging directories after exfiltration. Detect suspicious deletion of temp directories from script or renamed processes.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregates with `summarize count()` and threshold `DeletedFileCount > 5`. Returns per-device/process aggregations, not individual events. Would need restructuring to per-event detection for CD."
+-->
 ```kql
 // Hunt: Deletion of staging/temp directories by suspicious processes
 DeviceFileEvents
@@ -719,6 +927,16 @@ DeviceFileEvents
 
 **Purpose:** Detect connections to known C2 IP addresses from the blog's IOC list.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "CommandAndControl"
+title: "Known Infostealer C2: {{DeviceName}} connected to {{RemoteIP}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "IOC-based detection — high priority, low FP. Schedule 1H for rapid response. IOC list should be updated as new indicators are published. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Connections to known infostealer C2 IPs
 // Source: Microsoft Security Blog IOC list (Feb 2026)
@@ -750,6 +968,16 @@ DeviceNetworkEvents
 
 **Purpose:** Detect DNS resolution or connections to known C2 domains from the blog's IOC list.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "CommandAndControl"
+title: "Known Infostealer C2 Domain: {{DeviceName}} connected to {{RemoteUrl}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "IOC-based detection — high priority, low FP. Schedule 1H for rapid response. IOC list should be updated as new indicators are published. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Connections to known infostealer C2 domains
 // Source: Microsoft Security Blog IOC list (Feb 2026)
@@ -786,6 +1014,16 @@ DeviceNetworkEvents
 
 **Purpose:** Detect known infostealer payload hashes across process creation and file events.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Execution"
+title: "Known Infostealer Hash: {{FileName}} ({{SHA256}}) on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "IOC-based detection — high priority, low FP. Schedule 1H for rapid response. Hash list should be updated as new indicators are published. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Known infostealer payload hashes in process events
 // Source: Microsoft Security Blog IOC list (Feb 2026)
@@ -816,6 +1054,16 @@ DeviceProcessEvents
 | order by Timestamp desc
 ```
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "DefenseEvasion"
+title: "Known Infostealer Hash in File Event: {{FileName}} ({{SHA256}}) on {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Companion to Q22 process hash query — covers file creation/modification events. Same IOC list maintenance notes apply. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Known infostealer payload hashes in file events
 let MaliciousHashes = dynamic([
@@ -850,6 +1098,16 @@ DeviceFileEvents
 **MITRE:** T1566.001 (Phishing: Spearphishing Attachment)  
 **Purpose:** Detect phishing emails delivering ZIPs, MSIs, or VBS files typically used by PXA Stealer and Eternidade campaigns.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "InitialAccess"
+title: "Infostealer Phishing: {{FileType}} attachment from {{SenderFromDomain}} to {{RecipientEmailAddress}}"
+impactedAssets:
+  - type: "mailbox"
+    identifier: "RecipientEmailAddress"
+adaptation_notes: "Remove `| take 200`. The join on EmailEvents may need ThreatTypes filter adjusted for environment. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Hunt: Phishing emails with suspicious attachment types
 // PXA Stealer and Eternidade use ZIP, MSI, and VBS attachments
@@ -886,6 +1144,10 @@ EmailAttachmentInfo
 
 **Purpose:** Generate a composite risk score per device by counting how many infostealer TTPs were observed. Devices with 3+ signals should be investigated immediately.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Multi-let composite scoring query with 6 union subqueries. Exceeds CD character limits and uses complex aggregation logic. Not suitable for CD — use as periodic hunting query or analytics rule in Sentinel."
+-->
 ```kql
 // Hunt: Multi-signal infostealer detection — risk scoring per device
 // Each signal adds 1 point; devices with 3+ should be triaged

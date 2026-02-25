@@ -48,6 +48,10 @@ Where each dimension contributes a deviation percentage and the final score is t
 - Flag principals whose authentication behavior has shifted significantly
 - Triage scope drift before it becomes a full compromise
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "90-day baseline aggregation query — compares 90-day behavioral baseline with 7-day recent window and computes composite Drift Score per service principal. Output is one row per SP, not per event. Requires 97-day lookback (exceeds CD 30-day limit)."
+-->
 ```kql
 // Service Principal Scope Drift Detection — Composite Drift Score
 // Builds 90-day baseline vs 7-day recent window across multiple dimensions
@@ -181,6 +185,10 @@ Baseline
 
 **Purpose:** Identify exactly which resources/APIs each service principal started accessing in the last 7 days that it never touched during the 90-day baseline. This is the highest-fidelity signal for scope drift.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "90-day baseline aggregation query — `leftanti` join between recent resource access and 90-day baseline. Output is one row per SP-resource pair. Requires 97-day lookback (exceeds CD 30-day limit)."
+-->
 ```kql
 // Service Principal Resource Expansion — New targets not in 90-day baseline
 let BaselineStart = ago(97d);
@@ -227,6 +235,10 @@ RecentResources
 
 **Purpose:** Detect service principals authenticating from new IP ranges or geographies not seen in their 90-day behavioral baseline. Automation accounts typically have very stable IP profiles — new IPs signal compromise or misconfiguration.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "90-day baseline aggregation query — `inner` join between recent sign-ins and 90-day IP baseline. Output is one row per SP-IP pair. Requires 97-day lookback (exceeds CD 30-day limit)."
+-->
 ```kql
 // Service Principal IP & Location Drift — New origins not in baseline
 let BaselineStart = ago(97d);
@@ -284,6 +296,10 @@ AADServicePrincipalSignInLogs
 
 **Purpose:** Detect service principals that received new credentials, permissions, or role assignments in the last 7 days. Cross-reference with the drift score to identify principals that expanded both access AND permissions simultaneously — a strong compromise indicator.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Cross-table correlation with 97-day baseline join. The inner PermissionChanges `let` block (AuditLogs, 7d lookback) IS event-driven and could be extracted as a standalone CD. The full query requires 97-day lookback for baseline context (exceeds CD 30-day limit)."
+-->
 ```kql
 // Service Principal Permission & Credential Changes (Last 7 Days)
 // Correlated with 90-day baseline activity level
@@ -368,6 +384,10 @@ PermissionChanges
 
 **Important:** DeviceNetworkEvents uses `Timestamp` (Advanced Hunting) or `TimeGenerated` (Sentinel Data Lake). This query is written for Advanced Hunting via `RunAdvancedHuntingQuery`. Adjust if running against Data Lake.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "90-day baseline aggregation query with manual `AutomationAccounts` parameter customization. Uses `set_difference()` for new IP/URL detection. Requires 97-day lookback and environment-specific account names. Advanced Hunting format — change `Timestamp` to `TimeGenerated` for Data Lake."
+-->
 ```kql
 // Network Destination Drift — New endpoints contacted by automation processes
 // Run via Advanced Hunting (RunAdvancedHuntingQuery)
@@ -454,6 +474,10 @@ RecentNetwork
 
 **Purpose:** Find security alerts from the last 30 days that reference any service principal exhibiting scope drift. Joins SecurityAlert entities with drifting principals to surface alerts that may be related to the drift behavior.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Complex multi-join investigation query — builds DriftingPrincipals from 97-day baseline comparison, then joins SecurityAlert entities with SecurityIncident for real status. Dynamic `toscalar(make_set())` patterns and `mv-apply` used. Not suitable for CD."
+-->
 ```kql
 // Security Alerts Correlated with Service Principal Scope Drift
 // NOTE: SecurityAlert.Status is IMMUTABLE. Join with SecurityIncident for real status.
@@ -516,6 +540,10 @@ SecurityIncident
 - Entity matching in SecurityAlert is text-based — may miss principals referenced only by GUID
 - If the above returns sparse results, use this simpler fallback that searches alert entities directly:
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Investigation fallback query with manual `<ServicePrincipalName>` and `<ServicePrincipalId>` parameter substitution. For ad-hoc triage, not scheduled detection."
+-->
 ```kql
 // Fallback: Direct SecurityAlert entity search for a specific SP
 let SPName = "<ServicePrincipalName>";
@@ -544,6 +572,10 @@ SecurityAlert
 
 **Purpose:** Show week-over-week behavioral trend for a specific service principal over 90 days. Useful for investigating flagged principals to understand when the drift started and whether it's gradual or sudden.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Investigation/visualization query with manual `<ServicePrincipalName>` parameter substitution. 97-day lookback for weekly trend analysis. For ad-hoc triage, not scheduled detection."
+-->
 ```kql
 // Weekly Behavioral Trend for Specific Service Principal (90 Days)
 let TargetSP = "<ServicePrincipalName>";  // Replace with the SP to investigate

@@ -33,6 +33,10 @@ This collection of KQL queries covers email-based threat detection across the Mi
 
 High-level view of inbound email volume and threat categorization.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation/dashboard query — summarizes inbound mail volume with threat category breakdown. No row-level detection."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -57,6 +61,10 @@ EmailEvents
 
 Daily trend useful for spotting anomalous spikes (e.g., phishing campaigns).
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Time-series aggregation query — bins email volume by day and direction. Baseline trend tool, not a detection."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -68,6 +76,10 @@ EmailEvents
 
 Identify high-volume sending domains — useful for spotting impersonation or bulk senders.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — top sender domains by volume with take 20. Baseline/hunting tool."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -90,6 +102,10 @@ EmailEvents
 
 List all emails detected as phishing with delivery details.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Row-level phishing listing, but redundant with existing MDO phishing detections. Better used as investigation query than CD."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -106,6 +122,10 @@ EmailEvents
 
 Quick view of which domains are sending the most phishing emails.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — top phishing sender domains. Hunting/triage tool."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -118,6 +138,10 @@ EmailEvents
 
 Identify users receiving the most phishing attempts — high-value targets or compromised distribution lists.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes phishing count per recipient. Hunting/triage tool."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -131,6 +155,17 @@ EmailEvents
 
 Critical: phishing emails that made it to user mailboxes — potential compromise indicators.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "InitialAccess"
+title: "Phishing Email Delivered to Mailbox — {{RecipientEmailAddress}}"
+impactedAssets:
+  - type: "mailbox"
+    identifier: "RecipientEmailAddress"
+recommendedActions: "Check if user clicked any URLs or opened attachments. Review Safe Links click activity via UrlClickEvents. Investigate user sign-ins for signs of compromise."
+responseActions: "Purge email from mailbox via manual remediation. Revoke user sessions if compromise suspected. Block sender domain."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -146,6 +181,18 @@ EmailEvents
 
 Emails from senders who have never emailed the recipient before. A strong AiTM/BEC indicator.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "InitialAccess"
+title: "First-Contact Phishing Attempt — {{RecipientEmailAddress}}"
+impactedAssets:
+  - type: "mailbox"
+    identifier: "RecipientEmailAddress"
+recommendedActions: "Verify sender legitimacy. Check if user interacted with URLs or attachments. Review UrlClickEvents for Safe Links activity."
+responseActions: "Purge email from mailbox. Block sender domain if confirmed malicious. Alert user not to interact with message."
+adaptation_notes: "The UrlCount > 3 branch catches non-phishing emails with many URLs — consider removing for tighter CD scope."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -168,6 +215,18 @@ AiTM kits like Evilginx2 authenticate through the OfficeHome app. Cross-country 
 
 > **Note:** This query uses `SigninLogs`, not `EmailEvents`, but is included because it directly follows from email-based AiTM phishing.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "3H"
+category: "CredentialAccess"
+title: "AiTM Multi-Country OfficeHome Session — {{UserPrincipalName}}"
+impactedAssets:
+  - type: "user"
+    identifier: "UserPrincipalName"
+recommendedActions: "Verify whether user has legitimate multi-country VPN usage. Cross-reference with AADUserRiskEvents for anomalousToken detections. Check inbox rules via OfficeActivity."
+responseActions: "Revoke user refresh tokens. Force MFA re-registration. Investigate concurrent sessions and inbox rule changes."
+adaptation_notes: "Uses SigninLogs (available in AH via connected workspace). Change TimeGenerated to Timestamp for AH. The let variable is a constant AppId, not a parameter."
+-->
 ```kql
 // Detect OfficeHome sessions with multi-country sign-ins (AiTM token replay indicator)
 let OfficeHomeAppId = "4765445b-32c6-49b0-83e6-1d93765276ca";
@@ -191,6 +250,10 @@ SigninLogs
 
 Correlate the full AiTM attack chain: phishing email received → anomalous token detected → inbox rule created.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Multi-stage investigation chain — uses let block with cross-table join (EmailEvents → AADUserRiskEvents). AADUserRiskEvents may not be available in AH. Better used as forensic follow-up after AiTM alert."
+-->
 ```kql
 // Step 1: Find phishing emails delivered to users
 let PhishedUsers = EmailEvents
@@ -212,6 +275,10 @@ AADUserRiskEvents
 
 Detect inbox rules created shortly after a phishing email was received — key AiTM/BEC indicator.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Cross-table correlation (EmailEvents → OfficeActivity). OfficeActivity is Sentinel-only and may not be available in Advanced Hunting. Forensic follow-up query."
+-->
 ```kql
 let PhishRecipients = EmailEvents
 | where TimeGenerated > ago(30d)
@@ -237,6 +304,10 @@ OfficeActivity
 
 Identify emails failing authentication checks — spoofing indicators.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Extremely noisy — DMARC/DKIM/SPF failures are common for legitimate email. Would generate thousands of CD alerts per day. Use as hunting/investigation baseline, not detection."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -258,6 +329,10 @@ EmailEvents
 
 Aggregate authentication failures by sender domain to identify systematic spoofing.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes auth failure counts by domain. Hunting/triage tool."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -283,6 +358,10 @@ EmailEvents
 
 Detects when the MAIL FROM domain doesn't match the FROM header domain — common in spoofing.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes envelope/header mismatch count by domain pair. Hunting/triage tool for identifying spoofing patterns."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -305,6 +384,10 @@ EmailEvents
 
 Understand what MDO detection methods are triggering on inbound mail.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes detection method frequency. Operational dashboard/reporting query."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -323,6 +406,10 @@ EmailEvents
 
 Emails detected as threats but allowed by policy — review for false negative risk.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes override/allow counts by policy type. Operational dashboard for policy tuning."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -335,6 +422,10 @@ EmailEvents
 
 Emails detected by non-Microsoft security vendors integrated via ICES.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Monitoring/investigation query — lists all third-party detections without threat filtering. Volume varies widely by environment. Better as hunting tool."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -353,6 +444,10 @@ EmailEvents
 
 Overview of Zero-hour Auto Purge activity — catches threats discovered after delivery.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes ZAP action counts by type. Operational dashboard for ZAP effectiveness monitoring."
+-->
 ```kql
 EmailPostDeliveryEvents
 | where TimeGenerated > ago(30d)
@@ -370,6 +465,17 @@ EmailPostDeliveryEvents
 
 Critical: ZAP attempted remediation but failed — threats may still be in user mailboxes.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "DefenseEvasion"
+title: "ZAP Remediation Failed — Threat Still in Mailbox {{RecipientEmailAddress}}"
+impactedAssets:
+  - type: "mailbox"
+    identifier: "RecipientEmailAddress"
+recommendedActions: "Manually remediate the email from affected mailboxes. Verify ZAP failure reason (e.g., message in shared mailbox, retention policy, user moved to subfolder). Check if user interacted with the threat."
+responseActions: "Purge threat from mailbox via manual remediation. Review user activity for signs of compromise. Investigate UrlClickEvents if URLs were present."
+-->
 ```kql
 EmailPostDeliveryEvents
 | where TimeGenerated > ago(30d)
@@ -388,6 +494,10 @@ EmailPostDeliveryEvents
 
 Check if users who received un-remediated emails had subsequent suspicious sign-in activity.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Cross-table investigation chain (EmailPostDeliveryEvents → EmailEvents → SigninLogs). Multi-step correlation with risk-based filtering. Better as forensic follow-up after ZAP failure alert."
+-->
 ```kql
 let FailedZAPUsers = EmailPostDeliveryEvents
 | where TimeGenerated > ago(30d)
@@ -412,6 +522,10 @@ SigninLogs
 
 Top URL domains embedded in inbound emails — spot phishing infrastructure domains.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes URL domain frequency. Hunting/triage tool for identifying suspicious domains."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -433,6 +547,10 @@ EmailEvents
 
 Hunt for URLs with characteristics common in phishing kits — long URLs, base64-like parameters.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Hunting query with heuristic thresholds (strlen > 200, contains patterns). Uses take 50 for manual review. Not precise enough for automated CD alerting."
+-->
 ```kql
 EmailUrlInfo
 | where TimeGenerated > ago(30d)
@@ -452,6 +570,10 @@ EmailUrlInfo
 
 Full Safe Links click tracking — who clicked what URL, and was it allowed or blocked.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Full activity listing — includes both blocked and allowed clicks without threat filtering. Too noisy for CD; use Q7.4 (allowed clicks on malicious URLs) instead."
+-->
 ```kql
 UrlClickEvents
 | where TimeGenerated > ago(30d)
@@ -465,6 +587,17 @@ UrlClickEvents
 
 URLs that Safe Links identified as threats but the user was allowed through — high-risk exposure.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "InitialAccess"
+title: "User Clicked Malicious URL — {{AccountUpn}}"
+impactedAssets:
+  - type: "user"
+    identifier: "AccountUpn"
+recommendedActions: "Check if user entered credentials after clicking. Review SigninLogs for anomalous sign-ins from new IPs/devices. Investigate the URL reputation and landing page."
+responseActions: "Revoke user sessions if credential entry suspected. Reset password. Block URL at network/proxy level."
+-->
 ```kql
 UrlClickEvents
 | where TimeGenerated > ago(30d)
@@ -479,6 +612,10 @@ UrlClickEvents
 
 Identify users with the most Safe Links click activity — potential risky click behavior.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes click counts per user. Behavioral analysis/reporting tool."
+-->
 ```kql
 UrlClickEvents
 | where TimeGenerated > ago(30d)
@@ -501,6 +638,10 @@ UrlClickEvents
 
 Breakdown of attachment types seen in email — identify uncommon/risky file types.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes attachment file type frequency. Operational dashboard for identifying risky file type trends."
+-->
 ```kql
 EmailAttachmentInfo
 | where TimeGenerated > ago(30d)
@@ -516,6 +657,17 @@ EmailAttachmentInfo
 
 Attachments flagged as threats — with sender and recipient details.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "InitialAccess"
+title: "Malicious Email Attachment Detected — {{RecipientEmailAddress}}"
+impactedAssets:
+  - type: "mailbox"
+    identifier: "RecipientEmailAddress"
+recommendedActions: "Verify delivery action (blocked vs delivered). If delivered, check if user opened the attachment. Cross-reference SHA256 with DeviceFileEvents for endpoint execution."
+responseActions: "Purge email from mailbox if delivered. Block sender domain. Submit attachment hash to TI for further analysis."
+-->
 ```kql
 EmailAttachmentInfo
 | where TimeGenerated > ago(30d)
@@ -535,6 +687,10 @@ EmailAttachmentInfo
 
 Cross-reference attachment hashes with external threat intelligence feeds.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Uses externaldata() with external URL — not supported in custom detections. The external TI CSV URL would need to be replaced with a Sentinel watchlist or ThreatIntelligenceIndicator join."
+-->
 ```kql
 // Replace the externaldata URL with your preferred TI feed
 let abuse_sha256 = (externaldata(sha256_hash: string)
@@ -555,6 +711,17 @@ abuse_sha256
 
 Check if malicious email attachments were saved/executed on endpoint devices.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Execution"
+title: "Malicious Email Attachment on Device — {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+recommendedActions: "Investigate device for malware execution. Check DeviceProcessEvents for child processes spawned from the attachment. Review DeviceNetworkEvents for C2 communication."
+responseActions: "Isolate device if active execution detected. Run full AV scan. Collect forensic artifacts from the device."
+-->
 ```kql
 // Requires DeviceFileEvents table
 EmailAttachmentInfo
@@ -578,6 +745,10 @@ EmailAttachmentInfo
 
 After account takeover, attackers send BEC payment fraud emails from the victim's mailbox.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Parameter-dependent — requires let SuspectedUsers list to be populated with known compromised accounts. Investigation follow-up query, not standalone detection."
+-->
 ```kql
 // Provide list of suspected compromised users
 let SuspectedUsers = dynamic(["<UPN1>", "<UPN2>"]);
@@ -595,6 +766,10 @@ EmailEvents
 
 Detect emails being auto-forwarded outside the organization.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Noisy without tenant-specific filtering — catches all forwarded emails including legitimate auto-forwards. Would need exclusion list for known-good forwarding rules before CD deployment."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -609,6 +784,10 @@ EmailEvents
 
 Detect inbox rule creation/modification that sets up forwarding or redirection.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Uses OfficeActivity table — Sentinel-only, may not be available in Advanced Hunting. For CD, consider CloudAppEvents with ActionType containing inbox rule operations instead."
+-->
 ```kql
 OfficeActivity
 | where TimeGenerated > ago(30d)
@@ -631,6 +810,10 @@ Measure the effectiveness of Defender for Office 365 at catching threats before 
 
 > Source: [Microsoft Learn — MDO Efficacy Query](https://learn.microsoft.com/en-us/defender-office-365/reports-mdo-email-collaboration-dashboard#appendix-advanced-hunting-efficacy-query-in-defender-for-office-365-plan-2)
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Complex statistical query with toscalar() calculations and multiple let blocks for pre/post-delivery efficacy measurement. Operational reporting, not event-driven detection."
+-->
 ```kql
 let _startTime = ago(30d);
 let _endTime = now();
@@ -678,6 +861,10 @@ union
 
 Where are emails ending up? Inbox, Junk, Quarantine, or Blocked?
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes delivery location distribution. Operational dashboard for MDO effectiveness monitoring."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -690,6 +877,10 @@ EmailEvents
 
 After ZAP and manual remediation, where do emails currently reside?
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes current delivery location post-remediation. Operational dashboard for remediation effectiveness."
+-->
 ```kql
 EmailEvents
 | where TimeGenerated > ago(30d)
@@ -707,6 +898,18 @@ EmailEvents
 
 Find device logons within 30 minutes of receiving a phishing email — indicates user interacted with the phish.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "InitialAccess"
+title: "Device Logon After Phishing Email — {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+recommendedActions: "Investigate device logon source (local vs remote). Check if user clicked URLs in the phishing email via UrlClickEvents. Review DeviceProcessEvents for post-logon suspicious activity."
+responseActions: "Isolate device if malicious activity confirmed. Revoke user sessions. Reset credentials if credential harvesting suspected."
+adaptation_notes: "Cross-table time-bounded join (EmailEvents → DeviceLogonEvents within 30min). Both tables are AH-native."
+-->
 ```kql
 // Requires DeviceLogonEvents table
 EmailEvents
@@ -730,6 +933,18 @@ EmailEvents
 
 Detect PowerShell activity on devices shortly after receiving malicious emails.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Execution"
+title: "PowerShell Execution After Malicious Email — {{DeviceName}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+recommendedActions: "Analyze PowerShell command line for encoded commands, download cradles, or reconnaissance activity. Check parent process chain. Review DeviceNetworkEvents for C2 callbacks."
+responseActions: "Isolate device immediately. Collect PowerShell script block logs. Revoke user sessions and reset credentials."
+adaptation_notes: "Cross-table time-bounded join (EmailEvents → DeviceProcessEvents within 30min). Both tables are AH-native. Consider expanding FileName filter to include pwsh.exe for PowerShell 7."
+-->
 ```kql
 // Requires DeviceProcessEvents table
 let MaliciousEmails = EmailEvents
@@ -756,6 +971,10 @@ MaliciousEmails
 
 Full chain: phishing email with URL → user clicked the URL → subsequent sign-in activity.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "3-table join investigation chain (EmailUrlInfo → UrlClickEvents → AADSignInEventsBeta). Complex multi-step correlation with leftouter joins. Better as forensic investigation query, not automated CD."
+-->
 ```kql
 let SuspiciousClicks = UrlClickEvents
 | where TimeGenerated > ago(30d)
@@ -788,6 +1007,10 @@ SuspiciousClicks
 
 Pull all email activity for a specific user under investigation.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Parameter-dependent — requires let TargetUser to be populated. Investigation/forensic query for specific user analysis."
+-->
 ```kql
 let TargetUser = "<UPN>";
 EmailEvents
@@ -803,6 +1026,10 @@ EmailEvents
 
 Deep-dive into a single email across all related tables.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Parameter-dependent — requires let MsgId (NetworkMessageId). Multi-query investigation block using semicolons to query EmailEvents, EmailUrlInfo, EmailAttachmentInfo, and EmailPostDeliveryEvents separately. Forensic drill-down, not detection."
+-->
 ```kql
 let MsgId = "<NetworkMessageId>";
 // Core email metadata
@@ -833,6 +1060,10 @@ UrlClickEvents
 
 Investigate all emails from a specific sender address or domain.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Parameter-dependent — requires let SuspiciousSender to be populated. 90-day lookback exceeds CD maximum. Investigation/forensic query for sender-based analysis."
+-->
 ```kql
 let SuspiciousSender = "<sender@domain.com>";
 EmailEvents

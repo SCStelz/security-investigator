@@ -123,6 +123,10 @@ These KQL queries are designed to run as **scheduled KQL jobs** in the Microsoft
 - `/users/*/authentication/` — MFA methods, passwordless
 - `/policies/` — auth policies, token lifetime
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "KQL Job architecture — designed to run as a scheduled Data Lake KQL job that promotes results to MCPGraphAnomalies_KQL_CL analytics tier table. Not a standard detection query. Use companion Rule 1 for alerting on the promoted data."
+-->
 ```kql
 // Job 1: Graph MCP — New Sensitive Endpoint Detection
 // Detects Graph MCP users accessing sensitive endpoints not seen in their 14-day baseline
@@ -203,6 +207,10 @@ recent
 **Lookback:** 1 day (detects against 14-day baseline)  
 **Purpose:** Detect when a user's Graph MCP API call volume significantly exceeds their historical baseline. Catches bulk data harvesting, enumeration campaigns, and runaway agents.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "KQL Job architecture — designed to run as a scheduled Data Lake KQL job that promotes results to MCPGraphAnomalies_KQL_CL. Uses 14-day daily average baseline with `stdev()`. Use companion Rule 2 for alerting."
+-->
 ```kql
 // Job 2: Graph MCP — Volume Spike Detection
 // Flags users whose daily Graph MCP call count exceeds 3x their 14-day daily average
@@ -282,6 +290,10 @@ recent
 **Lookback:** 1 day  
 **Purpose:** Detect Graph MCP activity outside business hours (configurable). Off-hours MCP usage may indicate credential theft, unauthorized automation, or agent activity outside expected operating windows.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "KQL Job architecture — designed to run as a scheduled Data Lake KQL job with hardcoded timezone offset and business hours. Requires org-specific configuration before deployment."
+-->
 ```kql
 // Job 3: Graph MCP — Off-Hours Activity Detection
 // Flags Graph MCP calls occurring outside business hours
@@ -348,6 +360,10 @@ MicrosoftGraphActivityLogs
 **Lookback:** 1 day (detects against 14-day baseline)  
 **Purpose:** Detect when a user's Graph MCP error rate significantly exceeds baseline. High error rates indicate permission probing, invalid enumeration attempts, or a misconfigured agent hitting authorization boundaries.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "KQL Job architecture — designed to run as a scheduled Data Lake KQL job that promotes results to MCPGraphAnomalies_KQL_CL. Uses 14-day error rate baseline with configurable thresholds."
+-->
 ```kql
 // Job 4: Graph MCP — Error Rate Anomaly
 // Flags users whose Graph MCP error rate exceeds their baseline by 2x or exceeds 30%
@@ -437,6 +453,10 @@ recent
 **Lookback:** 1 day (detects against 14-day baseline)  
 **Purpose:** Detect when a user uses the Azure MCP Server for the first time. New Azure MCP users may indicate compromised credentials being used to explore infrastructure, or unauthorized tooling adoption.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "KQL Job architecture — designed to run as a scheduled Data Lake KQL job that promotes results to MCPAzureAnomalies_KQL_CL. Uses 14-day user baseline with `leftanti` join. Use companion Rule 4 for alerting."
+-->
 ```kql
 // Job 5: Azure MCP Server — New User Detection
 // Flags users who appear in Azure MCP Server sign-in logs for the first time
@@ -507,6 +527,10 @@ recentUsers
 **Lookback:** 1 day (detects against 14-day baseline)  
 **Purpose:** Detect when Azure MCP Server accesses new Azure resource types (ARM vs Log Analytics API vs Microsoft Graph). While we can't see specific ARM read operations, we CAN see which resource APIs are targeted via sign-in token acquisitions.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "KQL Job architecture — designed to run as a scheduled Data Lake KQL job that promotes results to MCPAzureAnomalies_KQL_CL. Uses 14-day per-user resource target baseline."
+-->
 ```kql
 // Job 6: Azure MCP Server — New Resource Target Detection
 // Detects Azure MCP users accessing resource types not in their 14-day baseline
@@ -572,6 +596,10 @@ recent
 **Lookback:** 1 day (detects against 14-day baseline)  
 **Purpose:** Detect anomalous query patterns from MCP servers against the Log Analytics workspace. Covers both Sentinel Triage MCP (`6574a0f8`) and Azure MCP Server (`1950a258` + `csharpsdk`). Detects new tables being queried, query volume spikes, and data exfiltration indicators (high row-count responses).
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "KQL Job architecture — designed to run as a scheduled Data Lake KQL job that promotes results to MCPSentinelAnomalies_KQL_CL. Complex multi-anomaly-type `union` query. Use companion Rules 1-5 for alerting on promoted data."
+-->
 ```kql
 // Job 7: Sentinel MCP — Workspace Query Anomalies
 // Detects new tables queried, volume spikes, and large result sets from MCP workspace queries
@@ -721,6 +749,10 @@ union newTableAnomalies, volumeAnomalies, largeResultAnomalies
 
 > **⚠️ Known Limitation — User Identity Correlation:** Graph MCP and Azure MCP both use `UserId` (Entra Object ID GUID), enabling reliable cross-join. However, Sentinel Triage MCP authenticates as a **service principal** (`AADObjectId` in LAQueryLogs is the MCP app's Object ID, not the end user's). This means the Sentinel leg may not join with Graph/Azure by user identity. The Graph+Azure cross-correlation (the most security-critical combination) works correctly. Future improvement: add timestamp proximity matching for the Sentinel leg.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "KQL Job architecture — designed to run as a scheduled Data Lake KQL job that promotes results to MCPCrossMCPCorrelation_KQL_CL. Complex multi-table `fullouter` join across 4 data sources. Use companion Rule 3 for alerting."
+-->
 ```kql
 // Job 8: Cross-MCP Correlation — Multi-Server Activity Chains
 // Detects users active across multiple MCP servers within the same day
@@ -861,6 +893,16 @@ For a full feature comparison, see [Analytics Rules vs Custom Detections](https:
 | **Alert title** | `New Sensitive Graph Endpoint via MCP: {{EndpointCategory}}` |
 | **Description** | `Graph MCP user accessed a sensitive API endpoint not seen in their 14-day baseline. Review the endpoint category and sample URLs to assess intent.` |
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "InitialAccess"
+title: "New Sensitive Graph Endpoint via MCP: {{EndpointCategory}}"
+impactedAssets:
+  - type: "user"
+    identifier: "UserId"
+adaptation_notes: "Companion detection rule for KQL Job 1. Queries MCPGraphAnomalies_KQL_CL analytics tier table. Requires Job 1 to be running and promoting data."
+-->
 ```kql
 MCPGraphAnomalies_KQL_CL
 | where AnomalyType == "NewSensitiveEndpoint"
@@ -906,6 +948,16 @@ MCPGraphAnomalies_KQL_CL
 | **Alert title** | `Graph MCP Volume Spike: {{SpikeRatio}}x baseline` |
 | **Description** | `A user's Graph MCP API call volume significantly exceeds their 14-day daily average. This may indicate bulk data harvesting, enumeration campaigns, or a runaway agent.` |
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Collection"
+title: "Graph MCP Volume Spike: {{SpikeRatio}}x baseline"
+impactedAssets:
+  - type: "user"
+    identifier: "UserId"
+adaptation_notes: "Companion detection rule for KQL Job 2. Queries MCPGraphAnomalies_KQL_CL. Requires Job 2 to be running."
+-->
 ```kql
 MCPGraphAnomalies_KQL_CL
 | where AnomalyType == "VolumeSpike"
@@ -955,6 +1007,16 @@ MCPGraphAnomalies_KQL_CL
 | **Alert title** | `Cross-MCP Activity: {{MCPServersUsed}} servers by {{UserId}}` |
 | **Description** | `A user was active across multiple MCP servers within 24 hours. Combined activity (e.g., Graph reconnaissance + Azure infrastructure access) may represent a multi-stage attack chain.` |
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "LateralMovement"
+title: "Cross-MCP Activity: {{MCPServersUsed}} servers by {{UserId}}"
+impactedAssets:
+  - type: "user"
+    identifier: "UserId"
+adaptation_notes: "Companion detection rule for KQL Job 8. Queries MCPCrossMCPCorrelation_KQL_CL. Requires Job 8 to be running."
+-->
 ```kql
 MCPCrossMCPCorrelation_KQL_CL
 | where AnomalyType == "CrossMCPActivity"
@@ -1006,6 +1068,16 @@ MCPCrossMCPCorrelation_KQL_CL
 | **Alert title** | `New Azure MCP Server User: {{UserPrincipalName}}` |
 | **Description** | `A user accessed the Azure MCP Server for the first time (not seen in 14-day baseline). This may indicate new tooling adoption or compromised credentials exploring Azure infrastructure.` |
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "InitialAccess"
+title: "New Azure MCP Server User: {{UserPrincipalName}}"
+impactedAssets:
+  - type: "user"
+    identifier: "UserId"
+adaptation_notes: "Companion detection rule for KQL Job 5. Queries MCPAzureAnomalies_KQL_CL. Requires Job 5 to be running."
+-->
 ```kql
 MCPAzureAnomalies_KQL_CL
 | where AnomalyType == "NewAzureMCPUser"
@@ -1053,6 +1125,16 @@ MCPAzureAnomalies_KQL_CL
 | **Alert title** | `Large MCP Data Retrieval: {{TotalRowsReturned}} rows` |
 | **Description** | `An MCP server user retrieved an unusually large number of rows from workspace queries. This may indicate data exfiltration or excessive data collection via MCP tooling.` |
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Exfiltration"
+title: "Large MCP Data Retrieval: {{TotalRowsReturned}} rows"
+impactedAssets:
+  - type: "user"
+    identifier: "AADEmail"
+adaptation_notes: "Companion detection rule for KQL Job 7. Queries MCPSentinelAnomalies_KQL_CL. AADEmail may contain an Object ID GUID for Sentinel Triage MCP (known limitation). Requires Job 7 to be running."
+-->
 ```kql
 MCPSentinelAnomalies_KQL_CL
 | where AnomalyType == "LargeResultSet"

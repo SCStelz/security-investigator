@@ -51,6 +51,16 @@ This collection of KQL queries monitors credential lifecycle events for Entra ID
 - Distinguish human-initiated changes from automated rotations
 - Detect unexpected credential additions (persistence indicator)
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Persistence"
+title: "App Credential Change: {{CredentialAction}} {{CredentialType}} on {{TargetName}} by {{Actor}}"
+impactedAssets:
+  - type: "user"
+    identifier: "Actor"
+adaptation_notes: "Reduce `ago(90d)` to `ago(1d)` or shorter for scheduled detection. Row-level output per credential change event. The `in~` filter list for OperationName includes trailing spaces — preserve them."
+-->
 ```kql
 // All Application & Service Principal Credential Changes (Last 90 Days)
 // Shows actor, target, credential type, and what was added/removed
@@ -130,6 +140,10 @@ AuditLogs
 - Confirm automated rotations are following expected cadence
 - Spot unexpected human actors modifying application credentials
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Summary/aggregation query — summarizes per actor with `make_set()`, `dcount()`, and `count()`. Output is one row per actor, not per event. Use Q1 for event-level detection."
+-->
 ```kql
 // Summary: Human vs Automated Credential Changes (Last 90 Days)
 AuditLogs
@@ -175,6 +189,16 @@ AuditLogs
 
 **Purpose:** Detect new application registrations — the first step in establishing app-based persistence.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Persistence"
+title: "New App Registration: {{AppName}} created by {{Actor}}"
+impactedAssets:
+  - type: "user"
+    identifier: "Actor"
+adaptation_notes: "Reduce `ago(90d)` to `ago(1d)` for scheduled detection. Row-level output per new app registration event."
+-->
 ```kql
 // New Application Registrations (Last 90 Days)
 // Includes who created them and what permissions/credentials were set up
@@ -201,6 +225,16 @@ AuditLogs
 
 **Follow-Up:** After identifying new apps, check if credentials were immediately provisioned by correlating the `CorrelationId` with credential management operations:
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Persistence"
+title: "New App with Immediate Credential: {{AppName}} — credential added {{TimeDelta}}s after creation"
+impactedAssets:
+  - type: "user"
+    identifier: "AppName"
+adaptation_notes: "Multi-let correlation query: new app registration joined with credential operations within 5 minutes. Reduce `ago(90d)` to `ago(1d)` for scheduled detection. High-signal — scripted persistence setup."
+-->
 ```kql
 // Check if new apps received credentials at creation time
 let NewApps = AuditLogs
@@ -237,6 +271,16 @@ AuditLogs
 
 **Purpose:** Detect when owners are added to applications — owners can manage credentials, making this a privilege escalation vector.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "PrivilegeEscalation"
+title: "App Ownership Change: {{NewOwner}} added to {{TargetName}} by {{Actor}}"
+impactedAssets:
+  - type: "user"
+    identifier: "Actor"
+adaptation_notes: "Reduce `ago(90d)` to `ago(1d)` for scheduled detection. Row-level output per ownership change event. High-signal when followed by credential modifications (see follow-up query)."
+-->
 ```kql
 // Application & Service Principal Ownership Changes (Last 90 Days)
 AuditLogs
@@ -270,6 +314,18 @@ AuditLogs
 
 **Follow-Up:** Cross-reference ownership changes with subsequent credential modifications:
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "3H"
+category: "Persistence"
+title: "Ownership→Credential Chain: {{TargetName}} — owner added by {{OwnerAddedBy}}, credential changed by {{CredentialChangeBy}} {{DaysAfterOwnerChange}}d later"
+impactedAssets:
+  - type: "user"
+    identifier: "OwnerAddedBy"
+  - type: "user"
+    identifier: "CredentialChangeBy"
+adaptation_notes: "Multi-let correlation query: ownership change joined with credential modification within 7 days on same app. Very high-signal for persistence via app takeover. Reduce `ago(90d)` to `ago(7d)` for scheduled detection."
+-->
 ```kql
 // Ownership change followed by credential change on same app (Last 90 Days)
 let OwnerChanges = AuditLogs
@@ -305,6 +361,16 @@ AuditLogs
 
 **Purpose:** Monitor OAuth2 consent grants and delegated permission changes — attackers use illicit consent grants to access data.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "CredentialAccess"
+title: "Consent/Permission Change: {{OperationName}} on {{TargetName}} by {{Actor}}"
+impactedAssets:
+  - type: "user"
+    identifier: "Actor"
+adaptation_notes: "Reduce `ago(90d)` to `ago(1d)` for scheduled detection. Row-level output per consent/permission event. Covers illicit consent grant attack (T1550.001)."
+-->
 ```kql
 // Consent Grants & Permission Changes (Last 90 Days)
 AuditLogs
@@ -347,6 +413,10 @@ AuditLogs
 
 **Purpose:** High-level summary of all application management operations for baselining normal activity.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Summary/aggregation query — summarizes by OperationName with `count()`, `dcount()`, `countif()`. Output is one row per operation type, not per event. Use for baselining, not detection."
+-->
 ```kql
 // ApplicationManagement Operation Summary (Last 90 Days)
 AuditLogs
@@ -380,6 +450,11 @@ AuditLogs
 **Purpose:** Use Microsoft Graph API to identify applications with secrets/certificates nearing expiration. This is a Graph API query, not KQL — use with the Graph MCP tool.
 
 **Graph API Approach:**
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Graph API query, not KQL — cannot be deployed as a custom detection. Use with the Graph MCP tool for point-in-time credential inventory."
+-->
 ```
 GET /v1.0/applications?$select=displayName,appId,passwordCredentials,keyCredentials
 ```

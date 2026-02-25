@@ -29,6 +29,16 @@ All queries have been tested against live Sentinel data and use proper column na
 - Aggregates by device and remote IP address
 - Shows unique accounts targeted and logon types used
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "CredentialAccess"
+title: "Brute Force: {{FailedAttempts}} failed logons on {{DeviceName}} from {{RemoteIP}}"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+adaptation_notes: "Remove `| take 20` and `| order by` for production CD deployment. Threshold (>=5 attempts) is tunable per environment."
+-->
 ```kql
 // Query 1: Devices with Multiple Failed Logon Attempts (14 days)
 // Detects potential brute force attacks or credential guessing attempts
@@ -103,6 +113,10 @@ All 4 IPs successfully connected to RDP (port 3389) within same time window - **
 - Excludes internal network traffic (10.x, 192.168.x, 172.16-31.x)
 - Excludes Azure metadata services (168.63.129.16, 169.254.169.254)
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregates across multiple devices per RemoteIP — each row represents an attacker IP, not a specific device. Would need restructuring to produce per-device rows for CD entity mapping. Also, verbose RFC1918 filter consumes significant character budget."
+-->
 ```kql
 // Query 2: External Inbound Attack Attempts (14 days)
 // Detects external attackers attempting to connect to your devices (port scanning, brute force, blocked attacks)
@@ -200,6 +214,10 @@ Assessment: Legitimate CDN traffic, not an attack
 - No minimum threshold (all successful external connections are relevant for honeypots)
 - Focuses on common attack ports (RDP, SSH, HTTP, SMB, etc.)
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Honeypot-specific query requiring manual device parameter substitution (`<HONEYPOT_DEVICE>`). Aggregates by RemoteIP across ports. Intended for ad-hoc honeypot investigation, not automated alerting."
+-->
 ```kql
 // Query 2B: Honeypot Detection - Successful External Inbound Connections (14 days)
 // Detects successful inbound connections from external IPs to honeypot services
@@ -301,6 +319,10 @@ Status: Censys scanner (100% abuse, 1181 reports) - Legitimate security research
 
 **Purpose:** Correlate successful network connections (Query 2B) with successful authentication attempts to identify potential compromises.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Multi-step correlation/investigation query with manual device parameter (`<HONEYPOT_DEVICE>`). Uses `let` subquery feeding into join — requires restructuring for CD single-query format. Intended for post-incident investigation, not automated detection."
+-->
 ```kql
 // Query 2C: Correlation - Network Connections → Successful Authentication
 // STEP 1: Get IPs that successfully connected to honeypot services
@@ -356,6 +378,10 @@ Any results from this query indicate **CONFIRMED COMPROMISE** - external attacke
 - Excludes internal network traffic (10.x, 192.168.x, 172.16-31.x)
 - Excludes Azure metadata services (168.63.129.16, 169.254.169.254)
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Duplicate of Query 2 above (original version). Same aggregation and entity mapping limitations apply."
+-->
 ```kql
 // Query 2: External Inbound Attack Attempts (14 days)
 // Detects external attackers attempting to connect to your devices (port scanning, brute force, blocked attacks)

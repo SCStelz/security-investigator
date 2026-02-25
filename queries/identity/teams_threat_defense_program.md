@@ -382,6 +382,19 @@ Configure and verify all of these are active and generating incidents:
 
 Identifies users sending an unusually high volume of messages to external tenants in a short timeframe — potential data exfiltration or social engineering staging.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: Exfiltration
+title: "High-volume Teams external messaging by {{SenderUPN}} to {{RecipientDomain}}"
+impactedAssets:
+  - type: user
+    identifier: SenderUPN
+recommendedActions: "Review the user's recent Teams chat activity and confirm whether external communication is authorized. Check for data exfiltration indicators."
+responseActions:
+  - "Revoke user sessions"
+  - "Block external tenant in Teams Admin Center"
+-->
 ```kql
 // Teams Exfiltration: High-volume external messaging
 // Platform: Defender XDR Advanced Hunting
@@ -410,6 +423,16 @@ CloudAppEvents
 
 Identifies phishing, malware, and spam content detected in Teams messages by Defender for Office 365.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: InitialAccess
+title: "Malicious Teams content detected — {{ThreatTypes}} from {{SenderDisplayName}}"
+impactedAssets:
+  - type: mailbox
+    identifier: SenderEmailAddress
+adaptation_notes: "SenderEmailAddress identifies the threat source. Parse RecipientDetails to extract the targeted internal user for impactedAssets if needed."
+-->
 ```kql
 // Teams Content Threats: Phishing, malware, and spam in Teams messages
 // Platform: Defender XDR Advanced Hunting
@@ -429,6 +452,16 @@ MessageEvents
 
 Detects the email bombing precursor that Storm-1811 and 3AM affiliates use before initiating Teams vishing calls.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: InitialAccess
+title: "Email bombing detected targeting {{RecipientEmailAddress}}"
+impactedAssets:
+  - type: mailbox
+    identifier: RecipientEmailAddress
+recommendedActions: "Correlate with subsequent Teams calls or external chat activity (Storm-1811 pattern). Check for RMM tool installation."
+-->
 ```kql
 // Storm-1811 Precursor: Email bombing detection
 // Platform: Defender XDR Advanced Hunting
@@ -445,6 +478,20 @@ EmailEvents
 
 Correlates email bombing victims with subsequent Teams chat activity from external users — the full Storm-1811 kill chain precursor.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "3H"
+category: InitialAccess
+title: "Storm-1811 pattern: email bomb victim {{TargetUPN}} contacted by external Teams user {{SenderDisplayName}}"
+impactedAssets:
+  - type: user
+    identifier: TargetUPN
+recommendedActions: "Confirm whether the user was social-engineered into installing RMM tools. Check DeviceProcessEvents for Quick Assist, AnyDesk, TeamViewer."
+responseActions:
+  - "Isolate device if RMM tool found"
+  - "Revoke user sessions"
+  - "Block attacker tenant in Teams Admin Center"
+-->
 ```kql
 // Storm-1811 Kill Chain: Email bombing → suspicious Teams chat
 // Platform: Defender XDR Advanced Hunting
@@ -471,6 +518,17 @@ CloudAppEvents
 
 Detects external Teams chats where the sender impersonates IT support, help desk, or similar roles — a hallmark of Storm-1811, Midnight Blizzard, and Octo Tempest.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: InitialAccess
+title: "External Teams help desk impersonation by {{SenderDisplayName}}"
+impactedAssets:
+  - type: mailbox
+    identifier: SenderEmailAddress
+adaptation_notes: "SenderEmailAddress is the external impersonator. RecipientDetails contains the internal victim but requires parsing for clean impactedAssets."
+recommendedActions: "Verify whether internal users interacted with the external sender. Check for subsequent RMM tool installation or credential harvesting."
+-->
 ```kql
 // Social Engineering: External help desk impersonation in Teams
 // Platform: Defender XDR Advanced Hunting
@@ -495,6 +553,23 @@ MessageEvents
 
 Extends Query 5 by joining external Teams help desk interactions with suspicious process executions on the target's device — detects the full vishing → RMM installation chain.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "3H"
+category: Execution
+title: "Vishing → RMM: {{FileName}} launched on {{DeviceName}} after help desk chat with {{VictimUPN}}"
+impactedAssets:
+  - type: device
+    identifier: DeviceName
+  - type: user
+    identifier: VictimUPN
+recommendedActions: "Isolate device immediately. Review DeviceProcessEvents timeline for post-RMM lateral movement, credential theft, and payload drops."
+responseActions:
+  - "Isolate device via MDE"
+  - "Revoke user sessions"
+  - "Block attacker tenant in Teams Admin Center"
+  - "Kill RMM process"
+-->
 ```kql
 // Vishing → RMM: Help desk chat → suspicious process execution
 // Platform: Defender XDR Advanced Hunting
@@ -532,6 +607,17 @@ MessageEvents
 
 Detects device code authentication flow usage which is commonly abused via fake Teams meeting invitations.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "12H"
+category: CredentialAccess
+title: "Device code authentication by {{UserPrincipalName}} from {{Country}}"
+impactedAssets:
+  - type: user
+    identifier: UserPrincipalName
+adaptation_notes: "Sentinel Data Lake query using SigninLogs. For CD, adapt to AADSignInEventsBeta with `LogonType == 'deviceCode'` and `Timestamp` column. See Query 20 for the AH equivalent."
+recommendedActions: "Verify whether device code auth was legitimate (IoT/conference room scenario). If unexpected, revoke sessions and investigate for token theft."
+-->
 ```kql
 // Device Code Phishing: Suspicious device code auth attempts
 // Platform: Sentinel Data Lake
@@ -555,6 +641,16 @@ SigninLogs
 
 Sentinel-compatible version using CloudAppEvents to detect phishing and social engineering via Teams.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: InitialAccess
+title: "External Teams impersonation chat targeting {{TargetUPN}} from {{SenderDisplayName}}"
+impactedAssets:
+  - type: user
+    identifier: TargetUPN
+recommendedActions: "Check if the internal user engaged with the external sender. Look for credential harvesting, file downloads, or RMM tool installation."
+-->
 ```kql
 // Teams Social Engineering: External one-on-one chats with impersonation
 // Platform: Sentinel Data Lake (or Advanced Hunting)
@@ -580,6 +676,19 @@ CloudAppEvents
 
 Detects RMM tool launches that occur within a short timeframe of Teams calls or meetings — the vishing → RMM installation chain.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: Execution
+title: "RMM tool {{FileName}} launched after Teams activity on {{DeviceName}}"
+impactedAssets:
+  - type: device
+    identifier: DeviceName
+recommendedActions: "Verify RMM launch was authorized. If unexpected, isolate device and review process timeline for lateral movement."
+responseActions:
+  - "Isolate device via MDE"
+  - "Kill RMM process"
+-->
 ```kql
 // Vishing Detection: RMM tool launch after Teams activity
 // Platform: Defender XDR Advanced Hunting
@@ -614,6 +723,10 @@ DeviceProcessEvents
 
 Tracks files uploaded to Teams Chat Files storage in SharePoint and their subsequent access patterns — detects potential data staging and collection.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "OfficeActivity (Sentinel-only) with self-join over 30 days for upload/access correlation. Summary/aggregation query with bag_pack and make_bag. Not suitable for direct CD."
+-->
 ```kql
 // Data Collection: Teams file uploads and access tracking
 // Platform: Sentinel Data Lake
@@ -646,6 +759,10 @@ OfficeActivity
 
 Detects new OAuth app consent grants requesting Microsoft Teams or Microsoft Graph permissions related to Teams — potential malicious app installation.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "AuditLogs 30-day broad investigation query with dynamic field parsing. Broad `has 'consent'` filter returns high volume. For CD, narrow OperationName to specific consent operations and reduce timeframe to `ago(1d)`."
+-->
 ```kql
 // OAuth Abuse: App consent with Teams-related permissions
 // Platform: Sentinel Data Lake
@@ -671,6 +788,10 @@ AuditLogs
 
 Summarizes all Teams-related alerts joined to incidents for SOC triage and trend analysis.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "SOC triage summary — multi-join SecurityAlert→SecurityIncident aggregation with make_set and dcount. Dashboard/reporting query, not a detection."
+-->
 ```kql
 // Teams Alert Summary: All Teams-related alerts with incident correlation
 // Platform: Sentinel Data Lake
@@ -717,6 +838,10 @@ SecurityIncident
 
 Detects programmatic access to Teams data via Graph API — indicates potential use of GraphRunner, AADInternals, or custom exfiltration tools.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "AuditLogs 30-day broad investigation query. OperationName `has_any` with generic terms ('application', 'service principal', 'oauth') is too broad for scheduled detection. For CD, narrow to specific Graph API consent/app operations."
+-->
 ```kql
 // Graph API Abuse: Programmatic Teams data access
 // Platform: Sentinel Data Lake
@@ -736,6 +861,10 @@ AuditLogs
 
 Detects users joining Teams meetings from locations that are anomalous compared to their baseline — potential token replay or compromised session.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "90-day baseline vs 7-day comparison for anomalous Teams meeting locations. Exceeds 30-day CD lookback limit. For CD, reduce baseline to `ago(30d)..ago(7d)` and use a shorter comparison window."
+-->
 ```kql
 // Anomalous Meeting Join: Teams access from unusual locations
 // Platform: Sentinel Data Lake
@@ -770,6 +899,22 @@ SigninLogs
 
 Detects the TeamsPhisher delivery pattern: external Teams chat creation followed by suspicious process execution on an alerted device.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: Execution
+title: "TeamsPhisher pattern: external chat → {{FileName}} execution by {{TargetUPN}} on {{DeviceName}}"
+impactedAssets:
+  - type: user
+    identifier: TargetUPN
+  - type: device
+    identifier: DeviceName
+recommendedActions: "Isolate device. Review process chain for malware payload (DarkGate, JSSloader). Block attacker tenant."
+responseActions:
+  - "Isolate device via MDE"
+  - "Revoke user sessions"
+  - "Block attacker tenant in Teams Admin Center"
+-->
 ```kql
 // TeamsPhisher: External chat → malicious process execution chain
 // Platform: Defender XDR Advanced Hunting
@@ -802,6 +947,16 @@ CloudAppEvents
 
 Identifies users who clicked through malicious URLs shared in Teams messages.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: InitialAccess
+title: "Malicious URL click-through in Teams by {{AccountUpn}} ({{ClickCount}} clicks)"
+impactedAssets:
+  - type: user
+    identifier: AccountUpn
+recommendedActions: "Check if the user's device was compromised post-click. Review endpoint timeline for payload execution."
+-->
 ```kql
 // Teams Phishing: Malicious URL click-throughs
 // Platform: Defender XDR Advanced Hunting
@@ -823,6 +978,10 @@ UrlClickEvents
 
 Monitors Zero-hour Auto Purge (ZAP) activity in Teams to see what threats were caught after delivery.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ZAP remediation monitoring — tracks messages already removed by Defender. Informational/operational visibility, not a threat detection. Use for SOC dashboards."
+-->
 ```kql
 // Teams ZAP: Retroactive malicious message removal
 // Platform: Defender XDR Advanced Hunting
@@ -839,6 +998,19 @@ MessagePostDeliveryEvents
 
 Detects DLL sideloading or injection into the Teams process — a known endpoint attack technique.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: Execution
+title: "Suspicious DLL {{FileName}} loaded via Teams on {{DeviceName}}"
+impactedAssets:
+  - type: device
+    identifier: DeviceName
+recommendedActions: "Investigate the DLL origin and signing status. Check if Teams was trojanized or if this is a sideloading attempt."
+responseActions:
+  - "Isolate device via MDE"
+  - "Collect DLL sample for analysis"
+-->
 ```kql
 // Teams DLL Sideload: Suspicious modules loaded by Teams
 // Platform: Defender XDR Advanced Hunting
@@ -861,6 +1033,10 @@ DeviceImageLoadEvents
 
 Identifies users with sudden spikes in cross-tenant Teams communication — potential indicator of compromised accounts being used for lateral movement or data exfiltration.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "30-day baseline vs 7-day comparison with daily rate calculation and anomaly factor. Aggregation per account with baseline ratio. For CD, simplify to a fixed threshold rather than baseline comparison."
+-->
 ```kql
 // Cross-Tenant Anomaly: Unusual external Teams communication volume
 // Platform: Defender XDR Advanced Hunting
@@ -897,6 +1073,20 @@ RecentExternal
 
 Detects successful device code authentications correlated with risk events — the Storm-2372 post-exploitation phase.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "12H"
+category: CredentialAccess
+title: "Device code auth success by {{AccountUpn}} from {{Country}} — risk: {{RiskLevelDuringSignIn}}"
+impactedAssets:
+  - type: user
+    identifier: AccountUpn
+recommendedActions: "Verify device code auth was legitimate. If unexpected, revoke all sessions immediately and investigate for token theft."
+responseActions:
+  - "Revoke user sessions"
+  - "Reset password"
+  - "Review and remove suspicious MFA methods"
+-->
 ```kql
 // Storm-2372: Device code auth success + risk correlation
 // Platform: Defender XDR Advanced Hunting
@@ -929,6 +1119,17 @@ AADSignInEventsBeta
 
 Detects potential C2 activity using Teams Adaptive Cards or incoming webhooks (ConvoC2 pattern).
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: CommandAndControl
+title: "Teams connector/bot activity: {{ActionType}} — {{AppName}} by {{AccountDisplayName}}"
+impactedAssets:
+  - type: user
+    identifier: AccountDisplayName
+adaptation_notes: "AccountDisplayName may not be a clean UPN. Consider adding AccountObjectId for entity mapping. Review AppName values to tune out legitimate connectors."
+recommendedActions: "Verify the connector/bot/app is legitimate. Check for ConvoC2 indicators and Adaptive Card abuse."
+-->
 ```kql
 // C2 Detection: Suspicious Teams webhook and connector activity
 // Platform: Defender XDR Advanced Hunting
@@ -951,6 +1152,10 @@ CloudAppEvents
 
 Provides a high-level summary of all suspicious Teams activity across multiple dimensions for SOC dashboards.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "SOC dashboard summary — multi-let aggregation across 5 tables (CloudAppEvents, MessageEvents, UrlClickEvents, EmailEvents, DeviceProcessEvents) for overview metrics. Not a detection."
+-->
 ```kql
 // SOC Dashboard: Teams threat activity summary
 // Platform: Defender XDR Advanced Hunting

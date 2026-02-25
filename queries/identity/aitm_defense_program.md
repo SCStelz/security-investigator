@@ -276,6 +276,16 @@ Configure and verify all of these are active and generating incidents:
 
 Detects sign-ins through the OfficeHome application (AppId `4765445b`) where the same session has sign-ins from multiple countries — a classic AiTM token replay indicator.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "CredentialAccess"
+title: "AiTM Token Replay: {{AccountDisplayName}} session used from multiple countries"
+impactedAssets:
+  - type: "user"
+    identifier: "AccountDisplayName"
+adaptation_notes: "Multi-let join query. CD supports `let` blocks. High-signal detection for AiTM proxy attacks."
+-->
 ```kql
 // AiTM Detection: OfficeHome proxy sign-in with cross-country session replay
 // Platform: Defender XDR Advanced Hunting
@@ -301,6 +311,16 @@ AADSignInEventsBeta
 
 Same logic adapted for Sentinel Data Lake using `SigninLogs`.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "CredentialAccess"
+title: "AiTM Token Replay: {{UserPrincipalName}} session from {{OriginalCountry}} replayed from {{ReplayCountry}}"
+impactedAssets:
+  - type: "user"
+    identifier: "UserPrincipalName"
+adaptation_notes: "Sentinel Data Lake variant of Q1. Uses `parse_json(LocationDetails)` for country extraction."
+-->
 ```kql
 // AiTM Detection: OfficeHome proxy with cross-country sessions
 // Platform: Sentinel Data Lake
@@ -331,6 +351,16 @@ SigninLogs
 
 Detects users who had phishing emails delivered AND subsequently triggered anomalous token detections.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "3H"
+category: "CredentialAccess"
+title: "AiTM Full Chain: {{UserPrincipalName}} phished then {{RiskEventType}} detected"
+impactedAssets:
+  - type: "user"
+    identifier: "UserPrincipalName"
+adaptation_notes: "Multi-source correlation (EmailEvents + AADUserRiskEvents). Row-level output per risk event. 30d lookback is within CD limits."
+-->
 ```kql
 // AiTM Full Chain: Phishing delivery → Anomalous token detection
 // Platform: Sentinel Data Lake
@@ -354,6 +384,16 @@ AADUserRiskEvents
 
 Attackers register a new MFA method (including FIDO2 keys) after AiTM compromise to maintain persistent access.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "3H"
+category: "Persistence"
+title: "Post-AiTM MFA Registration: {{OperationName}} for risky user"
+impactedAssets:
+  - type: "user"
+    identifier: "TargetResources"
+adaptation_notes: "Cross-table correlation (AADUserRiskEvents + AuditLogs). The `has_any (RiskyUsers)` pattern works for moderate user volumes. For large environments, consider limiting the `let` subquery."
+-->
 ```kql
 // Post-AiTM: New MFA method registration following risky sign-in
 // Platform: Sentinel Data Lake
@@ -380,6 +420,16 @@ AuditLogs
 
 Detects inbox rule creation that correlates with Anomalous Token alerts — key BEC follow-on indicator.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Collection"
+title: "Post-AiTM Inbox Rule: {{RawEventData.Name}} created during anomalous token session"
+impactedAssets:
+  - type: "user"
+    identifier: "AccountObjectId"
+adaptation_notes: "Advanced Hunting only — uses AlertInfo + AlertEvidence + CloudAppEvents with `materialize()`. Multi-let pipeline. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // Post-AiTM BEC: Inbox rules during anomalous token session
 // Platform: Defender XDR Advanced Hunting
@@ -403,6 +453,18 @@ CloudAppEvents
 
 Detects mailbox forwarding/redirect rules that indicate BEC-stage exfiltration post-AiTM.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Exfiltration"
+title: "Inbox Forwarding Rule: {{Operation}} by {{UserId}}"
+impactedAssets:
+  - type: "user"
+    identifier: "UserId"
+  - type: "mailbox"
+    identifier: "UserId"
+adaptation_notes: "Sentinel Data Lake (OfficeActivity). Row-level events with clear exfiltration indicators. `Parameters` is a string field — use `has` for keyword matching."
+-->
 ```kql
 // Post-AiTM BEC: Email exfiltration via forwarding rules
 // Platform: Sentinel Data Lake
@@ -424,6 +486,10 @@ OfficeActivity
 
 Detects token replay by identifying sessions used from geographically dispersed locations.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes per SessionId with `dcount(IPAddress) > 1` threshold. Output is one row per session, not per event. Would require restructuring to produce row-level alerts for CD."
+-->
 ```kql
 // AiTM Token Replay: Same session used from multiple locations
 // Platform: Sentinel Data Lake
@@ -454,6 +520,10 @@ SigninLogs
 
 Identifies users who clicked through to URLs classified as phishing — early AiTM chain indicator.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes per AccountUpn with click counts and URL lists. Output is one row per user, not per click event. Would need restructuring for row-level alerting."
+-->
 ```kql
 // AiTM Early Warning: Users clicking phishing URLs
 // Platform: Defender XDR Advanced Hunting
@@ -473,6 +543,18 @@ UrlClickEvents
 
 Detects endpoint connections to known AiTM infrastructure blocked or audited by Network Protection.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "CommandAndControl"
+title: "AiTM Network Connection: {{DeviceName}} → {{RemoteUrl}} ({{ResponseCategory}})"
+impactedAssets:
+  - type: "device"
+    identifier: "DeviceName"
+  - type: "user"
+    identifier: "InitiatingProcessAccountName"
+adaptation_notes: "Row-level events from DeviceEvents. The `has_any` filter on RemoteUrl for login/office keywords may be broad — tune for your environment. Change `Timestamp` to `TimeGenerated` for Sentinel Data Lake."
+-->
 ```kql
 // AiTM Infrastructure: Network protection events on endpoints
 // Platform: Defender XDR Advanced Hunting
@@ -495,6 +577,16 @@ DeviceEvents
 
 Checks if PIM role activation occurred after an AiTM-related risk detection — stolen tokens bypass PIM MFA because MFA claim is already in the session.
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "3H"
+category: "PrivilegeEscalation"
+title: "Post-AiTM PIM Activation: {{OperationName}} by compromised user"
+impactedAssets:
+  - type: "user"
+    identifier: "InitiatedBy"
+adaptation_notes: "Cross-table correlation (AADUserRiskEvents + AuditLogs). Same `has_any (AiTMUsers)` pattern as Q4. For large environments, consider limiting the `let` subquery."
+-->
 ```kql
 // Post-AiTM: PIM role activation with pre-existing MFA claim
 // Platform: Sentinel Data Lake
@@ -518,6 +610,10 @@ AuditLogs
 
 Tracks SmartScreen blocks on AiTM phishing pages across the fleet.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation query — summarizes by ResponseCategory with `make_set(DeviceName)` and `make_set(Users)`. Output is one row per category, not per event. Would need restructuring for row-level alerting."
+-->
 ```kql
 // SmartScreen: Phishing site blocks (potential AiTM prevention)
 // Platform: Defender XDR Advanced Hunting  
@@ -543,6 +639,10 @@ DeviceEvents
 
 Summarizes all AiTM-related alerts joined to incidents for SOC triage.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "SOC triage summary query — aggregates AiTM-related alerts into incident-level summaries. Uses SecurityAlert→SecurityIncident canonical join pattern. Output is one row per incident, not per alert event."
+-->
 ```kql
 // AiTM Alert Summary: All AiTM alerts with incident correlation
 // Platform: Sentinel Data Lake
@@ -577,6 +677,10 @@ SecurityIncident
 
 Detects unusual cloud app activity patterns consistent with post-compromise reconnaissance — mailbox searches, SharePoint access, Azure subscription changes.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Investigation aggregation query — summarizes per AccountObjectId per 1h bin with `make_set()` aggregations. Cross-table correlation (AlertInfo + CloudAppEvents) with `materialize()`. Output is one row per user per hour, not per event."
+-->
 ```kql
 // Post-AiTM: Cloud app reconnaissance and data access
 // Platform: Defender XDR Advanced Hunting

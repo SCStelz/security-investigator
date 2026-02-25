@@ -45,6 +45,11 @@ This collection contains KQL queries for **threat hunting rare parent–child pr
 - Consider adding `| where not(ChildProcess startswith "AM_Delta_Patch")` to exclude Defender signature update noise.
 - Sort by `Count asc, UniqueDevices asc` to surface the rarest combos first.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Statistical hunting query — aggregates 90 days of DeviceProcessEvents into rare combos (Count < 5). Requires long-term baseline comparison that exceeds CD's 30-day max lookback. Designed for manual threat hunting review, not automated alerting."
+-->
+
 ```kql
 // Query 1: Rare Parent–Child Process Combos (< 5 occurrences in 90 days)
 // Surfaces unusual execution chains for threat hunting
@@ -96,6 +101,11 @@ DeviceProcessEvents
 - Bottom ~50% of combos are rare (< 5 occurrences) — this is the hunting zone
 - The cumulative % column shows exactly where the 80/20 split falls
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Pareto distribution analysis — ranks all parent–child combos by frequency with cumulative %. Pure analytical/statistical query for understanding baseline distribution, not suitable for alerting."
+-->
+
 ```kql
 // Query 2: Pareto Distribution — All combos ranked by frequency
 // Shows cumulative % for 80/20 analysis
@@ -116,6 +126,11 @@ DeviceProcessEvents
 ## Query 3: Pareto Summary Statistics
 
 **Purpose:** Quick overview of the distribution — total combos, rare combos, singletons, and the percentage of events they represent. Use this to assess whether the environment has an unusual number of rare process chains.
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Summary statistics query — produces a single aggregated row with distribution metrics (total combos, rare combos, singletons). Not suitable for per-event detection or alerting."
+-->
 
 ```kql
 // Query 3: Pareto Summary Statistics
@@ -152,6 +167,11 @@ DeviceProcessEvents
 
 **Usage:** Replace `cmd.exe` and `ipconfig.exe` with the combo you want to look up.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Ad-hoc lookup query — finds a specific combo's rank in the Pareto distribution. Interactive investigation tool, not a detection pattern."
+-->
+
 ```kql
 // Query 4: Look up a specific combo's rank in the distribution
 // Replace parent/child process names as needed
@@ -171,6 +191,11 @@ DeviceProcessEvents
 **Purpose:** Filter specifically for rare parent–child combos involving known discovery/recon tools. These are the highest-priority threat hunting targets because attackers frequently use these built-in Windows utilities for reconnaissance (MITRE TA0007).
 
 **Covered tools:** `ipconfig`, `whoami`, `net.exe`, `net1.exe`, `nltest`, `nslookup`, `systeminfo`, `tasklist`, `qwinsta`, `arp`, `route`, `netstat`, `query`
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Statistical hunting query — aggregates 90 days of recon tool executions into rare combos (Count < 5). Core concept (recon tools with unusual parents) COULD become a detection if restructured with a hardcoded allow-list of known-good parent processes instead of statistical rarity threshold, but would require a complete rewrite."
+-->
 
 ```kql
 // Query 5: Rare combos involving known recon/discovery tools
@@ -203,6 +228,11 @@ DeviceProcessEvents
 ## Query 6: Rare Combos Excluding Known Benign Noise
 
 **Purpose:** Same as Query 1 but pre-filters out known benign patterns that appear rare only due to rotating version numbers (Defender patches, ODT temp files). Reduces false positives for cleaner hunting.
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Same as Query 1 with noise filtering — statistical hunting baseline requiring 90-day aggregate analysis. Not suitable for CD's scheduled execution model."
+-->
 
 ```kql
 // Query 6: Rare combos with benign noise filtered out

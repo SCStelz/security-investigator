@@ -43,6 +43,10 @@ This collection contains production-ready KQL queries using the `series_decompos
 - **Seasonality:** Auto-detect (-1)
 - **Trend:** Average ('avg')
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Time-series anomaly detection using series_decompose_anomalies() with make-series. Produces statistical baselines, not row-level events. CD requires event-driven queries."
+-->
 ```kql
 // Query 1: Least Common External IPs Using Anomaly Detection (7 days)
 // Detects rare/first-time IPs that may indicate reconnaissance or attacks
@@ -114,6 +118,10 @@ DeviceNetworkEvents
 - Investigating a specific compromised device
 - Baseline comparison for a single endpoint
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Parameter-dependent (let TargetDevice) + time-series anomaly detection with make-series/series_decompose_anomalies(). Investigation query for specific device analysis."
+-->
 ```kql
 // Query 2: Device-Specific IP Anomaly Detection
 // Replace <DEVICE_NAME> with your target device (case-insensitive)
@@ -168,6 +176,10 @@ DeviceNetworkEvents
 - **2.5:** Stricter detection
 - **3.0:** Most strict (only strong anomalies, fewer false positives)
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Calibration/tuning tool — tests 5 anomaly thresholds simultaneously on the same dataset. Not a detection query; used to establish optimal threshold for the environment."
+-->
 ```kql
 // Query 3: Threshold Sensitivity Comparison
 // Tests 5 thresholds simultaneously to help tune detection
@@ -236,6 +248,10 @@ DeviceNetworkEvents
 - Optional device filter for targeted analysis
 - 15-minute bins for granular visibility
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregation/visualization query — summarizes connection counts into 15-minute bins with intensity classification. Reporting/timeline tool, not event-driven detection."
+-->
 ```kql
 // Query 4: Attack Intensity Timeline Visualization
 // Modify start/end dates and optionally uncomment device filter
@@ -289,6 +305,10 @@ DeviceNetworkEvents
 
 **Purpose:** Understand your environment's anomaly score distribution to calibrate thresholds appropriately.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Statistical distribution analysis — computes percentiles of anomaly scores across all IPs. Calibration tool for threshold tuning, not detection."
+-->
 ```kql
 // Query 5: Anomaly Score Distribution Analysis
 let Timeframe = 1h;
@@ -342,6 +362,10 @@ This indicates nearly ALL traffic is anomalous (attack traffic only).
 
 **Purpose:** Identify IPs with extremely high or low anomaly scores that warrant immediate investigation.
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Time-series outlier detection using make-series/series_decompose_anomalies() with extreme score thresholds (>100 / <-50). Hunting query for extreme deviations, not CD-compatible due to make-series."
+-->
 ```kql
 // Query 6: Extreme Outliers (MaxScore > 100 or MinScore < -50)
 let Timeframe = 1h;

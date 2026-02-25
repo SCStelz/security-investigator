@@ -34,6 +34,10 @@ This collection of KQL queries helps detect potential RDP lateral movement withi
 - Identify which systems have RDP enabled and are being accessed
 - Verify query is returning data before running detection logic
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Baseline verification query. Returns raw events with `take 100` for data validation, not detection logic."
+-->
 ```kql
 // Successful Internal RDP Connections (Last 7 Days)
 // Use this query first to verify SecurityEvent data is available
@@ -71,6 +75,16 @@ SecurityEvent
 - Within 10-minute window before successful logon
 - From same source IP to same target computer
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "LateralMovement"
+title: "RDP Brute Force Success: {{FailedAttempts}} failures then logon on {{TargetComputer}} from {{SourceIP}}"
+impactedAssets:
+  - type: "device"
+    identifier: "TargetComputer"
+adaptation_notes: "Multi-let correlation query. CD supports `let` blocks. Remove `order by` for CD. Thresholds (failureThreshold=3, windowTime=10m) are tunable."
+-->
 ```kql
 // RDP Lateral Movement Detection - Multiple Failed Attempts Before Success
 // Detects internal RDP connections with 3+ failed auth attempts within 10 minutes before successful logon
@@ -150,6 +164,10 @@ SuccessfulLogons
 
 **Purpose:** Aggregate view of all RDP activity showing success/failure patterns for baselining and anomaly identification
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Baseline aggregation query. Summarizes all RDP activity per Computer/SourceIP pair for pattern analysis, not alertable detection."
+-->
 ```kql
 // RDP Activity Summary by Computer and Source
 // Shows all internal RDP activity (successes and failures) for baselining
@@ -215,6 +233,16 @@ SecurityEvent
 - Within 1-hour window
 - From single source IP
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "LateralMovement"
+title: "RDP Spray: {{SourceIP}} targeted {{UniqueTargets}} systems"
+impactedAssets:
+  - type: "device"
+    identifier: "SourceIP"
+adaptation_notes: "Threshold-based spray detection. Each row = one spray instance from a source IP. Remove `order by` for CD. Thresholds (targetThreshold=5, windowTime=1h) are tunable."
+-->
 ```kql
 // RDP Spray Detection - One Source Connecting to Many Targets
 // Identifies single internal source attempting RDP to multiple systems (possible lateral movement)
@@ -287,6 +315,10 @@ SecurityEvent
 - `0xC0000071`: Password expired
 - `0xC0000224`: User must change password
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Summary aggregation by FailureReason/SubStatus. Intended for failure reason analysis and baselining, not per-event alerting."
+-->
 ```kql
 // Failed RDP Attempts - Categorized by Failure Reason
 // Helps distinguish legitimate failures from malicious activity
@@ -351,6 +383,10 @@ SecurityEvent
 
 **Purpose:** Create a timeline view of RDP activity from a specific source to understand attack progression
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Investigation/timeline query requiring manual IP parameter (`<SOURCE_IP>`). Intended for ad-hoc forensic analysis after suspicious source is identified."
+-->
 ```kql
 // RDP Attack Timeline - Detailed View
 // Shows chronological progression of RDP attempts from a specific source IP

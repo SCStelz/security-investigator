@@ -502,6 +502,10 @@ See **Query 6** below in the complete query library for multi-hop attack path de
 **Description**: Lists all devices with high criticality (levels 1-3, where lower = more critical)  
 **Use Case**: Identify most important assets requiring priority protection
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time device inventory. Not event-driven; CD requires temporal detection with Timestamp/TimeGenerated filtering."
+-->
 ```kql
 ExposureGraphNodes
 | where set_has_element(Categories, "device")
@@ -523,6 +527,10 @@ ExposureGraphNodes
 **Description**: Find critical devices that are internet-facing (high risk)  
 **Use Case**: Priority remediation - critical assets with external exposure
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time device posture query. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphNodes
 | where set_has_element(Categories, "device")
@@ -546,6 +554,10 @@ ExposureGraphNodes
 **Description**: Find critical VMs exposed to internet with Remote Code Execution vulnerabilities  
 **Use Case**: Highest risk assets requiring immediate attention
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time VM vulnerability posture. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphNodes
 | where set_has_element(Categories, "virtual_machine")
@@ -568,6 +580,10 @@ ExposureGraphNodes
 **Description**: Find internet-facing devices with privilege escalation vulnerabilities  
 **Use Case**: Identify devices vulnerable to privilege escalation attacks from external sources
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time device vulnerability posture. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphNodes
 | where isnotnull(NodeProperties.rawData.IsInternetFacing)
@@ -593,6 +609,10 @@ ExposureGraphNodes
 **Description**: Find users with access to more than one critical device (potential lateral movement risk)  
 **Use Case**: Identify users with broad access to critical infrastructure
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time identity-device correlation via graph traversal. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 let IdentitiesAndCriticalDevices = ExposureGraphNodes
 | where
@@ -632,6 +652,10 @@ ExposureGraphEdges
 **Description**: Find attack paths where RCE-vulnerable devices connect to users who can remotely login to critical servers  
 **Use Case**: Identify multi-hop attack chains from vulnerable endpoints to critical assets
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time attack path graph traversal. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 let IdentitiesAndCriticalDevices = ExposureGraphNodes
 | where 
@@ -674,6 +698,10 @@ ExposureGraphEdges
 **Description**: Identify potential hybrid attack paths between cloud VMs and on-premises devices  
 **Use Case**: Detect lateral movement opportunities across cloud/on-prem boundaries
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time hybrid attack path mapping. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 let CloudAssets = ExposureGraphNodes
 | where Categories has "virtual_machine" and (NodeLabel contains "microsoft.compute" or NodeLabel contains "aws." or NodeLabel contains "gcp.");
@@ -702,6 +730,10 @@ ExposureGraphEdges
 **Description**: Show all paths from IP addresses to virtual machines passing through up to 3 assets  
 **Use Case**: Understand external network exposure and access paths to VMs
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time IP-to-VM path analysis. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 let IPsAndVMs = ExposureGraphNodes
 | where (set_has_element(Categories, "ip_address") or set_has_element(Categories, "virtual_machine"));
@@ -729,6 +761,10 @@ ExposureGraphEdges
 **Description**: Count and categorize cloud resources from different providers  
 **Use Case**: Multi-cloud visibility and asset inventory
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time multi-cloud resource inventory. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphNodes
 | where NodeLabel contains "microsoft.compute" or NodeLabel contains "aws." or NodeLabel contains "gcp."
@@ -750,6 +786,10 @@ ExposureGraphNodes
 **Description**: Inventory of critical assets across all cloud providers  
 **Use Case**: Executive dashboard of critical cloud infrastructure
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time critical asset summary. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphNodes
 | where (NodeLabel contains "microsoft.compute" or NodeLabel contains "aws." or NodeLabel contains "gcp.")
@@ -778,6 +818,10 @@ ExposureGraphNodes
 **Description**: Find all CVE vulnerabilities affecting critical devices  
 **Use Case**: Prioritize vulnerability remediation for critical assets
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time CVE-to-device mapping. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 let CriticalDeviceIds = ExposureGraphNodes
 | where set_has_element(Categories, "device")
@@ -801,6 +845,10 @@ ExposureGraphEdges
 **Description**: Rank critical devices by number of CVE vulnerabilities  
 **Use Case**: Identify most vulnerable critical assets for remediation priority
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time vulnerability count ranking. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 let CriticalDeviceIds = ExposureGraphNodes
 | where set_has_element(Categories, "device")
@@ -827,6 +875,10 @@ ExposureGraphEdges
 **Description**: Discover all types of nodes in your exposure graph  
 **Use Case**: Understand what asset types are tracked in your environment
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — schema exploration query. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphNodes
 | summarize NodeCount = count() by NodeLabel
@@ -838,6 +890,10 @@ ExposureGraphNodes
 **Description**: Discover all relationship types in your exposure graph  
 **Use Case**: Understand what connections and permissions exist
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — schema exploration query. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphEdges
 | summarize EdgeCount = count() by EdgeLabel
@@ -849,6 +905,10 @@ ExposureGraphEdges
 **Description**: Find all types of assets that can connect TO virtual machines  
 **Use Case**: Understand attack surface and access paths to VMs
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time graph traversal for VM access mapping. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphEdges
 | make-graph SourceNodeId --> TargetNodeId with ExposureGraphNodes on NodeId
@@ -864,6 +924,10 @@ ExposureGraphEdges
 **Description**: Find all types of assets that virtual machines can connect TO  
 **Use Case**: Understand what VMs can access (lateral movement potential)
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time graph traversal for VM outbound access. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphEdges
 | make-graph SourceNodeId --> TargetNodeId with ExposureGraphNodes on NodeId
@@ -883,6 +947,10 @@ ExposureGraphEdges
 **Description**: Find all assets imported from ServiceNow CMDB connector  
 **Use Case**: Validate ServiceNow integration and asset correlation
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — integration validation query. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphNodes
 | where NodeProperties contains ("serviceNowCmdbAssetInfo")
@@ -900,6 +968,10 @@ ExposureGraphNodes
 **Description**: Find all vulnerabilities reported by Tenable on ingested assets  
 **Use Case**: Validate Tenable integration and vulnerability tracking
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — integration validation query. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphEdges
 | where EdgeLabel == "affecting" 
@@ -917,6 +989,10 @@ ExposureGraphEdges
 **Description**: Find all vulnerabilities reported by Rapid7 on ingested assets  
 **Use Case**: Validate Rapid7 integration and vulnerability tracking
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — integration validation query. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphEdges
 | where EdgeLabel == "affecting" 
@@ -938,6 +1014,10 @@ ExposureGraphEdges
 **Description**: View sample NodeProperties structure for VMs to understand available data  
 **Use Case**: Schema exploration and understanding available properties
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — schema inspection query. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphNodes
 | where NodeLabel == "microsoft.compute/virtualmachines"
@@ -957,6 +1037,10 @@ ExposureGraphNodes
 **Use Case**: Identify the device population that feeds into attack path analysis  
 **Key Property**: `NodeProperties.rawData.highRiskVulnerabilityInsights`
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time device vulnerability posture. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 ExposureGraphNodes
 | where set_has_element(Categories, "device")
@@ -979,6 +1063,10 @@ ExposureGraphNodes
 **Use Case**: Understand which Azure resource types are reachable from compromised devices  
 **Pattern**: `Device -[contains]→ entra-userCookie -[can authenticate as]→ User -[has permissions to]→ Target`
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time cookie chain attack path analysis. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 let VulnDeviceIds = ExposureGraphNodes
 | where set_has_element(Categories, "device")
@@ -1014,6 +1102,10 @@ ExposureGraphEdges
 **Use Case**: Capture attack paths that go through Entra ID group RBAC assignments  
 **Pattern**: `Device -[contains]→ Cookie -[can authenticate as]→ User -[member of]→ Group -[has role on]→ Target`
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time group-mediated attack path analysis. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 let VulnDeviceIds = ExposureGraphNodes
 | where set_has_element(Categories, "device")
@@ -1047,6 +1139,10 @@ ExposureGraphEdges
 **Use Case**: Find attack chain patterns you didn't know existed — critical for comprehensive coverage  
 **Customization**: Change the `TargetType` variable to discover patterns for any resource type
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data with parameter substitution (let TargetType). Point-in-time pattern discovery, not event-driven."
+-->
 ```kql
 // Change the target NodeLabel below to discover patterns for any resource type
 let TargetType = "microsoft.keyvault/vaults";
@@ -1085,6 +1181,10 @@ ExposureGraphEdges
 **Use Case**: Get accurate path counts that approximate what the Defender portal shows  
 **Customization**: Change `TargetNodeLabelFilter` for different resource types
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data with parameter substitution (let TargetNodeLabelFilter). Point-in-time path deduplication, not event-driven."
+-->
 ```kql
 // Comprehensive: Union direct + group-mediated paths for total unique pairs
 // Change TargetNodeLabelFilter below for different resource types
@@ -1130,6 +1230,10 @@ union ThreeHop, FourHop
 **Use Case**: Distinguish low-risk (Reader) from critical (Owner/Secrets Officer) attack paths  
 **Customization**: Change the `TargetNodeLabelFilter` for different resource types
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data with parameter substitution (let TargetNodeLabelFilter). Point-in-time RBAC analysis, not event-driven."
+-->
 ```kql
 // Change target filter below for different resource types
 let TargetNodeLabelFilter = "microsoft.keyvault/vaults";
@@ -1176,6 +1280,10 @@ ExposureGraphEdges
 **Use Case**: Highest-priority remediation — these attack paths grant dangerous write/admin access  
 **Customization**: Change the `TargetNodeLabelFilter` and role filter list for different resource types
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data with parameter substitution (let TargetNodeLabelFilter). Point-in-time privilege analysis, not event-driven."
+-->
 ```kql
 // Change target filter below for different resource types
 let TargetNodeLabelFilter = "microsoft.keyvault/vaults";
@@ -1222,6 +1330,10 @@ ExposureGraphEdges
 **Description**: Find users with high Entra ID criticality levels (Global Admins, Security Admins, etc.) who are reachable from devices with high-severity vulnerabilities  
 **Use Case**: THE most dangerous attack paths — compromising these users grants broad tenant-level access
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time critical user reachability analysis. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 let VulnDeviceIds = ExposureGraphNodes
 | where set_has_element(Categories, "device")
@@ -1265,6 +1377,10 @@ ExposureGraphEdges
 **Description**: Rank vulnerable devices by how many unique Azure resources an attacker could reach by compromising them  
 **Use Case**: Prioritize vulnerability remediation by actual impact — a device reaching 465 targets is more urgent than one reaching 10
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time blast radius ranking. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 let VulnDeviceIds = ExposureGraphNodes
 | where set_has_element(Categories, "device")
@@ -1297,6 +1413,10 @@ ExposureGraphEdges
 **Description**: Find users who appear as identity pivots in the most attack paths — these are choke points where remediation has maximum impact  
 **Use Case**: Locking down credentials for a top choke-point user blocks MANY attack paths at once
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "ExposureGraph snapshot data — point-in-time choke point identification. Not event-driven; CD requires temporal detection."
+-->
 ```kql
 let VulnDeviceIds = ExposureGraphNodes
 | where set_has_element(Categories, "device")
@@ -1346,6 +1466,10 @@ ExposureGraphEdges
 **Use Case**: Get named attack scenarios with descriptions, attack stories, and remediation guidance  
 **Execution**: Azure CLI (not Advanced Hunting)
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Azure Resource Graph CLI query (az graph query) — not KQL for Defender XDR Advanced Hunting. Runs against ARM, not applicable for CD."
+-->
 ```bash
 az graph query -q "
   securityresources
@@ -1373,6 +1497,10 @@ az graph query -q "
 **Use Case**: Quick overview of which attack path types exist and their prevalence  
 **Execution**: Azure CLI (not Advanced Hunting)
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Azure Resource Graph CLI query (az graph query) — not KQL for Defender XDR Advanced Hunting. Runs against ARM, not applicable for CD."
+-->
 ```bash
 az graph query -q "
   securityresources
