@@ -30,11 +30,11 @@ This skill analyzes **DataSecurityEvents** (Microsoft Purview Insider Risk Manag
 2. **[SIT GUID Mapping Strategy](#sit-guid-mapping-strategy)** - How SIT GUIDs are resolved to names
 3. **[Label GUID Mapping Strategy](#label-guid-mapping-strategy)** - How sensitivity label GUIDs are resolved to names
 4. **[Output Modes](#output-modes)** - Inline chat vs. Markdown file
-5. **[Quick Start](#quick-start-tldr)** - 7-step execution pattern
-6. **[Execution Workflow](#execution-workflow)** - 5-phase analysis process
-7. **[Sample KQL Queries](#sample-kql-queries)** - Validated query patterns (Queries 1-15)
-8. **[Report Template](#report-template)** - Rendering rules (12 rules) + output format specification
-9. **[Known Pitfalls](#known-pitfalls)** - Table quirks and edge cases (23 entries)
+5. **[Quick Start](#quick-start-tldr)** - 8-step execution pattern
+6. **[Execution Workflow](#execution-workflow)** - 6-phase analysis process
+7. **[Sample KQL Queries](#sample-kql-queries)** - Validated query patterns (Queries 1-16d)
+8. **[Report Template](#report-template)** - Rendering rules (15 rules) + output format specification
+9. **[Known Pitfalls](#known-pitfalls)** - Table quirks and edge cases (27 entries)
 10. **[Error Handling](#error-handling)** - Troubleshooting guide
 
 ---
@@ -248,9 +248,10 @@ Get-Label | Select-Object DisplayName, @{N='LabelGuid';E={$_.Guid.ToString()}}, 
 2. **Check config.json** → Look for `sit_mapping` and `label_mapping` sections for custom name resolution
 3. **Run Phase 1** → Query 1 (SIT Discovery) + Label Coverage Assessment (quick stats variant) to determine environment maturity
 4. **Run Phase 2** → Queries 2-5 (breakdowns by action type, user, file, time)
-5. **Run Phase 3** → Queries 6-8 (DLP correlation, workload, SIT drill-down), Query 10b (file-based spikes)
-6. **Run Phase 4** → Queries 11-15 (label landscape, label-based user ranking, label downgrades, Copilot label exposure, label-only events) — **depth depends on label coverage** (see Rule 11)
-7. **Output Results** → Render in selected mode(s), offer PowerShell resolution for unknowns
+5. **Run Phase 2.5** → Queries 16a-16d (Copilot SIT exposure analysis) — **conditional on Copilot volume** (see Phase 2.5 trigger)
+6. **Run Phase 3** → Queries 6-8 (DLP correlation, workload, SIT drill-down), Query 10b (file-based spikes)
+7. **Run Phase 4** → Queries 11-15 (label landscape, label-based user ranking, label downgrades, Copilot label exposure, label-only events) — **depth depends on label coverage** (see Rule 11)
+8. **Output Results** → Render in selected mode(s), offer PowerShell resolution for unknowns
 
 ---
 
@@ -280,6 +281,35 @@ Run these queries in parallel where possible:
 | Query 3 | **User Ranking** | Top users by SIT interaction volume — risk-ranked |
 | Query 4 | **File Inventory** | Top files/documents containing the most SIT detections |
 | Query 5 | **Temporal Pattern** | Daily/hourly volume trend to spot spikes |
+
+### Phase 2.5: Copilot SIT Exposure Analysis (conditional on Copilot volume)
+
+**Trigger:** Run this phase when **Copilot/AI events exceed 30% of total volume** (determined from Query 2 Action Type breakdown or Query 7 Workload breakdown).
+
+**Goal:** Decompose Copilot SIT interactions by priority tier, identify users prompting high-value SITs into Copilot, separate service account noise from human risk signals, and estimate real interaction counts (correcting for row multiplication).
+
+**Key insight:** Each Copilot interaction generates **~2-3 DSE rows on average** (up to 35 for complex exchanges) because Purview creates separate rows for prompt SIT matches, response SIT matches, and compound agent interactions. Raw event counts must be corrected for this multiplier when reporting interaction volumes.
+
+| Query | Purpose |
+|-------|---------|
+| Query 16a | **Copilot SIT Landscape** — Which SITs fire in Copilot interactions, classified by priority tier (High/Medium/Low) |
+| Query 16b | **Top Users by High-Priority SIT in Copilot** — Risk-ranked users excluding service accounts |
+| Query 16c | **Daily Temporal Trend by SIT Category** — Spot adoption vs risk pattern changes over time |
+| Query 16d | **Prompt-Only Human Users** — Users typing sensitive data INTO Copilot (primary risk signal), excluding service accounts and responses |
+
+**Service Account Filtering:** Automated service accounts (e.g., Security Copilot agents, Purview agents) can generate 50-70% of all Copilot events. These accounts typically follow patterns like `securitycopilotagentuser-*`, `svc-*`, or system-generated UPN prefixes with GUIDs. Query 16a quantifies the agent vs human split; Queries 16b-16d exclude agents to surface human risk.
+
+**Priority SIT Classification:** SITs are classified into tiers for Copilot risk assessment:
+
+| Tier | SIT Categories | Risk Rationale |
+|------|---------------|----------------|
+| 🔴 **High** | Credit Card Numbers, SSNs, Azure/Cloud Credentials, Employee HR Data (custom) | Direct financial, identity, or infrastructure exposure |
+| 🟡 **Medium** | Project code names (custom), Employee IDs (custom) | Business-sensitive but not directly exploitable |
+| 🔵 **Low** | All Full Names, IP Addresses, Physical Addresses, Medical Terms | High-volume, low-specificity — noise in Copilot context |
+
+> **Custom SIT classification:** Organizations should classify their custom/EDM SITs into these tiers. If `config.json` has a `sit_priority` section (mapping GUID → tier), use it. Otherwise, classify custom SITs as 🔴 High by default (conservative).
+
+---
 
 ### Phase 3: Deep Dive (conditional on scope)
 
@@ -847,6 +877,163 @@ DataSecurityEvents
 
 ---
 
+### Query 16a: Copilot SIT Landscape with Priority Tiers
+
+**Purpose:** Break down which SITs fire in Copilot interactions, classify by priority tier, and quantify service account vs human split. This is the entry point for Phase 2.5.
+
+> **Prerequisite:** Merge the well-known SIT GUID mapping datatable (above) with any `config.json` `sit_mapping` entries before running.
+
+```kql
+// Query 16a: Copilot SIT Landscape — priority-tiered breakdown with agent/human split
+// Prefix with SITMapping datatable
+// ── SIT Priority Classification (canonical definition — Queries 16c/16d reference this) ──
+let HighPrioritySITs = dynamic([
+    "50842eb7-edc8-4019-85dd-5a5c1f2bb085",  // Credit Card Number
+    "a44669fe-0d48-453d-a9b1-2cc83f2cba77",  // U.S. SSN
+    "0f587d92-eb28-44a9-bd1c-90f2892b47aa",  // Azure DocumentDB Auth Key
+    "ce1a126d-186f-4700-8c0c-486157b953fd",  // Azure SQL Connection String
+    "0b34bec3-d5d6-4974-b7b0-dcdb5c90c29d",  // Azure IoT Connection String
+    "c7bc98e8-551a-4c35-a92d-d2c8cda714a7",  // Azure Storage Account Key
+    "095a7e6c-efd8-46d5-af7b-5298d53a49fc"   // Azure Redis Cache Connection String
+    // ── ADD credential/HR SIT GUIDs from config.json sit_mapping HERE ──
+]);
+let MediumPrioritySITs = dynamic([
+    // ── ADD project/employee ID SIT GUIDs from config.json sit_mapping HERE ──
+]);
+// ── Service account regex (update with org-specific patterns) ──
+let ServiceAccountPattern = @"^(securitycopilotagentuser-|svc-)";
+DataSecurityEvents
+| where Timestamp > ago(30d)
+| where ActionType has "Copilot"
+| where isnotempty(SensitiveInfoTypeInfo)
+| mv-expand SIT = parse_json(tostring(SensitiveInfoTypeInfo))
+| extend SITJson = parse_json(tostring(SIT))
+| extend SITId = tostring(SITJson.SensitiveInfoTypeId)
+| extend IsAgent = AccountUpn matches regex ServiceAccountPattern
+| summarize
+    TotalEvents = count(),
+    AgentEvents = countif(IsAgent),
+    HumanEvents = countif(not(IsAgent) and isnotempty(AccountUpn)),
+    HumanUsers = dcountif(AccountUpn, not(IsAgent) and isnotempty(AccountUpn)),
+    PromptEvents = countif(ActionType has "prompt"),
+    ResponseEvents = countif(ActionType has "response")
+    by SITId
+| lookup kind=leftouter SITMapping on $left.SITId == $right.SITId
+| extend SITDisplay = iff(isempty(SITName) or SITName == "END_MARKER", strcat("[Unknown] ", SITId), SITName)
+| extend PriorityTier = case(
+    SITId in (HighPrioritySITs), "🔴 High",
+    SITId in (MediumPrioritySITs), "🟡 Medium",
+    "🔵 Low")
+| project SITDisplay, PriorityTier, TotalEvents, AgentEvents, HumanEvents, HumanUsers, PromptEvents, ResponseEvents, SITId
+| order by TotalEvents desc
+```
+
+**Post-processing:**
+- Populate `HighPrioritySITs` and `MediumPrioritySITs` arrays with credential, HR, and custom SIT GUIDs from `config.json` `sit_mapping`. Any SIT not in either array defaults to Low.
+- If `config.json` has a `sit_priority` section (GUID → tier mapping), use it to override the default classification.
+- Calculate **Agent % of total** — if > 50%, flag prominently in report ("⚠️ N% of Copilot SIT events are from automated service accounts").
+- Unknown SITs (`[Unknown]`) should be classified as 🔴 High by default (conservative — unknown custom SITs may be high-value EDM/exact data match).
+
+---
+
+### Query 16b: Top Users by High-Priority SIT in Copilot (Excluding Service Accounts)
+
+**Purpose:** Risk-rank human users whose Copilot interactions triggered high-priority SIT detections. Excludes automated service accounts.
+
+```kql
+// Query 16b: Top 20 human users by high-priority SIT in Copilot interactions
+// Prefix with SITMapping datatable and HighPrioritySITs + ServiceAccountPattern from Query 16a
+DataSecurityEvents
+| where Timestamp > ago(30d)
+| where ActionType has "Copilot"
+| where isnotempty(SensitiveInfoTypeInfo)
+| where not(AccountUpn matches regex ServiceAccountPattern)
+| where isnotempty(AccountUpn)
+| mv-expand SIT = parse_json(tostring(SensitiveInfoTypeInfo))
+| extend SITJson = parse_json(tostring(SIT))
+| extend SITId = tostring(SITJson.SensitiveInfoTypeId)
+| where SITId in (HighPrioritySITs)
+| lookup kind=leftouter SITMapping on $left.SITId == $right.SITId
+| extend SITDisplay = iff(isempty(SITName) or SITName == "END_MARKER", strcat("[Unknown] ", SITId), SITName)
+| summarize
+    Events = count(),
+    DistinctHighSITs = dcount(SITId),
+    SITNames = make_set(SITDisplay),
+    PromptEvents = countif(ActionType has "prompt"),
+    ResponseEvents = countif(ActionType has "response"),
+    FirstSeen = min(Timestamp),
+    LastSeen = max(Timestamp)
+    by AccountUpn
+| order by Events desc
+| take 20
+```
+
+---
+
+### Query 16c: Daily Copilot SIT Trend by Priority Category
+
+**Purpose:** Track daily Copilot SIT detection volume by priority tier to distinguish adoption changes from risk spikes.
+
+```kql
+// Query 16c: Daily Copilot SIT trend by priority category (human users only)
+// ── Copy HighPrioritySITs from Query 16a (canonical list: CCN, SSN, Azure credentials + config.json custom) ──
+// ── Copy ServiceAccountPattern from Query 16a ──
+DataSecurityEvents
+| where Timestamp > ago(30d)
+| where ActionType has "Copilot"
+| where isnotempty(SensitiveInfoTypeInfo)
+| where not(AccountUpn matches regex ServiceAccountPattern)
+| where isnotempty(AccountUpn)
+| mv-expand SIT = parse_json(tostring(SensitiveInfoTypeInfo))
+| extend SITJson = parse_json(tostring(SIT))
+| extend SITId = tostring(SITJson.SensitiveInfoTypeId)
+| extend PriorityTier = iff(SITId in (HighPrioritySITs), "High", "Low")
+| summarize Events = count() by Day = bin(Timestamp, 1d), PriorityTier
+| order by Day asc, PriorityTier asc
+```
+
+**Post-processing:** Render as a dual-line chart or table with High vs Low columns per day. Spikes in the High tier warrant investigation; spikes in Low tier alone are typically noise from broad SITs (All Full Names, IP Addresses) and can be noted but not escalated.
+
+---
+
+### Query 16d: Prompt-Only Analysis — Human Users Typing Sensitive Data INTO Copilot
+
+**Purpose:** The primary risk signal — users who typed sensitive data into Copilot prompts (not just receiving sensitive responses). Excludes service accounts and response-only events.
+
+```kql
+// Query 16d: Prompt-only human users with high-priority SIT detections
+// This is the key risk signal: sensitive data entered BY the user INTO Copilot
+// ── Copy HighPrioritySITs and ServiceAccountPattern from Query 16a ──
+DataSecurityEvents
+| where Timestamp > ago(30d)
+| where ActionType has "prompt"  // Prompts only — user-initiated risk
+| where isnotempty(SensitiveInfoTypeInfo)
+| where not(AccountUpn matches regex ServiceAccountPattern)
+| where isnotempty(AccountUpn)
+| mv-expand SIT = parse_json(tostring(SensitiveInfoTypeInfo))
+| extend SITJson = parse_json(tostring(SIT))
+| extend SITId = tostring(SITJson.SensitiveInfoTypeId)
+| where SITId in (HighPrioritySITs)
+| lookup kind=leftouter SITMapping on $left.SITId == $right.SITId
+| extend SITDisplay = iff(isempty(SITName) or SITName == "END_MARKER", strcat("[Unknown] ", SITId), SITName)
+| summarize
+    PromptEvents = count(),
+    DistinctHighSITs = dcount(SITId),
+    SITNames = make_set(SITDisplay),
+    FirstSeen = min(Timestamp),
+    LastSeen = max(Timestamp)
+    by AccountUpn
+| order by PromptEvents desc
+| take 20
+```
+
+**Why prompts matter more than responses:**
+- **"Risky prompt entered in Copilot"** = User typed/pasted sensitive data (SSN, credit card, credentials) into a Copilot prompt. This is a behavioral risk — the user chose to share sensitive data with AI.
+- **"Sensitive response received in Copilot"** = Copilot retrieved and surfaced sensitive data from grounding sources (SharePoint, OneDrive, email). This is an access/configuration risk — overpermissioned data exposure.
+- Prompt events are the stronger signal for insider risk and user coaching interventions.
+
+---
+
 ## Report Template
 
 ### Report Rendering Rules
@@ -1000,6 +1187,47 @@ This prevents ambiguity — "All Employees" exists under BOTH Confidential and H
 
 ⛔ **PROHIBITED:** Displaying sub-label names without their parent (e.g., just "Specific people" — which parent?).
 
+#### Rule 13: Service Account Separation in Copilot Analysis
+
+All Copilot SIT analysis MUST separate **automated service accounts** from **human users**. Service accounts (Security Copilot agents, Purview agents, etc.) can generate 50-70% of Copilot event volume and must not inflate human risk metrics.
+
+| Requirement | Detail |
+|-------------|--------|
+| **Identify service accounts** | Filter: `AccountUpn matches regex ServiceAccountPattern` (defined in Query 16a: `@"^(securitycopilotagentuser-\|svc-)"`). Check Query 16a results for additional org-specific patterns (any account with >10K events and a GUID-like UPN prefix is likely automated) |
+| **Report agent volume separately** | Include a summary line: "⚠️ N automated service accounts generated X events (Y% of Copilot volume) — excluded from human risk analysis below" |
+| **Never mix in user rankings** | Queries 16b-16d exclude agents by default. If rendering an overall Copilot user table, agents go in a separate subsection |
+| **Power-user flagging** | After agent exclusion, if any single human user accounts for >20% of remaining Copilot events, flag them: "⚠️ Power user — may indicate automated workflow via Copilot" |
+
+⛔ **PROHIBITED:** Including automated service accounts in human user risk rankings for Copilot SIT analysis.
+⛔ **PROHIBITED:** Reporting raw Copilot event counts as "user interactions" without noting the ~2-3x row multiplication factor.
+
+#### Rule 14: Copilot Event Row Multiplication Awareness
+
+Each Copilot interaction generates **multiple DSE rows** (average ~2-3x, up to 35x for complex exchanges). Purview creates separate rows for:
+- The **prompt** (if it contains a SIT match) — "Risky prompt entered in Copilot"
+- The **response** (if grounding data contains SIT matches) — "Sensitive response received in Copilot"
+- **Compound events** — agent interactions, SharePoint access, multiple simultaneous conditions
+
+| Reporting Requirement | Format |
+|----------------------|--------|
+| Raw event counts | "N Copilot SIT events (raw DSE rows)" |
+| Estimated interactions | "~N/2.5 estimated real interactions" (use the ratio from the environment if calculated) |
+| User daily rates | If citing per-user daily rates, note whether raw or estimated: "~X interactions/day (estimated from Y raw events)" |
+
+This rule prevents stakeholders from seeing "270K Copilot events" and panicking when the actual interaction count is ~95K.
+
+#### Rule 15: Copilot SIT Report Section (Phase 2.5 Output)
+
+When Phase 2.5 is triggered (Copilot >30% of events), render a dedicated **"Copilot SIT Exposure"** section with:
+
+1. **Service Account vs Human Split** — "X events from N service accounts (Y%), Z events from N human users (Y%)" with the agent exclusion note
+2. **SIT Priority Landscape** — Table from Query 16a showing SITs by priority tier (High/Medium/Low) with human-only metrics
+3. **High-Priority SIT Users** — Top 10 human users from Query 16b with prompt vs response breakdown
+4. **Prompt Risk Signal** — Top 10 users from Query 16d who typed high-priority SITs into Copilot prompts — this is the primary actionable finding
+5. **Temporal Trend** — Daily trend from Query 16c (optional — include if spikes are interesting)
+
+If Copilot events are <30% of total, skip Phase 2.5 entirely and note in the Copilot section: "Copilot events represent X% of total volume — below threshold for dedicated analysis. See Action Type breakdown for Copilot summary."
+
 ---
 
 ### Inline Chat Format
@@ -1043,6 +1271,22 @@ This prevents ambiguity — "All Employees" exists under BOTH Confidential and H
 | 2026-03-11 | user@domain.com | doc.docx | HC / Project X | Confidential / All employees | Label downgraded |
 | ... | | | | | |
 
+### 🤖 Copilot SIT Exposure (if Copilot >30% of events)
+**Service Accounts:** N agents generated X events (Y%) — excluded from analysis below
+**Row Multiplication:** ~2-3 DSE rows per real interaction (est. ~Z real interactions)
+
+| # | SIT Name | Priority | Human Events | Human Users | Prompts | Responses |
+|---|----------|----------|-------------|-------------|---------|----------|
+| 1 | Credit Card Number | 🔴 High | 1,234 | 89 | 456 | 778 |
+| 2 | All Full Names | 🔵 Low | 45,678 | 1,200 | 12,345 | 33,333 |
+| ... | | | | | | |
+
+**🔴 Prompt Risk — Users Typing High-Priority SITs Into Copilot:**
+| # | User | Prompt Events | SIT Types | Last Active |
+|---|------|-------------|-----------|-------------|
+| 1 | user@domain.com | 142 | SSN, Credit Card | 2026-03-16 |
+| ... | | | | |
+
 ### ⚠️ SIT Access Spike Alerts
 | User | Baseline (daily avg) | Recent (daily avg) | Spike Ratio | Status |
 |------|---------------------|-------------------|-------------|--------|
@@ -1074,7 +1318,7 @@ Same structure as inline, wrapped in proper markdown with:
 | **`SensitiveInfoTypeInfo` is `Collection(String)`, not dynamic** | Each element is a JSON **string** requiring double-parse: `parse_json(tostring(SensitiveInfoTypeInfo))` to expand array, then `parse_json(tostring(element))` to access fields | Always double-parse. Direct dot-notation fails silently |
 | **Massive row counts** | 600k+ rows in 30 days for mid-size tenants; millions for 100k+ user orgs | ALWAYS `summarize` first. NEVER retrieve raw rows without `take` limit |
 | **`mv-expand` is expensive** | Expanding SensitiveInfoTypeInfo across 600k rows without pre-filtering is extremely slow | Pre-filter with `where SensitiveInfoTypeInfo has "<GUID>"` before `mv-expand` |
-| **Copilot dominates event volume** | "Risky prompt entered in Copilot" and "Sensitive response received in Copilot" can be 90%+ of events | Filter to specific `ActionType` values when investigating file access specifically |
+| **Copilot dominates event volume** | 90%+ of events can be Copilot-related. See **Rules 2-3** for report handling and **Phase 2.5** for dedicated Copilot analysis | Filter to specific `ActionType` values for file access. Use `Workload !in ("Copilot", "ConnectedAIApp")` for file-only analysis |
 | **Trainable classifiers (MLModel) don't resolve** | GUIDs with `ClassifierType: "MLModel"` may not exist in `Get-DlpSensitiveInformationType` | Display as `[ML Classifier] <GUID>` and note in report |
 | **SIT GUID is per-SIT, not per-detection** | Multiple documents can match the same SIT GUID — the GUID identifies the SIT **type**, not the specific match | Use `Count` and `Confidence` fields from SITJson for detection-level detail |
 | **`ObjectId` can be empty** | Copilot interaction events may not have an ObjectId (no specific file) | Filter `isnotempty(ObjectId)` for file-specific analysis |
@@ -1094,6 +1338,10 @@ Same structure as inline, wrapped in proper markdown with:
 | **Default label GUIDs are deterministic but not officially documented** | All 12 default labels (including parents) use `defa4170-0d19-0005-XXXX-bc88714345d2` with sequential suffixes `0000`–`000b` (confirmed via `Get-Label` on default-configuration tenants). However, Microsoft does not publish these GUIDs in official docs. **Older/customized tenants** may have: (a) renamed default labels (e.g., "Non-business" instead of "Personal"), (b) replaced parent label GUIDs with random tenant-specific ones, or (c) added custom sub-labels that break the sequential pattern | The embedded datatable includes all 12 confirmed default GUIDs. For tenants with custom parent GUIDs, add them via `config.json` `label_mapping`. If `Get-Label` returns different names for a `defa4170` GUID, prefer the `Get-Label` name for that tenant |
 | **`PreviousSensitivityLabelId` can equal `SensitivityLabelId`** | On "Label removed from a file" events, both fields may contain the same GUID (the label that was removed). The current label after removal may be empty | Check `ActionType` to distinguish: "Label downgraded" = actual label change; "Label removed" = label stripped (current may be empty); "Label on file downgraded or removed, then file accessed by Copilot" = compound event with Copilot exposure |
 | **Label-only events require label-aware DLP/IRM policies** | Events with labels but no SIT content (Query 15) only appear if a DLP or IRM policy explicitly targets sensitivity labels. Environments with no label-based policies will see zero label-only events even if documents are labeled | If Query 15 returns 0 results AND labels exist (Query 11 > 0), this indicates no label-based DLP/IRM policies are configured — mention this as a gap in the report |
+| **Copilot service accounts inflate event counts** | Automated service accounts can generate 50-70% of all Copilot events. See **Rule 13** for full requirements | Filter: `where not(AccountUpn matches regex ServiceAccountPattern)` (defined in Query 16a). Run Query 16a to quantify agent vs human split |
+| **Copilot row multiplication (~2-3x per interaction)** | Each interaction generates ~2-3 DSE rows (prompt + response + compound events), up to 35 for complex exchanges. See **Rule 14** for reporting requirements | Estimate real interactions as `raw_events / 2.5`. Always include multiplier context when reporting Copilot volumes |
+| **Correct field name is `SensitiveInfoTypeId` (not `SensitiveType`)** | Inside the `SensitiveInfoTypeInfo` JSON, the SIT GUID field is named `SensitiveInfoTypeId`. LLMs frequently generate `SensitiveType` or `SensitiveTypeId` — both are wrong and return null/empty when accessed | Always use `tostring(SITJson.SensitiveInfoTypeId)`. Other valid fields: `Confidence` (int), `ClassifierType` (string), `Count` (int), `SubEntityName` (string — "Prompt" or "Response" in Copilot events) |
+| **`SubEntityName` distinguishes Prompt vs Response in Copilot SIT events** | Inside `SensitiveInfoTypeInfo` JSON, `SubEntityName` contains "Prompt" or "Response" — indicating whether the SIT was detected in the user's prompt or Copilot's response. This is more reliable than relying on `ActionType` text matching for prompt/response classification within individual SIT matches | Use `tostring(SITJson.SubEntityName)` when doing per-SIT prompt/response breakdowns. `ActionType` classifies the event-level action; `SubEntityName` classifies the per-SIT-match context |
 
 ---
 
@@ -1132,6 +1380,10 @@ When the user specifically asks about **who opened/accessed/downloaded documents
 |------------|---------|
 | `Sensitive response received in Copilot` | Copilot surfaced content matching a SIT |
 | `Risky prompt entered in Copilot` | User prompt triggered risk detection |
+| `Sensitive response received in Copilot;Agent generating sensitive responses` | Copilot agent generated response containing SIT matches |
+| `Risky prompt entered in Copilot;Sensitive response received in Copilot` | Both prompt and response contained SIT matches |
+| `Risky prompt entered in Copilot;Sensitive response received in Copilot;Exposing agent to risky prompts;Agent generating sensitive responses` | Compound agent event — prompt + response + agent risk |
+| `Risky prompt entered in Copilot;Exposing agent to risky prompts` | User exposed a Copilot agent to a risky prompt |
 
 **Label-related ActionTypes** (sensitivity label events):
 
