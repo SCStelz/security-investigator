@@ -17,9 +17,11 @@ python -m venv .venv
 # source .venv/bin/activate          # macOS/Linux
 pip install -r requirements.txt
 
-# 3. Configure API keys
+# 3. Configure environment
 copy config.json.template config.json
-# Edit config.json → add your Sentinel workspace ID, tenant ID, and API tokens
+# Edit config.json → add your Sentinel workspace ID, tenant ID
+copy .env.template .env
+# Edit .env → add your API tokens (ipinfo, AbuseIPDB, vpnapi, Shodan)
 
 # 4. Configure MCP servers
 copy .vscode\mcp.json.template .vscode\mcp.json
@@ -231,8 +233,10 @@ security-investigator/
 ├── investigator.py              # Data models and core types
 ├── enrich_ips.py                # Standalone IP enrichment utility
 ├── cleanup_old_investigations.py # Automated cleanup (3+ days old)
-├── config.json                  # Configuration (workspace IDs, tokens)
+├── config.json                  # Configuration (workspace IDs, mappings)
 ├── config.json.template         # Config template (committed to Git)
+├── .env                         # API tokens (gitignored, auto-loaded by python-dotenv)
+├── .env.template                # Token template (committed to Git)
 ├── .vscode/
 │   └── mcp.json.template       # MCP server config template (copy to mcp.json)
 ├── requirements.txt             # Python dependencies
@@ -337,7 +341,7 @@ pip install -r requirements.txt
 
 ### 2. Configure Environment
 
-Copy `config.json.template` to `config.json` and fill in your values:
+Copy `config.json.template` to `config.json` and fill in your workspace details:
 
 ```json
 {
@@ -350,10 +354,6 @@ Copy `config.json.template` to `config.json` and fill in your values:
     "tenant": "YOUR_TENANT_ID_HERE",
     "subscription": "YOUR_SUBSCRIPTION_ID_HERE"
   },
-  "ipinfo_token": null,
-  "abuseipdb_token": null,
-  "vpnapi_token": null,
-  "shodan_token": null,
   "output_dir": "reports"
 }
 ```
@@ -364,11 +364,32 @@ Copy `config.json.template` to `config.json` and fill in your values:
 | `tenant_id` | Yes | Entra ID (Azure AD) tenant ID for your Sentinel workspace |
 | `subscription_id` | Yes | Azure subscription ID containing the Sentinel workspace |
 | `azure_mcp.*` | Yes | Azure MCP Server parameters — resource group, workspace name, tenant, subscription. Required to avoid cross-tenant auth errors. |
-| `ipinfo_token` | Recommended | [ipinfo.io](https://ipinfo.io/) API token — geolocation, ASN, org. Free: 1K/day; token: 50K/month; paid plans include VPN detection |
-| `abuseipdb_token` | Recommended | [AbuseIPDB](https://www.abuseipdb.com/) API token — IP reputation scoring (0-100 confidence). Free: 1K/day |
-| `vpnapi_token` | Optional | [vpnapi.io](https://vpnapi.io/) API token — VPN/proxy/Tor detection. Not needed if ipinfo.io is on a paid plan |
-| `shodan_token` | Optional | [Shodan](https://account.shodan.io/) API key — open ports, services, CVEs, OS detection, tags. Free InternetDB fallback if no key or credits exhausted |
 | `output_dir` | No | Directory for HTML reports (default: `reports`) |
+
+#### API Tokens (`.env` file)
+
+API tokens for IP enrichment are stored in a `.env` file (gitignored) rather than `config.json` for security. Copy the template and add your keys:
+
+```powershell
+copy .env.template .env
+# Edit .env with your token values
+```
+
+```dotenv
+IPINFO_TOKEN=your_token_here
+ABUSEIPDB_TOKEN=your_token_here
+VPNAPI_TOKEN=your_token_here
+SHODAN_TOKEN=your_token_here
+```
+
+These are auto-loaded by `enrich_ips.py` via `python-dotenv` — no manual sourcing needed.
+
+| Token | Required | Description |
+|-------|----------|-------------|
+| `IPINFO_TOKEN` | Recommended | [ipinfo.io](https://ipinfo.io/) API token — geolocation, ASN, org. Free: 1K/day; token: 50K/month; paid plans include VPN detection |
+| `ABUSEIPDB_TOKEN` | Recommended | [AbuseIPDB](https://www.abuseipdb.com/) API token — IP reputation scoring (0-100 confidence). Free: 1K/day |
+| `VPNAPI_TOKEN` | Optional | [vpnapi.io](https://vpnapi.io/) API token — VPN/proxy/Tor detection. Not needed if ipinfo.io is on a paid plan |
+| `SHODAN_TOKEN` | Optional | [Shodan](https://account.shodan.io/) API key — open ports, services, CVEs, OS detection, tags. Free InternetDB fallback if no key or credits exhausted |
 
 ### 3. Configure MCP Servers
 

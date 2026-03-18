@@ -10,9 +10,11 @@ Enriches IP addresses using ipinfo.io, vpnapi.io, AbuseIPDB, and Shodan.
 """
 
 import json
+import os
 import sys
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dotenv import load_dotenv
 from pathlib import Path
 
 # AbuseIPDB category ID to name mapping
@@ -27,10 +29,24 @@ ABUSE_CATEGORIES = {
 
 
 def load_config() -> dict:
-    """Load API tokens from config.json"""
+    """Load config from config.json, with API tokens overridden by environment variables."""
+    # Auto-load .env file from the project root if present
+    load_dotenv(Path(__file__).parent / '.env')
     config_path = Path(__file__).parent / 'config.json'
     with open(config_path, 'r') as f:
-        return json.load(f)
+        config = json.load(f)
+    # Environment variables take precedence over config.json for API tokens
+    env_token_map = {
+        'ipinfo_token': 'IPINFO_TOKEN',
+        'abuseipdb_token': 'ABUSEIPDB_TOKEN',
+        'vpnapi_token': 'VPNAPI_TOKEN',
+        'shodan_token': 'SHODAN_TOKEN',
+    }
+    for config_key, env_var in env_token_map.items():
+        env_val = os.environ.get(env_var)
+        if env_val:
+            config[config_key] = env_val
+    return config
 
 
 def enrich_single_ip(ip: str, config: dict) -> dict:
