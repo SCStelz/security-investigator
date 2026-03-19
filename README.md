@@ -63,7 +63,7 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 │  │ (Schema)    │  │ Learn (Docs) │  │ (ARM + Monitor)           │  │
 │  └─────────────┘  └──────────────┘  └───────────────────────────┘  │
 │  ┌─────────────┐                                                   │
-│  │ Sentinel    │  ⚠️ Private Preview                                │
+│  │ Sentinel    │                                                   │
 │  │ Graph (Rel) │                                                   │
 │  └─────────────┘                                                   │
 ├────────────────────────────────────────────────────────────────────┤
