@@ -207,7 +207,7 @@ Each dimension contributes 0–20 points to a maximum of 100:
 | **Unauthenticated Agents** | 20 | 0 no-auth agents | 1 no-auth agent | ≥2 no-auth agents, especially if Published |
 | **XPIA Email Risk** | 20 | 0 agents with GenAI + email | 1 agent with GenAI + email (inputs hardcoded) | ≥1 agent with GenAI + email (inputs AI-controlled) |
 | **MCP Tool Exposure** | 20 | 0–2 MCP agents, known creators | 3–10 MCP agents | >10 MCP agents or agents with `invokemcpgraph` + broad access |
-| **Knowledge Source Risk** | 20 | 0 agents with SharePoint/internal sources + broad access | 1–3 agents with internal sources + scoped access | Agents with internal data sources + `AccessControlPolicy == "Any"` |
+| **Knowledge Source Risk** | 20 | 0 agents with SharePoint/internal sources + broad access | 1–3 agents with internal sources + scoped access | Agents with internal data sources + `AccessControlPolicy == "Any"`. **Compounding rule:** When agents have SharePoint sources + GenAI + SendEmailV2 + "Any" access (the full XPIA chain from Q5 + Q7), score at maximum (20) for this dimension AND score XPIA Email Risk at maximum (20) — the combination is the documented attack pattern |
 | **Credential Hygiene** | 20 | 0 credential patterns detected | Patterns found but agent is unpublished (Created) | Patterns found in Published agents |
 
 ### Interpretation Scale
@@ -365,8 +365,9 @@ AIAgentsInfo
 
 **Post-processing:**
 - `InputsPopulated == false` → All email inputs (recipient, subject, body) are AI-controlled = **highest XPIA risk**
-- `InputsPopulated == true` → Some inputs hardcoded (e.g., fixed recipient) = **reduced but not eliminated risk**
+- `InputsPopulated == true` → Some inputs hardcoded (e.g., fixed recipient) = **reduced but not eliminated risk**. Note: `InputsPopulated` only checks the action-level `inputs` field in `AgentToolsDetails` — it does NOT detect topic-level validation (which is invisible to this query and unreliable for GenAI agents anyway; see [Pitfall #9](#9-genai-orchestrator-bypasses-topics-for-tool-invocation)).
 - Cross-reference with Q4: if agent also has `UserAuthenticationType == "None"`, flag as **double risk**.
+- **Cross-reference with Q7:** if agent also has `SharePointSearchSource` knowledge sources, flag as the **documented XPIA exfiltration pattern** ([Attack Scenario 2](#attack-scenario-2-prompt-injection-via-shared-document--email-exfiltration-xpia)). The triple combination of GenAI orchestration + SendEmailV2 + SharePoint knowledge source is the textbook attack chain — prioritize these agents for Defender Runtime Protection.
 
 **🔴 Attack Scenario Mapping:** This query detects the agent configuration preconditions for two documented attack scenarios:
 
@@ -879,6 +880,20 @@ Include the following additional sections in the file report that are omitted fr
 **Problem:** Some agents have `null` for `IsGenerativeOrchestrationEnabled` rather than `true`/`false`.
 
 **Solution:** Treat `null` as unknown. In Q5 (XPIA risk), filter explicitly on `== true` to avoid false positives.
+
+### 9. GenAI Orchestrator Bypasses Topics for Tool Invocation
+
+**Problem:** When `IsGenerativeOrchestrationEnabled == true`, the AI orchestrator invokes tools (e.g., `SendEmailV2`) directly based on its plan — it does NOT route through authored topic flows in `AgentTopicsDetails`. This means topic-level validation logic (e.g., domain checks, recipient restrictions added to a topic) is **not a defense** against XPIA attacks on GenAI agents.
+
+**Impact:** Do not recommend topic-level controls as an XPIA mitigation for generative agents. The attack surface is entirely in the `AgentToolsDetails` layer (tools the orchestrator can invoke). The documented mitigations are: (1) Hardcode email inputs at the action level, (2) Power Platform DLP connector policies, (3) Microsoft Defender Runtime Protection (webhook-based real-time tool invocation inspection).
+
+**Telemetry note:** Q5 inspects `AgentToolsDetails.inputs` (action-level hardcoded values). Topic-level conditions are invisible to this query and unreliable as a control for GenAI agents.
+
+### 10. AgentTopicsDetails Contains System-Default Boilerplate
+
+**Problem:** `AgentTopicsDetails` for most agents contains only system-default topics (~8–13 per agent): Greeting, Goodbye, Escalate, Error, CSAT Survey, OnSignIn, ConversationStart, OnUnknownIntent. The `displayName` field is typically empty. Conditions within these topics are system boilerplate (survey yes/no, error handling), not custom business logic.
+
+**Impact:** Do not expect `AgentTopicsDetails` to contain actionable security controls or custom domain validation. For GenAI agents, the real capability surface is `AgentToolsDetails` — topics are scripted dialog fallbacks that the orchestrator largely bypasses.
 
 ---
 
