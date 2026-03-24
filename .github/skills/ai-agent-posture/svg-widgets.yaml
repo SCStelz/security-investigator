@@ -1,0 +1,249 @@
+# SVG Dashboard Widget Manifest — AI Agent Security Posture Report
+#
+# This file defines the layout and data mapping for generating an SVG dashboard
+# from a completed AI Agent Security Posture report. It is consumed by the shared
+# SVG rendering skill at .github/skills/svg-dashboard/SKILL.md
+#
+# Usage:  After generating an AI agent posture report, ask:
+#           "Generate an SVG dashboard from the report"
+#         Copilot will read this manifest + the report data + the skill,
+#         then produce a single SVG file in reports/ai-agent-posture/.
+#
+# Customization:  Tweak rows, reorder widgets, add/remove items, change colors.
+#                 The renderer adapts to whatever is defined here.
+
+# ─── Canvas ──────────────────────────────────────────────────────────────────
+canvas:
+  width: 1400
+  height: 1100          # 5 rows, 12 widgets — within output token limits
+  background: "#0d1117"
+  padding: 30
+  row_gap: 20
+  col_gap: 20
+  font_family: "Segoe UI, Roboto, sans-serif"
+
+# ─── Color Palette ───────────────────────────────────────────────────────────
+palette:
+  primary: "#409AE1"      # blue   — KPI highlights, primary data
+  secondary: "#b4a0ff"    # purple — secondary charts
+  accent: "#FFC83D"       # yellow — warnings, near-threshold
+  danger: "#EF6950"       # red    — critical findings, flagged entities
+  success: "#40C5AF"      # green  — stable, healthy metrics
+  muted: "#b2b2b2"        # gray   — labels, axis text
+  card_bg: "#161b22"      # dark card background
+  card_border: "#30363d"  # subtle border
+  text_primary: "#e6edf3"
+  text_secondary: "#b2b2b2"
+
+# ─── Score Rating Colors ────────────────────────────────────────────────────
+score_rating_colors:
+  healthy: "#40C5AF"        # green  — 0–25 (low risk)
+  elevated: "#FFC83D"       # yellow — 26–50 (elevated)
+  concerning: "#FF8C00"     # orange — 51–75 (concerning)
+  critical: "#EF6950"       # red    — 76–100 (critical)
+
+# ─── Dimension Colors (Agent Security Score — 5 dimensions) ─────────────────
+dimension_colors:
+  unauth_agents: "#40C5AF"    # green  — authentication coverage
+  xpia_email: "#EF6950"      # red    — XPIA email exfiltration risk
+  mcp_tools: "#409AE1"       # blue   — MCP tool exposure
+  knowledge_risk: "#b4a0ff"  # purple — knowledge source risk
+  credential_hygiene: "#FFC83D" # yellow — credential hygiene
+
+# ─── Row Definitions ─────────────────────────────────────────────────────────
+# TOKEN-BUDGET LAYOUT: 5 rows, 12 widgets, ~1100px height
+# Designed for AI agent posture reports with score card, dimension breakdown,
+# XPIA risk table, tool inventory, and recommendations.
+
+rows:
+
+  # ── ROW 1: Title Bar ────────────────────────────────────────────────────────
+  - id: title-bar
+    height: 70
+    widgets:
+      - type: title-banner
+        fields:
+          title: "AI Agent Security Posture Dashboard"
+          subtitle_fields:
+            - platform                # e.g. "Copilot Studio"
+            - analysis_period         # e.g. "2026-03-12 → 2026-03-19 (7 days)"
+            - generation_date         # e.g. "2026-03-19"
+        style:
+          title_size: 26
+          subtitle_size: 13
+          accent_color: palette.primary
+
+  # ── ROW 2: Agent Security Score + KPI Cards ────────────────────────────────
+  - id: score-and-kpis
+    height: 150
+    widgets:
+      - type: score-card
+        title: "Agent Security Score"
+        field: agent_security_score         # e.g. 38 (0–100, lower is better)
+        width_pct: 25
+        ranges:
+          - { min: 0,  max: 25, color: score_rating_colors.healthy,    label: "Healthy" }
+          - { min: 26, max: 50, color: score_rating_colors.elevated,   label: "Elevated" }
+          - { min: 51, max: 75, color: score_rating_colors.concerning,  label: "Concerning" }
+          - { min: 76, max: 100, color: score_rating_colors.critical,   label: "Critical" }
+        show_rating_label: true
+
+      - type: kpi-card
+        label: "Total Agents"
+        field: total_agents                 # from Key Metrics
+        unit: "agents"
+        icon: "bot"
+
+      - type: kpi-card
+        label: "Published"
+        field: published_agents             # from Key Metrics
+        unit: "agents"
+        icon: "rocket"
+        highlight_color: palette.primary
+
+      - type: kpi-card
+        label: "XPIA Risk"
+        field: xpia_risk_count              # agents with GenAI + AI-controlled email
+        unit: "agents"
+        icon: "alert-triangle"
+        highlight_color: palette.danger
+
+      - type: kpi-card
+        label: "MCP Tools"
+        field: mcp_agent_count              # agents with MCP tools configured
+        unit: "agents"
+        icon: "plug"
+        highlight_color: palette.accent
+
+      - type: kpi-card
+        label: "No Auth"
+        field: unauthenticated_count        # agents with no authentication
+        unit: "agents"
+        icon: "shield-off"
+        highlight_color: palette.danger
+
+  # ── ROW 3: Score Dimensions + Access Control ───────────────────────────────
+  - id: dimensions-and-access
+    height: 280
+    widgets:
+      - type: horizontal-bar-chart
+        title: "Security Score Dimensions"
+        field: score_dimensions             # array of {dimension, score, max}
+        width_pct: 50
+        bar_height: 32
+        max_items: 5
+        value_suffix: "/20"
+        label_field: "dimension"
+        value_field: "score"
+        max_value: 20
+        bar_color_map:
+          "Unauth Agents": dimension_colors.unauth_agents
+          "XPIA Email Risk": dimension_colors.xpia_email
+          "MCP Tool Exposure": dimension_colors.mcp_tools
+          "Knowledge Risk": dimension_colors.knowledge_risk
+          "Credential Hygiene": dimension_colors.credential_hygiene
+
+      - type: table-widget
+        title: "XPIA Email Risk Agents"
+        field: xpia_risk_agents             # array of {agent, creator, inputs, access, sharepoint}
+        width_pct: 50
+        columns:
+          - { header: "Agent",      field: "agent",     width: 30 }
+          - { header: "Inputs",     field: "inputs",    width: 25, badge: true }
+          - { header: "Access",     field: "access",    width: 20, badge: true }
+          - { header: "SharePoint", field: "sharepoint", width: 25 }
+        max_items: 5
+        badge_colors:
+          "AI-controlled": palette.danger
+          "Hardcoded": palette.success
+          "Any": palette.danger
+          "Group": palette.success
+
+  # ── ROW 4: Tool Inventory + Knowledge Sources ─────────────────────────────
+  - id: tools-and-knowledge
+    height: 280
+    widgets:
+      - type: horizontal-bar-chart
+        title: "Tool Distribution"
+        field: tool_distribution            # array of {tool, count}
+        width_pct: 45
+        bar_height: 28
+        max_items: 6
+        value_suffix: ""
+        color: palette.secondary
+        label_field: "tool"
+        value_field: "count"
+
+      - type: table-widget
+        title: "Knowledge Sources"
+        field: knowledge_sources             # array of {agent, source_type, site, access}
+        width_pct: 55
+        columns:
+          - { header: "Agent",   field: "agent",       width: 25 }
+          - { header: "Type",    field: "source_type", width: 20 }
+          - { header: "Site",    field: "site",        width: 35 }
+          - { header: "Access",  field: "access",      width: 20, badge: true }
+        max_items: 6
+        badge_colors:
+          "Any": palette.danger
+          "Group": palette.success
+          "Group membership": palette.success
+
+  # ── ROW 5: Assessment + Recommendations ────────────────────────────────────
+  - id: assessment-and-recs
+    height: 200
+    widgets:
+      - type: assessment-banner
+        title: "Security Assessment"
+        field: overall_assessment            # e.g. "ELEVATED — XPIA risk on 3 Published agents"
+        width_pct: 40
+        severity_field: "level"              # "critical" | "high" | "medium" | "low" | "informational"
+        detail_field: "detail"               # 1-2 sentence supporting text
+        severity_colors:
+          critical: palette.danger
+          high: "#FF8C00"
+          medium: palette.accent
+          low: palette.success
+          informational: palette.primary
+
+      - type: recommendation-cards
+        title: "Recommendations"
+        field: recommendations               # array of {priority, text}
+        width_pct: 60
+        max_items: 3
+        priority_colors:
+          high: palette.danger
+          medium: palette.accent
+          low: palette.primary
+          info: palette.muted
+
+# ─── Data Source Mapping ─────────────────────────────────────────────────────
+# Maps each widget field to the report section where the data lives.
+# The SVG renderer extracts these values from the completed report markdown.
+data_sources:
+  report_file: "reports/ai-agent-posture/AI_Agent_Posture_Report_*.md"
+  field_mapping_notes: |
+    # Row 1 — Title
+    platform: "Report header → Platform field (e.g. Copilot Studio)"
+    analysis_period: "Report header → Analysis Period field"
+    generation_date: "Report header → Generated field"
+
+    # Row 2 — Score + KPIs
+    agent_security_score: "Agent Security Score Card → score value (0–100, lower = better)"
+    total_agents: "Key Metrics → Total Agents (non-deleted)"
+    published_agents: "Key Metrics → Published Agents"
+    xpia_risk_count: "Key Metrics → Agents with GenAI + Email (XPIA Risk)"
+    mcp_agent_count: "Key Metrics → Agents with MCP Tools"
+    unauthenticated_count: "Key Metrics → Agents with No Authentication"
+
+    # Row 3 — Dimensions + XPIA table
+    score_dimensions: "Agent Security Score Card → Dimension Breakdown table (5 rows: dimension, score/20)"
+    xpia_risk_agents: "XPIA Email Exfiltration Risk table → agent, inputs AI-controlled, access policy, SharePoint source"
+
+    # Row 4 — Tools + Knowledge
+    tool_distribution: "Full Tools Inventory → Tool Distribution Summary (tool kind × agent count)"
+    knowledge_sources: "Knowledge Source Exposure → Complete Knowledge Source Listing table"
+
+    # Row 5 — Assessment + Recommendations
+    overall_assessment: "Security Assessment table → overall risk rating with detail text"
+    recommendations: "Recommendations section → top 3 action items with priority levels (🔴=high, 🟠=medium, 🟡=low)"

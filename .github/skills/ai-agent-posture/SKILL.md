@@ -127,6 +127,7 @@ This is the primary runtime defense against all three scenarios above. When revi
 8. **[Markdown File Report Template](#markdown-file-report-template)** — Disk-saved format
 9. **[Known Pitfalls](#known-pitfalls)** — Schema quirks and edge cases
 10. **[Quality Checklist](#quality-checklist)** — Pre-delivery validation
+11. **[SVG Dashboard Generation](#svg-dashboard-generation)** — Visual dashboard from report
 
 ---
 
@@ -914,3 +915,28 @@ Before delivering the report, verify:
 - [ ] Recommendations are prioritized and evidence-based
 - [ ] All hyperlinks in the report are copied verbatim from the URL Registry — no fabricated or recalled-from-memory URLs
 - [ ] No PII from live environments in the SKILL.md file itself
+
+---
+
+## SVG Dashboard Generation
+
+> 📊 **Optional post-report step.** After an AI Agent Security Posture report is generated, the user can request a visual SVG dashboard.
+
+**Trigger phrases:** "generate SVG dashboard", "create a visual dashboard", "visualize this report", "SVG from the report"
+
+### How to Request a Dashboard
+
+- **Same chat:** "Generate an SVG dashboard from the report" — data is already in context.
+- **New chat:** Attach or reference the report file, e.g. `#file:reports/ai-agent-posture/AI_Agent_Posture_Report_<org>_<date>.md`
+- **Customization:** Edit [svg-widgets.yaml](svg-widgets.yaml) before requesting — the renderer reads it at generation time.
+
+### Execution
+
+```
+Step 1:  Read svg-widgets.yaml (this skill's widget manifest)
+Step 2:  Read .github/skills/svg-dashboard/SKILL.md (rendering rules — Manifest Mode)
+Step 3:  Read the completed report file (data source)
+Step 4:  Render SVG → save to reports/ai-agent-posture/{report_name}_dashboard.svg
+```
+
+The YAML manifest is the single source of truth for layout, widgets, field mappings, colors, and data source documentation. All customization happens there.
