@@ -19,13 +19,16 @@ This skill performs comprehensive security investigations on Windows, macOS, and
 
 1. **[Critical Workflow Rules](#-critical-workflow-rules---read-first-)** - Start here!
 2. **[Investigation Types](#available-investigation-types)** - Standard/Quick/Comprehensive
-3. **[Quick Start](#quick-start-tldr)** - 5-step investigation pattern
-4. **[Execution Workflow](#execution-workflow)** - Complete process
-5. **[Sample KQL Queries](#sample-kql-queries)** - Validated query patterns
-6. **[Microsoft Graph Queries](#microsoft-graph-device-queries)** - Entra ID device data
-7. **[Defender for Endpoint Queries](#defender-for-endpoint-queries)** - MDE API integration
-8. **[JSON Export Structure](#json-export-structure)** - Required fields
-9. **[Error Handling](#error-handling)** - Troubleshooting guide
+3. **[Output Modes](#output-modes)** - Inline / Markdown file / JSON export
+4. **[Quick Start](#quick-start-tldr)** - 5-step investigation pattern
+5. **[Execution Workflow](#execution-workflow)** - Complete process
+6. **[Sample KQL Queries](#sample-kql-queries)** - Validated query patterns
+7. **[Microsoft Graph Queries](#microsoft-graph-device-queries)** - Entra ID device data
+8. **[Defender for Endpoint Queries](#defender-for-endpoint-queries)** - MDE API integration
+9. **[Markdown Report Template](#markdown-report-template)** - Full markdown report structure
+10. **[JSON Export Structure](#json-export-structure)** - Required fields
+11. **[Error Handling](#error-handling)** - Troubleshooting guide
+12. **[SVG Dashboard Generation](#svg-dashboard-generation)** - Visual dashboard from report data
 
 ---
 
@@ -36,10 +39,11 @@ This skill performs comprehensive security investigations on Windows, macOS, and
 1. **ALWAYS get Device ID FIRST** (required for Defender API and Graph queries - multiple IDs exist!)
 2. **ALWAYS determine device type** (Entra Joined, Hybrid Joined, or Entra Registered)
 3. **ALWAYS calculate date ranges correctly** (use current date from context - see Date Range section)
-4. **ALWAYS track and report time after each major step** (mandatory)
-5. **ALWAYS run independent queries in parallel** (drastically faster execution)
-6. **ALWAYS use `create_file` for JSON export** (NEVER use PowerShell terminal commands)
-7. **⛔ ALWAYS enforce Sentinel workspace selection** (see Workspace Selection section below)
+4. **ALWAYS ask the user for output mode** if not specified: inline chat summary, markdown file report, or JSON export (see [Output Modes](#output-modes))
+5. **ALWAYS track and report time after each major step** (mandatory)
+6. **ALWAYS run independent queries in parallel** (drastically faster execution)
+7. **ALWAYS use `create_file` for JSON export and markdown reports** (NEVER use PowerShell terminal commands)
+8. **⛔ ALWAYS enforce Sentinel workspace selection** (see Workspace Selection section below)
 
 ---
 
@@ -152,6 +156,37 @@ IF query returns "Failed to resolve table" or similar error:
 
 ---
 
+## Output Modes
+
+This skill supports three output modes. **ASK the user which they prefer** if not explicitly specified. Multiple modes may be selected simultaneously.
+
+### Mode 1: Inline Chat Summary (Default)
+- Render the full investigation analysis directly in the chat response
+- Includes device profile, risk assessment, alerts, vulnerabilities, logged-on users, and recommendations
+- Best for quick review and interactive follow-up questions
+- No file output — results stay in the chat context
+
+### Mode 2: Markdown File Report
+- Save a comprehensive investigation report to `reports/computer-investigations/computer_investigation_<device_name>_<YYYYMMDD_HHMMSS>.md`
+- All sections from inline mode plus additional detail (full vulnerability tables, process event samples, network connection details, query appendix)
+- Uses the [Markdown Report Template](#markdown-report-template) defined below
+- Use `create_file` tool — NEVER use terminal commands for file output
+- **Filename pattern:** `computer_investigation_<device_name>_YYYYMMDD_HHMMSS.md` (lowercase device name, replace spaces/special chars with underscores)
+
+### Mode 3: JSON Export (Legacy)
+- Export investigation data to JSON for downstream processing or archival
+- Uses the [JSON Export Structure](#json-export-structure) defined below
+- Best for programmatic consumption or integration with other tools
+
+### Markdown Rendering Notes
+- ✅ ASCII tables, box-drawing characters, and bar charts render perfectly in markdown code blocks
+- ✅ Unicode block characters (`█` full block, `─` box-drawing horizontal) display correctly in monospaced fonts
+- ✅ Emoji indicators (🔴🟢🟡⚠️✅) render natively in GitHub-flavored markdown
+- ✅ Standard markdown tables (`| col |`) render as formatted tables
+- **Tip:** Wrap all ASCII art in triple-backtick code fences for consistent rendering
+
+---
+
 ## Quick Start (TL;DR)
 
 When a user requests a computer security investigation:
@@ -169,10 +204,10 @@ When a user requests a computer security investigation:
    - Batch 2: 5 Defender API queries (machine details, logged-on users, alerts, vulnerabilities, recommendations)
    - Batch 3: 3 Graph queries (device details, compliance, BitLocker keys if needed)
 
-3. **Export to JSON:**
-   ```
-   create_file("temp/investigation_device_<device_name>_<timestamp>.json", json_content)
-   ```
+3. **Export & Report (Mode-Dependent):**
+   - **Mode 1 (Inline):** Render analysis directly in chat using the [Markdown Report Template](#markdown-report-template) as a guide
+   - **Mode 2 (Markdown):** Build full report using the [Markdown Report Template](#markdown-report-template), save to `reports/computer-investigations/`
+   - **Mode 3 (JSON):** Export to `temp/investigation_device_<device_name>_<timestamp>.json`
 
 4. **Generate Summary Report:**
    Provide investigation summary with key findings, risk assessment, and recommendations.
@@ -258,24 +293,41 @@ DeviceInfo
 
 ---
 
-### Phase 3: Export to JSON
+### Phase 3: Export & Generate Report (Mode-Dependent)
 
-Create single JSON file: `temp/investigation_device_{device_name}_{timestamp}.json`
+#### Mode 1 — Inline Chat Summary
+- No file export needed
+- Render the full investigation analysis directly in chat using the section structure from the [Markdown Report Template](#markdown-report-template) as a guide
+- Include: Device Profile, Alert Summary, Logged-On Users, Vulnerability Overview, Process Activity, Network Connections, Risk Assessment, Recommendations
+- Use emoji-coded tables for risk factors and mitigating factors
 
-Merge all results into one dict structure (see JSON Export Structure section below).
+#### Mode 2 — Markdown File Report
 
----
+1. **Assess IP enrichment needs:**
+   - Extract public IPs from network connection events and sign-in data
+   - Run `python enrich_ips.py <ip1> <ip2> ...` for threat intelligence enrichment
+   - Parse the output to populate IP Intelligence tables in the report
 
-### Phase 4: Generate Summary Report
+2. **Build the markdown report** using the [Markdown Report Template](#markdown-report-template) below
+   - Populate ALL sections with actual query data
+   - For sections with no data: use the explicit absence confirmation pattern (e.g., "✅ No alerts detected...")
+   - Calculate risk score and assessment dynamically
 
-Provide comprehensive summary including:
-- Device profile and trust type
-- Alert summary by severity
-- Logged-on users analysis
-- Vulnerability count by severity
-- Compliance status
-- Risk assessment
-- Recommended actions
+3. **Save the report:**
+   ```
+   create_file("reports/computer-investigations/computer_investigation_<device_name>_YYYYMMDD_HHMMSS.md", markdown_content)
+   ```
+   - Use `create_file` tool — NEVER use terminal commands for file output
+   - Lowercase device name, replace spaces/special chars with underscores
+
+#### Mode 3 — JSON Export (Legacy)
+
+1. **Export to JSON:**
+   ```
+   create_file("temp/investigation_device_<device_name>_<timestamp>.json", json_content)
+   ```
+
+2. Merge all results into one dict structure (see [JSON Export Structure](#json-export-structure) section below)
 
 ---
 
@@ -776,6 +828,405 @@ Filter results by machineId to find remediation tasks for the device
 
 ---
 
+## Markdown Report Template
+
+When outputting to markdown file (Mode 2), use this template. Populate ALL sections with actual query data. For sections with no data, use the explicit absence confirmation pattern.
+
+**Filename pattern:** `reports/computer-investigations/computer_investigation_<device_name>_YYYYMMDD_HHMMSS.md`
+
+````markdown
+# Computer Security Investigation Report
+
+**Generated:** YYYY-MM-DD HH:MM UTC
+**Workspace:** <workspace_name>
+**Device:** `<DEVICE_NAME>`
+**OS:** <operating_system> <os_version>
+**Trust Type:** <Entra Joined / Hybrid Joined / Entra Registered> (`<trustType>`)
+**Compliance:** <Compliant/Non-Compliant> | **Managed:** <Yes/No> | **MDM:** <Intune/None>
+**Investigation Period:** <start_date> → <end_date> (<N> days)
+**Investigation Type:** <Standard (7d) / Quick (1d) / Comprehensive (30d)>
+**Data Sources:** DeviceInfo, DeviceProcessEvents, DeviceNetworkEvents, DeviceFileEvents, DeviceRegistryEvents, DeviceLogonEvents, SigninLogs, SecurityAlert, SecurityIncident, DeviceTvmSoftwareVulnerabilities, DeviceTvmSoftwareInventory, ThreatIntelIndicators, Microsoft Graph API, Defender for Endpoint API
+
+---
+
+## Executive Summary
+
+<2-4 sentence summary: overall device risk level, key findings, most significant alerts or vulnerabilities, and primary recommendation. Ground every claim in evidence from query results.>
+
+**Overall Risk Level:** 🔴 CRITICAL / 🔴 HIGH / 🟠 MEDIUM / 🟡 LOW / 🟢 INFORMATIONAL
+
+---
+
+## Device Profile
+
+| Property | Value |
+|----------|-------|
+| **Device Name** | `<device_name>` |
+| **OS** | <os_platform> <os_version> (<os_build>) |
+| **Architecture** | <os_architecture> |
+| **Trust Type** | <Entra Joined / Hybrid Joined / Entra Registered> |
+| **Compliant** | 🟢 Yes / 🔴 No |
+| **Managed** | 🟢 Yes / 🔴 No |
+| **Manufacturer** | <manufacturer> |
+| **Model** | <model> |
+| **Registration Date** | <datetime> |
+| **Last Sign-in** | <datetime> |
+| **Internet Facing** | 🔴 Yes / 🟢 No |
+
+### Defender for Endpoint Status
+
+| Property | Value |
+|----------|-------|
+| **Onboarding Status** | 🟢 Onboarded / 🔴 Not Onboarded |
+| **Sensor Health** | 🟢 Active / 🟠 Inactive / 🔴 Misconfigured |
+| **Health Status** | <health_status> |
+| **Risk Score** | 🔴/🟠/🟡/🟢 <None/Low/Medium/High> |
+| **Exposure Level** | 🔴/🟠/🟡/🟢 <None/Low/Medium/High> |
+| **Last Seen** | <datetime> |
+| **Last Internal IP** | <ip_address> |
+| **Last External IP** | <ip_address> |
+| **Machine Group** | <group_name> |
+
+### Device Owners & Registered Users
+
+<If owners/users found:>
+
+| User | UPN | Role |
+|------|-----|------|
+| <display_name> | <upn> | Owner / Registered User |
+
+<If no owners/users:>
+✅ No registered owners or users found for this device.
+
+---
+
+## Key Metrics
+
+| Metric | Value |
+|--------|-------|
+| **Security Alerts** | <count> (Critical: <n>, High: <n>, Medium: <n>, Low: <n>) |
+| **Security Incidents** | <count> (Open: <n>, Closed: <n>) |
+| **Logged-On Users** | <count> unique users |
+| **Sign-ins from Device** | <count> (Success: <n>, Failed: <n>) |
+| **Vulnerabilities** | <count> (Critical: <n>, High: <n>, Medium: <n>) |
+| **Suspicious Processes** | <count> flagged |
+| **Network Connections** | <count> external IPs |
+| **TI Matches** | <count> threat intel hits |
+| **End-of-Support Software** | <count> |
+
+---
+
+## Security Alerts
+
+<If alerts found:>
+
+| Time | Alert Name | Severity | Status | Provider | Tactics | Compromised Entity |
+|------|-----------|----------|--------|----------|---------|---------------------|
+| <datetime> | <alert_name> | 🔴/🟠/🟡 <severity> | <status> | <provider> | <tactics> | <entity> |
+
+**Alert Summary:**
+- <X> total alerts (<breakdown by severity>)
+- <Brief description of most critical alert(s)>
+- Remediation steps: <summary of recommended actions from alert data>
+
+<If no alerts:>
+✅ No security alerts detected for this device in the investigation period.
+- Checked: SecurityAlert filtered by device name and device ID (0 matches)
+
+---
+
+## Security Incidents
+
+<If incidents found:>
+
+| ID | Title | Severity | Status | Classification | Created | Owner | Alerts | Link |
+|----|-------|----------|--------|----------------|---------|-------|--------|------|
+| <provider_incident_id> | <title> | 🔴/🟠/🟡 <severity> | <New/Active/Closed> | <TP/FP/BP/—> | <date> | <owner_upn> | <count> | [View](<url>) |
+
+**Incident Summary:**
+- <X> total incidents (<Y> open, <Z> closed)
+- Highest severity: <level>
+- <Brief description of most critical incident>
+
+<If no incidents:>
+✅ No security incidents involving this device in the investigation period.
+- Checked: SecurityAlert → SecurityIncident join on device name and device ID (0 matches)
+
+---
+
+## Logged-On Users
+
+<If users found:>
+
+| Account | Domain | Logon Type | Logon Count | Success | Failed | First Seen | Last Seen |
+|---------|--------|------------|:-----------:|:-------:|:------:|------------|-----------|
+| <account_name> | <domain> | <Interactive/RemoteInteractive/Network/etc.> | <count> | <count> | <count> | <date> | <date> |
+
+**User Analysis:**
+- <X> unique accounts authenticated on this device
+- <Summary of logon patterns — expected vs unexpected accounts, after-hours logons, remote IPs>
+
+<If no logon data:>
+✅ No logon events detected for this device in the investigation period.
+
+### Defender Logged-On Users (API)
+
+<If MDE logged-on users found:>
+
+| Account | Domain | First Seen | Last Seen | Logon Types |
+|---------|--------|------------|-----------|-------------|
+| <account_name> | <domain> | <date> | <date> | <types> |
+
+<If no MDE data:>
+✅ No logged-on user data returned from Defender for Endpoint API.
+
+---
+
+## Sign-in Activity (From Device)
+
+<If sign-in events found:>
+
+| Device Name | OS | Trust Type | Compliant | Users | Applications | IPs | Sign-ins | Success | Failed | First Seen | Last Seen |
+|-------------|-----|------------|-----------|:-----:|:------------:|:---:|:--------:|:-------:|:------:|------------|-----------|
+| <name> | <os> | <trust> | 🟢/🔴 | <count> | <count> | <count> | <count> | <count> | <count> | <date> | <date> |
+
+**Top Users:** <list of UPNs>
+**Top Applications:** <list of apps>
+**Top IPs:** <list of IPs>
+
+<If no sign-in events:>
+✅ No sign-in events found for this device in the investigation period.
+
+---
+
+## Process Activity
+
+<If suspicious processes found:>
+
+| Process | Path | Account | Process Count | Suspicious | Sample Command Lines |
+|---------|------|---------|:------------:|:----------:|----------------------|
+| <filename> | <folder_path> | <account_name> | <count> | 🔴 <count> | <truncated_command> |
+
+**Process Analysis:**
+- <X> suspicious process executions detected
+- <Summary of suspicious patterns — encoded commands, LOLBins, credential dumping tools, long command lines>
+
+<If no suspicious processes:>
+✅ No suspicious process activity detected on this device in the investigation period.
+- Checked: DeviceProcessEvents filtered for suspicious indicators (0 flagged)
+
+---
+
+## Network Connections
+
+<If external connections found:>
+
+| Remote IP | Remote Port | URL | Connections | Unique Ports | Protocols | Initiating Processes | First Seen | Last Seen |
+|-----------|:-----------:|-----|:-----------:|:------------:|-----------|----------------------|------------|-----------|
+| <ip> | <port> | <url> | <count> | <count> | <protocols> | <process_list> | <date> | <date> |
+
+**Network Summary:**
+- <X> unique external IPs contacted
+- <Y> unique remote ports
+- <Top initiating processes>
+
+<If no external connections:>
+✅ No external network connections detected for this device in the investigation period.
+
+### Threat Intelligence Matches
+
+<If TI matches found:>
+
+| IP Address | Threat Description | Confidence | Valid Until | Active |
+|------------|-------------------|:----------:|------------|:------:|
+| <ip> | <description> | <score> | <date> | ✅/❌ |
+
+<If no TI matches:>
+✅ No threat intelligence matches found for device network traffic.
+- Checked: ThreatIntelIndicators joined with device external IPs (0 matches)
+
+---
+
+## File Activity
+
+<If suspicious file events found:>
+
+| Folder Path | Initiating Process | Total Events | Suspicious | Created | Modified | Deleted | Extensions | First Seen | Last Seen |
+|-------------|-------------------|:------------:|:----------:|:-------:|:--------:|:-------:|------------|------------|-----------|
+| <path> | <process> | <count> | 🔴 <count> | <count> | <count> | <count> | <ext_list> | <date> | <date> |
+
+**File Activity Analysis:**
+- <X> suspicious file operations detected
+- <Summary — executable drops in temp folders, script creation, mass file modifications>
+
+<If no suspicious file events:>
+✅ No suspicious file activity detected on this device in the investigation period.
+- Checked: DeviceFileEvents for suspicious extensions and temp folder activity (0 flagged)
+
+---
+
+## Registry Modifications
+
+<If persistence-related registry events found:>
+
+| Registry Key | Value Name | Initiating Process | Total Events | Persistence | First Seen | Last Seen |
+|-------------|------------|-------------------|:------------:|:-----------:|------------|-----------|
+| <key> | <value_name> | <process> | <count> | 🔴 <count> | <date> | <date> |
+
+**Registry Analysis:**
+- <X> persistence-related registry modifications detected
+- <Summary — Run keys, services, Winlogon, IFEO modifications>
+
+<If no persistence registry events:>
+✅ No persistence-related registry modifications detected on this device in the investigation period.
+- Checked: DeviceRegistryEvents for Run/RunOnce/Services/Winlogon/IFEO keys (0 flagged)
+
+---
+
+## Vulnerabilities
+
+<If vulnerabilities found:>
+
+| CVE ID | Severity | Vendor | Software | Version | Security Update |
+|--------|----------|--------|----------|---------|-----------------|
+| <cve_id> | 🔴/🟠/🟡 <severity> | <vendor> | <software> | <version> | <update_id> |
+
+**Vulnerability Summary:**
+- <X> total vulnerabilities (Critical: <n>, High: <n>, Medium: <n>, Low: <n>)
+- <Most critical CVEs and their remediation status>
+
+<If no vulnerabilities:>
+✅ No known vulnerabilities detected on this device.
+- Checked: DeviceTvmSoftwareVulnerabilities (0 records)
+
+---
+
+## Software Inventory
+
+<If notable software found:>
+
+| Vendor | Software | Version | End of Support | EOS Date |
+|--------|----------|---------|:--------------:|----------|
+| <vendor> | <software> | <version> | 🔴 Yes / 🟢 No | <date> |
+
+**Software Summary:**
+- <X> total software packages installed
+- <Y> end-of-support software detected
+- <Notable findings — outdated browsers, deprecated runtimes, risky applications>
+
+<If no software data:>
+✅ No software inventory data available for this device.
+- Checked: DeviceTvmSoftwareInventory (0 records)
+
+---
+
+## Device Configuration
+
+<If configuration data available:>
+
+| Property | Value |
+|----------|-------|
+| **Public IP** | <ip> |
+| **Machine Group** | <group> |
+| **Device Category** | <category> |
+| **Onboarding Status** | <status> |
+| **Sensor Health** | <health> |
+| **Exposure Level** | <level> |
+| **Azure AD Joined** | <Yes/No> |
+| **Internet Facing** | <Yes/No> |
+| **Join Type** | <type> |
+
+---
+
+## IP Intelligence
+
+<Table of external IPs from network connections and sign-in data. Run `enrich_ips.py` for top IPs.>
+
+| IP Address | Source | Location | ISP/Org | VPN | Abuse Score | Reports | Risk |
+|------------|--------|----------|---------|-----|-------------|---------|------|
+| <ip> | 🔵 Network / 🔵 Sign-in / 🔴 TI Match | <city, country> | <org> | 🟢 No / 🔴 Yes | <score>% | <count> | HIGH/MED/LOW |
+
+---
+
+## Risk Assessment
+
+### Risk Score: <XX>/100 — 🔴 CRITICAL / 🔴 HIGH / 🟠 MEDIUM / 🟡 LOW / 🟢 INFORMATIONAL
+
+### Risk Factors
+
+| Factor | Finding |
+|--------|---------|
+| 🔴/🟠/🟡 **<Factor Name>** | <Evidence-grounded finding with specific numbers> |
+
+### Mitigating Factors
+
+| Factor | Finding |
+|--------|---------|
+| 🟢 **<Factor Name>** | <Evidence-grounded finding with specific numbers> |
+
+---
+
+## Recommendations
+
+### Critical Actions
+<Numbered list of critical actions with evidence. Only include if critical findings exist.>
+
+### High Priority Actions
+<Numbered list of high-priority actions with evidence.>
+
+### Monitoring Actions (14-Day Follow-Up)
+<Bulleted list of ongoing monitoring recommendations.>
+
+---
+
+## Appendix: Query Details
+
+| # | Query | Table(s) | Tool | Records | Execution |
+|---|-------|----------|------|--------:|----------:|
+| 1 | Device Sign-In Events | SigninLogs | Data Lake | <count> | <time> |
+| 2 | Security Alerts | SecurityAlert | Data Lake | <count> | <time> |
+| 3 | Process Events | DeviceProcessEvents | Data Lake | <count> | <time> |
+| 4 | Network Connections | DeviceNetworkEvents | Data Lake | <count> | <time> |
+| 5 | File Events | DeviceFileEvents | Data Lake | <count> | <time> |
+| 6 | Registry Events | DeviceRegistryEvents | Data Lake | <count> | <time> |
+| 7 | Security Incidents | SecurityAlert, SecurityIncident | Data Lake | <count> | <time> |
+| 8 | Device Inventory | DeviceInfo | Data Lake | <count> | <time> |
+| 9 | Software Inventory | DeviceTvmSoftwareInventory | Advanced Hunting | <count> | <time> |
+| 10 | Vulnerabilities | DeviceTvmSoftwareVulnerabilities | Advanced Hunting | <count> | <time> |
+| 11 | Logon Events | DeviceLogonEvents | Data Lake | <count> | <time> |
+| 12 | Threat Intelligence | ThreatIntelIndicators, DeviceNetworkEvents | Data Lake | <count> | <time> |
+| — | Device Profile | Microsoft Graph API | Graph | 1 | <time> |
+| — | Device Owners/Users | Microsoft Graph API | Graph | <count> | <time> |
+| — | Machine Details | Defender for Endpoint API | MDE | 1 | <time> |
+| — | Logged-On Users | Defender for Endpoint API | MDE | <count> | <time> |
+
+*Query definitions: see the Sample KQL Queries section in this SKILL.md file.*
+
+**Do NOT include full KQL text in the appendix** — the canonical queries are already documented in this SKILL.md file. The appendix serves as an audit trail only.
+
+---
+
+**Investigation Timeline:**
+- [MM:SS] ✓ Phase 1: Device ID retrieval (<X>s)
+- [MM:SS] ✓ Phase 2: Parallel data collection (<X>s)
+- [MM:SS] ✓ IP Enrichment (<X>s)
+- [MM:SS] ✓ Phase 3: Report generation (<X>s)
+- **Total Investigation Time:** <duration>
+````
+
+### Markdown Report Authoring Guidelines
+
+1. **Populate every section** — even if data is empty. Use the `✅ No <X> detected...` pattern for empty sections.
+2. **Never invent data** — follow the [Evidence-Based Analysis](#-evidence-based-analysis---global-rule) global rule strictly. Every number in the report must come from a query result.
+3. **Risk assessment is dynamic** — calculate risk score using the weighted framework in the [Risk Assessment Framework](#risk-assessment-framework) section (Defender Risk Score 25%, Active Alerts 25%, Vulnerabilities 20%, Compliance Status 15%, Sign-in Anomalies 15%).
+4. **IP enrichment** — run `enrich_ips.py` for external IPs from network connections and sign-in data. If `enrich_ips.py` is unavailable, use Sentinel ThreatIntelIndicators data as fallback.
+5. **PII-Free** — the report file is saved to `reports/` which is gitignored. However, exercise caution with any files that may be shared externally.
+6. **Emoji consistency** — follow the [Emoji Formatting](#emoji-formatting-for-investigation-output) table from `copilot-instructions.md` for all risk/status indicators.
+7. **Query appendix** — include record counts and execution times but NOT full KQL text. Reference the SKILL.md query numbers.
+8. **Trust type context** — always reference the device trust type in the Executive Summary and Risk Assessment, as it affects the security implications.
+
+---
+
 ## JSON Export Structure
 
 Export MCP query results to a single JSON file with these required keys:
@@ -962,4 +1413,20 @@ This skill follows all patterns from the main `copilot-instructions.md`:
 
 ---
 
-*Last Updated: January 23, 2026*
+## SVG Dashboard Generation
+
+After generating a computer investigation report (markdown file output), an SVG dashboard can be created using the shared SVG rendering skill.
+
+**Trigger:** User asks "generate an SVG dashboard from the report" or "visualize this report"
+
+**Workflow:**
+1. Read this skill's `svg-widgets.yaml` (widget manifest — defines layout, colors, field mapping)
+2. Read `.github/skills/svg-dashboard/SKILL.md` (rendering rules — component library, quality standards)
+3. Extract data from the completed report using `data_sources.field_mapping_notes`
+4. Render SVG → save as `{report_basename}_dashboard.svg` in the same directory
+
+**Layout:** 5 rows — title banner, risk score card + KPI cards (alerts/incidents/vulnerabilities/users/EOS software), alerts by MITRE tactic bar chart + vulnerabilities by severity bar chart, incidents table + risk/mitigating factors table, assessment banner + recommendations.
+
+---
+
+*Last Updated: March 24, 2026*

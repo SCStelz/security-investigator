@@ -1,0 +1,250 @@
+# SVG Dashboard Widget Manifest — Computer Security Investigation Report
+#
+# This file defines the layout and data mapping for generating an SVG dashboard
+# from a completed Computer Investigation report. It is consumed by the shared
+# SVG rendering skill at .github/skills/svg-dashboard/SKILL.md
+#
+# Usage:  After generating a computer investigation report (markdown file), ask:
+#           "Generate an SVG dashboard from the report"
+#         Copilot will read this manifest + the report data + the skill,
+#         then produce a single SVG file in reports/computer-investigations/.
+#
+# Customization:  Tweak rows, reorder widgets, add/remove items, change colors.
+#                 The renderer adapts to whatever is defined here.
+
+# ─── Canvas ──────────────────────────────────────────────────────────────────
+canvas:
+  width: 1400
+  height: 1200          # 5 rows, 12 widgets — computer investigation report
+  background: "#0d1117"
+  padding: 30
+  row_gap: 20
+  col_gap: 20
+  font_family: "Segoe UI, Roboto, sans-serif"
+
+# ─── Color Palette ───────────────────────────────────────────────────────────
+palette:
+  primary: "#409AE1"      # blue   — KPI highlights, primary data
+  secondary: "#b4a0ff"    # purple — secondary charts
+  accent: "#FFC83D"       # yellow — warnings, medium severity
+  danger: "#EF6950"       # red    — critical findings, high risk
+  success: "#40C5AF"      # green  — clean/healthy metrics, mitigating factors
+  muted: "#b2b2b2"        # gray   — labels, axis text
+  card_bg: "#161b22"      # dark card background
+  card_border: "#30363d"  # subtle border
+  text_primary: "#e6edf3"
+  text_secondary: "#b2b2b2"
+
+# ─── Risk Score Colors ──────────────────────────────────────────────────────
+score_rating_colors:
+  low: "#40C5AF"           # green  — 0–25 (low risk)
+  medium: "#FFC83D"        # yellow — 26–50 (medium)
+  high: "#FF8C00"          # orange — 51–75 (high)
+  critical: "#EF6950"      # red    — 76–100 (critical)
+
+# ─── Alert / Vulnerability Severity Colors ──────────────────────────────────
+severity_colors:
+  critical: "#EF6950"      # red
+  high: "#EF6950"          # red
+  medium: "#FF8C00"        # orange
+  low: "#FFC83D"           # yellow
+  informational: "#409AE1" # blue
+
+# ─── Row Definitions ─────────────────────────────────────────────────────────
+# TOKEN-BUDGET LAYOUT: 5 rows, 12 widgets, ~1200px height
+# Designed for computer/device security investigation reports with alerts,
+# vulnerabilities, logged-on users, and recommendations.
+
+rows:
+
+  # ── ROW 1: Title Bar ────────────────────────────────────────────────────────
+  - id: title-bar
+    height: 70
+    widgets:
+      - type: title-banner
+        fields:
+          title: "Computer Security Investigation Dashboard"
+          subtitle_fields:
+            - device_identity          # e.g. "workstation-01.contoso.com"
+            - os_summary               # e.g. "Windows 11 24H2 (10.0.26100) x64"
+            - trust_type               # e.g. "Hybrid Joined · Non-Compliant"
+            - investigation_period     # e.g. "2026-03-17 → 2026-03-26 (7 days)"
+        style:
+          title_size: 26
+          subtitle_size: 13
+          accent_color: palette.primary
+
+  # ── ROW 2: Risk Score + KPI Cards ──────────────────────────────────────────
+  - id: score-and-kpis
+    height: 150
+    widgets:
+      - type: score-card
+        title: "Risk Score"
+        field: risk_score                   # e.g. 95 (0–100, higher is worse)
+        width_pct: 20
+        ranges:
+          - { min: 0,  max: 25, color: score_rating_colors.low,      label: "Low" }
+          - { min: 26, max: 50, color: score_rating_colors.medium,   label: "Medium" }
+          - { min: 51, max: 75, color: score_rating_colors.high,     label: "High" }
+          - { min: 76, max: 100, color: score_rating_colors.critical, label: "Critical" }
+        show_rating_label: true
+
+      - type: kpi-card
+        label: "Security Alerts"
+        field: alert_count                  # from Key Metrics
+        unit: ""
+        icon: "alert-octagon"
+        highlight_color: palette.danger
+
+      - type: kpi-card
+        label: "Incidents"
+        field: incident_count               # from Key Metrics
+        unit: ""
+        icon: "alert-triangle"
+        highlight_color: palette.danger
+
+      - type: kpi-card
+        label: "Vulnerabilities"
+        field: vulnerability_count          # total from TVM
+        unit: ""
+        icon: "shield-off"
+        highlight_color: palette.accent
+
+      - type: kpi-card
+        label: "Logged-On Users"
+        field: logon_user_count             # unique human accounts
+        unit: "users"
+        icon: "users"
+        highlight_color: palette.primary
+
+      - type: kpi-card
+        label: "EOS Software"
+        field: eos_software_count           # end-of-support packages
+        unit: ""
+        icon: "clock"
+        highlight_color: palette.accent
+
+  # ── ROW 3: Alerts by Tactic + Vulnerabilities by Severity ──────────────────
+  - id: alerts-and-vulns
+    height: 300
+    widgets:
+      - type: horizontal-bar-chart
+        title: "Security Alerts by MITRE Tactic"
+        field: alerts_by_tactic             # array of {tactic, count}
+        width_pct: 50
+        bar_height: 28
+        max_items: 8
+        value_suffix: ""
+        label_field: "tactic"
+        value_field: "count"
+        bar_color_map:
+          "Impact": "#EF6950"
+          "LateralMovement": "#FF8C00"
+          "DefenseEvasion": "#FFC83D"
+          "Execution": "#b4a0ff"
+          "Persistence": "#409AE1"
+          "Collection": "#40C5AF"
+          "C2": "#EF6950"
+          "Discovery": "#b2b2b2"
+        color: palette.primary              # default for unmapped tactics
+
+      - type: horizontal-bar-chart
+        title: "Vulnerabilities by Severity"
+        field: vulns_by_severity            # array of {severity, count}
+        width_pct: 50
+        bar_height: 28
+        max_items: 4
+        value_suffix: ""
+        label_field: "severity"
+        value_field: "count"
+        bar_color_map:
+          "Critical": "#EF6950"
+          "High": "#FF8C00"
+          "Medium": "#FFC83D"
+          "Low": "#40C5AF"
+        color: palette.muted
+
+  # ── ROW 4: Incidents Table + Risk Factors ──────────────────────────────────
+  - id: incidents-and-risk
+    height: 300
+    widgets:
+      - type: table-widget
+        title: "Security Incidents"
+        field: security_incidents           # array of {id, title, severity, status, classification, alerts}
+        width_pct: 55
+        columns:
+          - { header: "ID",       field: "id",       width: 10 }
+          - { header: "Title",    field: "title",    width: 35 }
+          - { header: "Severity", field: "severity", width: 12, badge: true }
+          - { header: "Status",   field: "status",   width: 12, badge: true }
+          - { header: "Class.",   field: "classification", width: 16 }
+          - { header: "Alerts",   field: "alerts",   width: 10 }
+        max_items: 6
+        badge_colors:
+          "High": "#EF6950"
+          "Medium": "#FF8C00"
+          "Low": "#FFC83D"
+          "Informational": "#409AE1"
+          "New": "#FFC83D"
+          "Closed": "#40C5AF"
+
+      - type: table-widget
+        title: "Risk & Mitigating Factors"
+        field: risk_factors                 # array of {emoji, factor, finding}
+        width_pct: 45
+        columns:
+          - { header: "",        field: "emoji",   width: 5 }
+          - { header: "Factor",  field: "factor",  width: 35 }
+          - { header: "Finding", field: "finding", width: 60 }
+        max_items: 8
+
+  # ── ROW 5: Assessment + Recommendations ────────────────────────────────────
+  - id: assessment-and-recs
+    height: 220
+    widgets:
+      - type: assessment-banner
+        title: "Investigation Assessment"
+        field: overall_assessment            # e.g. {level: "critical", detail: "..."}
+        width_pct: 40
+        severity_field: "level"              # "critical" | "high" | "medium" | "low" | "informational"
+        detail_field: "detail"               # 1-2 sentence supporting text
+        key_risks_field: "key_risks"         # array of strings — highlighted in danger color
+        strengths_field: "strengths"         # array of strings — highlighted in success color
+        severity_colors:
+          critical: palette.danger
+          high: "#FF8C00"
+          medium: palette.accent
+          low: palette.success
+          informational: palette.primary
+
+      - type: recommendation-cards
+        title: "Top Recommendations"
+        field: recommendations               # array of {title, priority, description}
+        width_pct: 60
+        max_items: 3
+        card_colors:
+          critical: palette.danger
+          high: "#FF8C00"
+          medium: palette.accent
+          low: palette.success
+
+# ─── Data Source Mapping ─────────────────────────────────────────────────────
+data_sources:
+  report_path: "reports/computer-investigations/computer_investigation_*.md"
+  field_mapping_notes: |
+    - device_identity       → Report header "Device:" field
+    - os_summary            → Report header "OS:" field
+    - trust_type            → "Trust Type:" + "Compliance:" from header
+    - investigation_period  → Report header "Investigation Period:" field
+    - risk_score            → "Risk Score:" under Risk Assessment section
+    - alert_count           → "Security Alerts" row in Key Metrics
+    - incident_count        → "Security Incidents" row in Key Metrics
+    - vulnerability_count   → "Vulnerabilities" row in Key Metrics (total count)
+    - logon_user_count      → "Logged-On Users" row in Key Metrics (unique human count)
+    - eos_software_count    → "End-of-Support Software" row in Key Metrics
+    - alerts_by_tactic      → Derive from Security Alerts table: count distinct alert rows per Tactic
+    - vulns_by_severity     → Derive from Vulnerability Summary or Key Metrics severity breakdown
+    - security_incidents    → Security Incidents table (ID, Title, Severity, Status, Classification, Alerts count)
+    - risk_factors          → Risk Factors + Mitigating Factors tables under Risk Assessment
+    - overall_assessment    → Executive Summary risk level + first 2-3 sentences
+    - recommendations       → Top 3 from Recommendations section (Critical first)

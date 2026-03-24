@@ -1,0 +1,246 @@
+# SVG Dashboard Widget Manifest — User Security Investigation Report
+#
+# This file defines the layout and data mapping for generating an SVG dashboard
+# from a completed User Investigation report. It is consumed by the shared
+# SVG rendering skill at .github/skills/svg-dashboard/SKILL.md
+#
+# Usage:  After generating a user investigation report (markdown file), ask:
+#           "Generate an SVG dashboard from the report"
+#         Copilot will read this manifest + the report data + the skill,
+#         then produce a single SVG file in reports/user-investigations/.
+#
+# Customization:  Tweak rows, reorder widgets, add/remove items, change colors.
+#                 The renderer adapts to whatever is defined here.
+
+# ─── Canvas ──────────────────────────────────────────────────────────────────
+canvas:
+  width: 1400
+  height: 1200          # 5 rows, 12 widgets — user investigation report
+  background: "#0d1117"
+  padding: 30
+  row_gap: 20
+  col_gap: 20
+  font_family: "Segoe UI, Roboto, sans-serif"
+
+# ─── Color Palette ───────────────────────────────────────────────────────────
+palette:
+  primary: "#409AE1"      # blue   — KPI highlights, primary data
+  secondary: "#b4a0ff"    # purple — secondary charts
+  accent: "#FFC83D"       # yellow — warnings, medium severity
+  danger: "#EF6950"       # red    — critical findings, high risk
+  success: "#40C5AF"      # green  — clean/healthy metrics, mitigating factors
+  muted: "#b2b2b2"        # gray   — labels, axis text
+  card_bg: "#161b22"      # dark card background
+  card_border: "#30363d"  # subtle border
+  text_primary: "#e6edf3"
+  text_secondary: "#b2b2b2"
+
+# ─── Risk Score Colors ──────────────────────────────────────────────────────
+score_rating_colors:
+  low: "#40C5AF"           # green  — 0–25 (low risk)
+  medium: "#FFC83D"        # yellow — 26–50 (medium)
+  high: "#FF8C00"          # orange — 51–75 (high)
+  critical: "#EF6950"      # red    — 76–100 (critical)
+
+# ─── Incident Severity Colors ───────────────────────────────────────────────
+severity_colors:
+  high: "#EF6950"          # red
+  medium: "#FF8C00"        # orange
+  low: "#FFC83D"           # yellow
+  informational: "#409AE1" # blue
+
+# ─── Row Definitions ─────────────────────────────────────────────────────────
+# TOKEN-BUDGET LAYOUT: 5 rows, 12 widgets, ~1200px height
+# Designed for user security investigation reports with risk scoring,
+# sign-in analysis, incidents, and recommendations.
+
+rows:
+
+  # ── ROW 1: Title Bar ────────────────────────────────────────────────────────
+  - id: title-bar
+    height: 70
+    widgets:
+      - type: title-banner
+        fields:
+          title: "User Security Investigation Dashboard"
+          subtitle_fields:
+            - user_identity            # e.g. "Jane Doe (janedoe@contoso.com)"
+            - investigation_period     # e.g. "2026-03-17 → 2026-03-26 (7 days)"
+            - account_status           # e.g. "Account: Disabled"
+        style:
+          title_size: 26
+          subtitle_size: 13
+          accent_color: palette.primary
+
+  # ── ROW 2: Risk Score + KPI Cards ──────────────────────────────────────────
+  - id: score-and-kpis
+    height: 150
+    widgets:
+      - type: score-card
+        title: "Risk Score"
+        field: risk_score                   # e.g. 90 (0–100, higher is worse)
+        width_pct: 20
+        ranges:
+          - { min: 0,  max: 25, color: score_rating_colors.low,      label: "Low" }
+          - { min: 26, max: 50, color: score_rating_colors.medium,   label: "Medium" }
+          - { min: 51, max: 75, color: score_rating_colors.high,     label: "High" }
+          - { min: 76, max: 100, color: score_rating_colors.critical, label: "Critical" }
+        show_rating_label: true
+
+      - type: kpi-card
+        label: "Total Sign-ins"
+        field: total_signins                # from Key Metrics
+        unit: ""
+        icon: "log-in"
+        highlight_color: palette.primary
+
+      - type: kpi-card
+        label: "Success Rate"
+        field: success_rate                 # e.g. "9.8%"
+        unit: ""
+        icon: "check-circle"
+        highlight_color: palette.success
+
+      - type: kpi-card
+        label: "Unique IPs"
+        field: unique_ips                   # from Key Metrics
+        unit: "IPs"
+        icon: "globe"
+        highlight_color: palette.secondary
+
+      - type: kpi-card
+        label: "Incidents"
+        field: incident_count               # from Key Metrics
+        unit: ""
+        icon: "alert-triangle"
+        highlight_color: palette.danger
+
+      - type: kpi-card
+        label: "Anomalies"
+        field: anomaly_count                # from Key Metrics
+        unit: ""
+        icon: "activity"
+        highlight_color: palette.accent
+
+  # ── ROW 3: Top Applications + Sign-in Failures ─────────────────────────────
+  - id: apps-and-failures
+    height: 300
+    widgets:
+      - type: horizontal-bar-chart
+        title: "Top Applications by Sign-ins"
+        field: top_applications             # array of {app, signins}
+        width_pct: 50
+        bar_height: 28
+        max_items: 6
+        value_suffix: ""
+        label_field: "app"
+        value_field: "signins"
+        color: palette.primary
+
+      - type: horizontal-bar-chart
+        title: "Sign-in Failures by Error Code"
+        field: failure_codes                # array of {error, count}
+        width_pct: 50
+        bar_height: 28
+        max_items: 6
+        value_suffix: ""
+        label_field: "error"
+        value_field: "count"
+        bar_color_map:
+          "50057 — Disabled": "#EF6950"
+          "50076 — MFA Required": "#FF8C00"
+          "50173 — Grant Expired": "#FFC83D"
+        color: palette.danger               # default for unmapped errors
+
+  # ── ROW 4: Incidents Table + Risk Factors ──────────────────────────────────
+  - id: incidents-and-risk
+    height: 300
+    widgets:
+      - type: table-widget
+        title: "Security Incidents"
+        field: security_incidents           # array of {id, title, severity, status, classification}
+        width_pct: 55
+        columns:
+          - { header: "ID",       field: "id",       width: 10 }
+          - { header: "Title",    field: "title",    width: 40 }
+          - { header: "Severity", field: "severity", width: 15, badge: true }
+          - { header: "Status",   field: "status",   width: 15, badge: true }
+          - { header: "Class.",   field: "classification", width: 20 }
+        max_items: 6
+        badge_colors:
+          "High": "#EF6950"
+          "Informational": "#409AE1"
+          "New": "#FFC83D"
+          "Closed": "#40C5AF"
+
+      - type: table-widget
+        title: "Risk & Mitigating Factors"
+        field: risk_factors                 # array of {emoji, factor, finding}
+        width_pct: 45
+        columns:
+          - { header: "",        field: "emoji",   width: 5 }
+          - { header: "Factor",  field: "factor",  width: 35 }
+          - { header: "Finding", field: "finding", width: 60 }
+        max_items: 8
+
+  # ── ROW 5: Assessment + Recommendations ────────────────────────────────────
+  - id: assessment-and-recs
+    height: 220
+    widgets:
+      - type: assessment-banner
+        title: "Investigation Assessment"
+        field: overall_assessment            # e.g. {level: "critical", detail: "..."}
+        width_pct: 40
+        severity_field: "level"              # "critical" | "high" | "medium" | "low" | "informational"
+        detail_field: "detail"               # 1-2 sentence supporting text
+        key_risks_field: "key_risks"         # array of strings — highlighted in danger color
+        strengths_field: "strengths"         # array of strings — highlighted in success color
+        severity_colors:
+          critical: palette.danger
+          high: "#FF8C00"
+          medium: palette.accent
+          low: palette.success
+          informational: palette.primary
+
+      - type: recommendation-cards
+        title: "Top Recommendations"
+        field: recommendations               # array of {priority, text}
+        width_pct: 60
+        max_items: 3
+        priority_colors:
+          critical: palette.danger
+          high: "#FF8C00"
+          medium: palette.accent
+          low: palette.primary
+          info: palette.muted
+
+# ─── Data Source Mapping ─────────────────────────────────────────────────────
+# Maps each widget field to the report section where the data lives.
+# The SVG renderer extracts these values from the completed report markdown.
+data_sources:
+  report_file: "reports/user-investigations/user_investigation_*.md"
+  field_mapping_notes: |
+    # Row 1 — Title
+    user_identity: "Report header → User field (display name + UPN)"
+    investigation_period: "Report header → Investigation Period field"
+    account_status: "Report header → Account Status field (Enabled/Disabled)"
+
+    # Row 2 — Risk Score + KPIs
+    risk_score: "Risk Assessment → Risk Score value (0–100)"
+    total_signins: "Key Metrics → Total Sign-ins"
+    success_rate: "Key Metrics → Successful count and percentage"
+    unique_ips: "Key Metrics → Unique IPs"
+    incident_count: "Key Metrics → Security Incidents count"
+    anomaly_count: "Key Metrics → Anomalies Detected count"
+
+    # Row 3 — Applications + Failures
+    top_applications: "Sign-in Activity → Top Applications table → app name and total sign-ins, top 6"
+    failure_codes: "Sign-in Activity → Sign-in Failures table → error code with short description and count, top 6"
+
+    # Row 4 — Incidents + Risk Factors
+    security_incidents: "Security Incidents table → ID, title (truncated), severity, status, classification. Top 6 by severity"
+    risk_factors: "Risk Assessment → combine Risk Factors (🔴/🟠) and Mitigating Factors (🟢) into one table. Show top risk factors first, then mitigating factors"
+
+    # Row 5 — Assessment + Recommendations
+    overall_assessment: "Derive from Executive Summary + Risk Assessment. Level = risk score rating. Key risks from 🔴 risk factors. Strengths from 🟢 mitigating factors. Detail = 1-2 sentence synthesis from Executive Summary"
+    recommendations: "Recommendations → Critical Actions + High Priority Actions → top 3 items. Map 🔴=critical, 🟠=high, 🟡=medium"
