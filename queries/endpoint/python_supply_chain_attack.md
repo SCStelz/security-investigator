@@ -21,19 +21,41 @@ Related upstream compromise: **[Trivy Supply Chain Attack](https://www.aquasec.c
 | Aspect | Detail |
 |--------|--------|
 | **Affected Packages** | `litellm==1.82.7`, `litellm==1.82.8` (removed from PyPI) |
-| **Compromise Window** | March 24, 2026, 10:39–16:00 UTC (46 minutes before PyPI quarantine) |
+| **Compromise Window** | March 24, 2026, 10:52–~12:00 UTC (v1.82.8 uploaded at 10:52, PyPI quarantined within ~46 minutes, 46,996 downloads) |
 | **Downloads During Window** | 46,996 (32,464 for v1.82.8, 14,532 for v1.82.7) |
 | **Dependent Packages** | 2,337 on PyPI — 88% had version specs allowing compromised versions |
-| **Attack Vector** | Compromised maintainer PyPI account (via Checkmarx/Trivy CI/CD compromise) |
-| **v1.82.8 Payload** | `litellm_init.pth` — .pth startup hook, runs on ANY Python interpreter start including `pip install` itself. Fork bomb bug made it visible |
+| **Attack Vector** | Compromised maintainer PyPI account (via Checkmarx/Trivy CI/CD compromise). No GitHub tag for v1.82.7 or v1.82.8 — published directly to PyPI bypassing normal release process |
+| **Patient Zero Infection Chain** | Cursor auto-update (10:59) → extension host restart → MCP server reconnection → `uvx futuresearch-mcp-legacy` → pulls `litellm==1.82.8` + 77 transitive deps (10:58) → `.pth` triggers on Python startup → fork bomb + credential theft |
+| **Three-Stage Malware Architecture** | Stage 1: `litellm_init.pth` one-liner spawns child with base64 payload → Stage 2: RSA-4096 public key loader → Stage 3: `B64_SCRIPT` credential harvester → `run()` encrypts with AES+RSA and POSTs to C2 |
+| **v1.82.8 Payload** | `litellm_init.pth` — .pth startup hook, runs on ANY Python interpreter start including `pip install` itself. Fork bomb bug: each `subprocess.Popen([sys.executable, ...])` child also triggers `.pth`, causing infinite recursion |
 | **v1.82.7 Payload** | Injected in `proxy_server.py`, drops `p.py` — triggers only when `litellm.proxy` is imported (proxy servers, not SDK) |
 | **C2 Domain (v1.82.8)** | `models.litellm[.]cloud` (NOT a legitimate BerriAI domain) |
 | **C2 Domain (v1.82.7)** | `checkmarx[.]zone/raw` (typosquat of legitimate Checkmarx security vendor) |
 | **Exfil Method** | AES-256-CBC encryption (random session key) + RSA-4096 public key wrapping → tar archive → POST to C2 |
 | **Persistence** | `~/.config/sysmon/sysmon.py` + `~/.config/systemd/user/sysmon.service` |
-| **K8s Lateral Movement** | Reads ALL cluster secrets, deploys privileged `alpine:latest` pods (`node-setup-*`) on every node in `kube-system` with host filesystem mount |
+| **K8s Lateral Movement** | Reads ALL cluster secrets, deploys privileged `alpine:latest` pods (`node-setup-*`) on every node in `kube-system` with host filesystem mount. **Note:** On macOS/non-pod hosts, K8s lateral movement likely fails — no service account token at `/var/run/secrets/`, and fork bomb may crash process before reaching K8s code path |
 | **Credential Targets** | Env vars, SSH keys, AWS/GCP/Azure creds, K8s tokens/configs, DB passwords, git creds, Docker configs, npm/vault tokens, shell history, crypto wallets, SSL private keys, CI/CD files, IMDS metadata |
-| **MCP Attack Surface** | Cursor/Claude Code MCP servers with unpinned litellm transitive deps pulled malicious version via `uvx` auto-download |
+| **MCP Attack Surface** | Cursor/Claude Code MCP servers with unpinned litellm transitive deps pulled malicious version via `uvx` auto-download. **Re-infection risk:** Opening Cursor again re-triggers `uvx` which pulls from uv cache — must purge `~/.cache/uv` before restarting IDE |
+
+### Patient-Zero Timeline (March 24, 2026 UTC)
+
+Reconstructed from the [FutureSearch discovery transcript](https://futuresearch.ai/blog/litellm-attack-transcript/):
+
+| Time (UTC) | Event |
+|------------|-------|
+| 10:52 | Poisoned `litellm==1.82.8` uploaded to PyPI — no corresponding GitHub tag (only v1.82.6 existed) |
+| 10:58 | Cursor's `futuresearch-mcp-legacy` MCP server runs `uvx`, pulling litellm (14.9 MiB) + 77 transitive packages |
+| 10:59 | Cursor auto-update triggers extension host restart → MCP servers reconnect → re-triggers package download |
+| ~10:59–11:08 | `.pth` file executes on Python startup → fork bomb: 11,000+ Python processes spawn (each child triggers `.pth` again) |
+| 11:07 | Malware attempts persistence: `~/.config/sysmon/sysmon.py` created (0 bytes — write interrupted) |
+| 11:09 | Victim force-reboots — persistence only partially installed, malware partially neutralized |
+| 11:13 | Investigation begins with Claude Code — initially diagnosed as runaway Claude Code loop |
+| 11:40 | `litellm_init.pth` identified as malware (27 min after investigation start) |
+| 11:58 | Confirmed still live on PyPI via isolated Docker container download |
+| 12:02 | Disclosure blog post published |
+| 12:10 | Victim opens Cursor again → malware re-triggers from uv cache (second infection) |
+
+**Key forensic insight:** Claude Code initially misidentified the `exec(base64.b64decode(...))` pattern as normal tooling behavior — this is a legitimate pattern used by Python tools for shell escaping. It took deliberate human skepticism to push past the false-negative and discover the malware. AI-assisted security tooling should not dismiss base64-encoded Python execution without deeper inspection.
 
 ### MITRE ATT&CK Coverage
 
@@ -78,6 +100,7 @@ Related upstream compromise: **[Trivy Supply Chain Attack](https://www.aquasec.c
 | FutureSearch — Initial Discovery | https://futuresearch.ai/blog/litellm-pypi-supply-chain-attack/ |
 | FutureSearch — Post-Mortem | https://futuresearch.ai/blog/no-prompt-injection-required/ |
 | FutureSearch — Blast Radius Analysis | https://futuresearch.ai/blog/litellm-hack-were-you-one-of-the-47000/ |
+| FutureSearch — Discovery Transcript | https://futuresearch.ai/blog/litellm-attack-transcript/ |
 | GitHub Issue #24512 | https://github.com/BerriAI/litellm/issues/24512 |
 | Snyk Analysis | https://snyk.io/articles/poisoned-security-scanner-backdooring-litellm/ |
 
@@ -1168,8 +1191,10 @@ If any of the above queries return positive results:
 1. **Isolate affected device** via MDE device isolation
 2. **Identify installed version**: On affected system run `pip show litellm` — if version is 1.82.7 or 1.82.8, treat as confirmed compromise
 3. **Check for .pth file**: Search for `litellm_init.pth` in Python site-packages directories
-4. **Check for persistence**: Look for `~/.config/sysmon/sysmon.py` and `~/.config/systemd/user/sysmon.service`
-5. **Rotate ALL secrets** accessible from that device: API keys, SSH keys, cloud credentials, K8s tokens, DB passwords, environment variables, git creds, Docker registry tokens
+4. **Check for persistence**: Look for `~/.config/sysmon/sysmon.py` and `~/.config/systemd/user/sysmon.service` (may be 0 bytes if write was interrupted)
+5. **Purge package manager caches**: `rm -rf ~/.cache/uv` and `pip cache purge` — the compromised package persists in cache and **re-infects on next IDE/tool launch** (confirmed: patient zero was re-infected when reopening Cursor)
+6. **Kill all Python processes** before further investigation: `killall python3` / `taskkill /IM python.exe /F` — the fork bomb may still be running
+7. **Rotate ALL secrets** accessible from that device: API keys, SSH keys, cloud credentials, K8s tokens, DB passwords, environment variables, git creds, Docker registry tokens
 
 ### Investigation Steps
 
