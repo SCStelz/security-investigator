@@ -62,6 +62,20 @@ Related upstream compromise: **[Trivy Supply Chain Attack](https://www.aquasec.c
 **Goal:** Detect any `pip install litellm` commands across the MDE fleet.  
 **MITRE:** T1195.002, T1059.006
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Execution"
+title: "pip install litellm detected on {{DeviceName}} by {{AccountName}}"
+impactedAssets:
+  - type: device
+    identifier: deviceName
+  - type: user
+    identifier: accountName
+recommendedActions: "Verify litellm version installed. If v1.82.7 or v1.82.8, treat as confirmed compromise. Isolate device, rotate all secrets, check for litellm_init.pth in site-packages."
+adaptation_notes: "Already row-level. Add DeviceId + ReportId columns."
+-->
+
 ```kql
 // Detect pip install litellm commands — direct or as dependency
 DeviceProcessEvents
@@ -89,6 +103,11 @@ DeviceProcessEvents
 **Goal:** Enumerate ALL pip install commands for supply chain exposure review. Useful to understand which devices run pip and what packages are being installed.  
 **MITRE:** T1195.002
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Audit/inventory query using summarize with make_set and dcount — not suitable for CD alerting."
+-->
+
 ```kql
 // Audit all pip install activity across fleet — useful for supply chain exposure assessment
 DeviceProcessEvents
@@ -115,6 +134,18 @@ DeviceProcessEvents
 **Goal:** Detect `litellm_init.pth` (the malicious .pth startup file from v1.82.8) and any litellm files in site-packages.  
 **MITRE:** T1547.004, T1195.002
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "Persistence"
+title: "litellm file artifact detected on {{DeviceName}}: {{FileName}}"
+impactedAssets:
+  - type: device
+    identifier: deviceName
+recommendedActions: "Check if litellm_init.pth is present — this is the malicious .pth loader from v1.82.8. Isolate device, rotate all credentials, preserve artifacts for forensics."
+adaptation_notes: "Already row-level with SHA256. Add DeviceId + ReportId columns."
+-->
+
 ```kql
 // Detect litellm files — especially litellm_init.pth (malicious .pth loader)
 DeviceFileEvents
@@ -138,6 +169,18 @@ DeviceFileEvents
 
 **Goal:** Broader hunt for ANY suspicious `.pth` files in Python site-packages. The `.pth` file mechanism runs arbitrary Python at interpreter startup (T1547.004) and is increasingly abused in supply chain attacks.  
 **MITRE:** T1547.004
+
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "Persistence"
+title: "Suspicious .pth file in site-packages on {{DeviceName}}: {{FileName}}"
+impactedAssets:
+  - type: device
+    identifier: deviceName
+recommendedActions: "Inspect .pth file contents — .pth files execute arbitrary Python at interpreter startup. Verify the file is legitimate (expected package) or malicious (supply chain persistence)."
+adaptation_notes: "Already row-level with allowlist exclusions. Add DeviceId + ReportId. 24H schedule suitable — .pth persistence is not time-critical."
+-->
 
 ```kql
 // Hunt for suspicious .pth files in Python site-packages
@@ -174,6 +217,18 @@ DeviceFileEvents
 **Goal:** Detect outbound connections to the litellm C2 exfiltration domain `models.litellm[.]cloud`.  
 **MITRE:** T1041, T1071.001
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "0"
+category: "Exfiltration"
+title: "Outbound connection to litellm C2 domain from {{DeviceName}}"
+impactedAssets:
+  - type: device
+    identifier: deviceName
+recommendedActions: "CRITICAL: This device connected to the litellm C2 exfiltration domain. Isolate immediately. Rotate ALL secrets. Check for litellm v1.82.7/1.82.8 installation. Preserve network and process artifacts."
+adaptation_notes: "NRT-suitable — high-fidelity IoC match on known C2 domain. Remove let statements. Already row-level. Add DeviceId + ReportId."
+-->
+
 ```kql
 // Detect outbound connections to litellm C2 domain
 DeviceNetworkEvents
@@ -200,6 +255,18 @@ DeviceNetworkEvents
 **Goal:** Detect DNS lookups for the litellm C2 domain `models.litellm[.]cloud` using ASIM-normalized DNS logs. This catches resolution attempts even if the HTTP connection was blocked.  
 **MITRE:** T1041, T1071.001
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "CommandAndControl"
+title: "DNS resolution of litellm C2 domain detected from {{SrcIpAddr}}"
+impactedAssets:
+  - type: device
+    identifier: deviceName
+recommendedActions: "DNS lookup for litellm C2 domain detected — even if the HTTP connection was blocked, a compromised package attempted to resolve the C2. Identify the source device via SrcIpAddr, check for litellm installation, rotate secrets."
+adaptation_notes: "Sentinel/LA table — use TimeGenerated. Dvc may serve as DeviceName proxy. No native ReportId — use EventUid as proxy. Verify Dvc populates as hostname."
+-->
+
 ```kql
 // Hunt for DNS resolution of litellm C2 domain via ASIM DNS logs
 ASimDnsActivityLogs
@@ -224,6 +291,11 @@ ASimDnsActivityLogs
 
 **Goal:** Identify any devices that resolved PyPI domains during the compromise window (March 24, 2026 10:39–16:00 UTC). These devices may have pulled the malicious package.  
 **MITRE:** T1195.002
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "One-time forensic query for a fixed time window (March 24 compromise). Not suitable for ongoing CD — hardcoded datetime range."
+-->
 
 ```kql
 // Identify devices resolving PyPI during the compromise window
@@ -250,6 +322,11 @@ ASimDnsActivityLogs
 **Goal:** Broader 30-day view of PyPI-related DNS lookups to understand which devices regularly pull Python packages. Useful for scoping supply chain exposure.  
 **MITRE:** T1195.002
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Baseline/inventory query using summarize — designed for exposure scoping, not alerting."
+-->
+
 ```kql
 // Baseline: which devices resolve PyPI domains (30-day lookback)
 ASimDnsActivityLogs
@@ -272,6 +349,11 @@ ASimDnsActivityLogs
 
 **Goal:** Detect Python processes making outbound connections to unusual domains — catches both litellm-specific and generic Python-based exfiltration.  
 **MITRE:** T1041, T1071.001, T1059.006
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Summarize aggregation by RemoteUrl/RemoteIP — designed for threat hunting review, not CD. High false-positive rate without tuning to specific environment."
+-->
 
 ```kql
 // Python processes making outbound connections — look for exfiltration patterns
@@ -305,6 +387,20 @@ DeviceNetworkEvents
 **Goal:** Detect Python processes that enumerate environment variables — a key TTP of the litellm stealer payload. Looks for `os.environ`, `printenv`, `env`, and `set` commands spawned by Python.  
 **MITRE:** T1082, T1552.001
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "CredentialAccess"
+title: "Python process spawned environment enumeration on {{DeviceName}} by {{AccountName}}"
+impactedAssets:
+  - type: device
+    identifier: deviceName
+  - type: user
+    identifier: accountName
+recommendedActions: "Python spawned a child process that enumerates environment variables. This is a key TTP of credential-stealing packages (litellm, ultralytics, etc.). Investigate the parent Python script and check for recent pip installs."
+adaptation_notes: "Already row-level. Add DeviceId + ReportId. May need FP tuning for legitimate dev workflows."
+-->
+
 ```kql
 // Python spawning environment enumeration commands (credential harvesting indicator)
 DeviceProcessEvents
@@ -329,6 +425,18 @@ DeviceProcessEvents
 
 **Goal:** Detect Python processes reading SSH keys and cloud provider credential files — the litellm stealer specifically targets these.  
 **MITRE:** T1552.001, T1005
+
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "CredentialAccess"
+title: "Python accessed credential file on {{DeviceName}}: {{FileName}}"
+impactedAssets:
+  - type: device
+    identifier: deviceName
+recommendedActions: "Python process accessed sensitive credential files (SSH keys, cloud provider configs, .env files). Investigate the initiating Python script, check for recently installed packages, and verify whether access was legitimate (e.g., Ansible, Terraform) or malicious."
+adaptation_notes: "Already row-level. Add DeviceId + ReportId. May generate FPs from legitimate tools (Ansible, cloud SDKs, Terraform) — tune exclusions per environment."
+-->
 
 ```kql
 // Python process accessing SSH keys and cloud credential files
@@ -377,6 +485,20 @@ DeviceFileEvents
 **Goal:** Detect pip install activity from CI/CD runners or automation accounts. These are high-risk because they often have unpinned dependencies and broad secret access.  
 **MITRE:** T1195.002
 
+<!-- cd-metadata
+cd_ready: true
+schedule: "1H"
+category: "InitialAccess"
+title: "pip install from CI/CD context on {{DeviceName}} by {{AccountName}}"
+impactedAssets:
+  - type: device
+    identifier: deviceName
+  - type: user
+    identifier: accountName
+recommendedActions: "pip install detected in a CI/CD or automation context. These environments typically have broad secret access and unpinned dependencies — high supply chain risk. Verify packages are pinned to safe versions and review the process tree."
+adaptation_notes: "Already row-level. Add DeviceId + ReportId. Tune AccountName has_any list for org-specific service accounts."
+-->
+
 ```kql
 // pip install from CI/CD or automation contexts
 DeviceProcessEvents
@@ -404,6 +526,20 @@ DeviceProcessEvents
 
 **Goal:** Find pip install commands that DON'T pin a version — these would have pulled the latest (compromised) version during the window. `pip install litellm` without `==1.82.6` or similar is the exact attack vector.  
 **MITRE:** T1195.002
+
+<!-- cd-metadata
+cd_ready: true
+schedule: "24H"
+category: "InitialAccess"
+title: "Unpinned pip install detected on {{DeviceName}} by {{AccountName}}"
+impactedAssets:
+  - type: device
+    identifier: deviceName
+  - type: user
+    identifier: accountName
+recommendedActions: "A pip install command was executed without version pinning. This is the exact attack vector for PyPI supply chain compromises — unpinned installs pull the latest version, which may be malicious. Verify the package integrity and pin to a known-safe version."
+adaptation_notes: "Already row-level. Add DeviceId + ReportId. 24H schedule — informational/posture detection, not urgent. May be noisy in dev environments — tune exclusions."
+-->
 
 ```kql
 // Detect unpinned pip installs (no version specifier) — highest supply chain risk
@@ -434,6 +570,11 @@ DeviceProcessEvents
 
 **Goal:** Detect the specific exfiltration pattern: Python process making an outbound POST with encrypted data. The litellm stealer encrypts harvested secrets and POSTs them to the C2.  
 **MITRE:** T1041, T1027
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Cross-table join with let variable and time-window correlation (PipTime + 1h). Not suitable for NRT. Could be adapted for 1H schedule but join complexity and potential FP volume makes it better as a hunting query."
+-->
 
 ```kql
 // Python processes making outbound connections shortly after pip install
@@ -467,6 +608,11 @@ DeviceNetworkEvents
 
 **Goal:** Cross-reference devices that ran pip install with DNS resolution of unusual domains shortly after. Catches C2 callbacks from compromised packages.  
 **MITRE:** T1041, T1071.001, T1195.002
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Cross-table join with let + summarize aggregation. Designed for hunting correlation, not CD alerting."
+-->
 
 ```kql
 // Step 1: Identify devices that ran pip install in last 30 days
@@ -506,6 +652,11 @@ DeviceNetworkEvents
 **Goal:** Understand the Python-capable attack surface — which devices have Python installed and actively run it. Essential for scoping supply chain exposure.  
 **MITRE:** T1195.002
 
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Fleet inventory query using summarize with make_set — designed for attack surface scoping, not alerting."
+-->
+
 ```kql
 // Python fleet inventory — which devices actively run Python
 DeviceProcessEvents
@@ -527,6 +678,11 @@ DeviceProcessEvents
 
 **Goal:** Detect Docker builds that may have pulled the compromised package via `pip install litellm` inside a container build.  
 **MITRE:** T1195.002
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "One-time forensic query for a fixed time window (March 24 compromise). Not suitable for ongoing CD — hardcoded datetime range."
+-->
 
 ```kql
 // Docker builds running pip install during the compromise window
@@ -552,6 +708,11 @@ DeviceProcessEvents
 
 **Goal:** Find DNS queries for uncommon or recently-registered domains that originate from machines with Python activity. Useful for detecting C2 from ANY compromised Python package, not just litellm.  
 **MITRE:** T1071.001, T1041
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Summarize aggregation with broad TLD-based hunting — high FP rate without environment-specific tuning. Better as periodic hunting query."
+-->
 
 ```kql
 // DNS queries from the DNS server — look for unusual .cloud TLDs and other suspicious patterns
