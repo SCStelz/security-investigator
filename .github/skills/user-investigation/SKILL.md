@@ -362,10 +362,25 @@ When multiple modes are selected (e.g., "markdown and HTML"):
 
 ## Sample KQL Queries
 
-Use these exact patterns with `mcp_sentinel-data_query_lake`. Replace `<UPN>`, `<StartDate>`, `<EndDate>`.
+Replace `<UPN>`, `<StartDate>`, `<EndDate>` in these patterns.
 
 **⚠️ CRITICAL: START WITH THESE EXACT QUERY PATTERNS**
 **These queries have been tested and validated. Use them as your PRIMARY reference.**
+
+### Tool Selection for This Skill
+
+Follow the **global tool selection rule** from `copilot-instructions.md`:
+
+| Investigation Lookback | Tool | Reason |
+|------------------------|------|--------|
+| **≤ 30 days** (Quick, Standard, Comprehensive) | **`RunAdvancedHuntingQuery`** | Free for Analytics-tier tables; covers all connected workspace tables |
+| **> 30 days** (custom range) | **`mcp_sentinel-data_query_lake`** | AH only retains 30 days |
+| **AH query blocked by safety filter** | **`mcp_sentinel-data_query_lake`** | Fallback |
+| **AH returns "table not found"** | **`mcp_sentinel-data_query_lake`** | Fallback |
+
+**Default: Use `RunAdvancedHuntingQuery` for all standard investigations.** All three investigation types (1d, 7d, 30d) fit within AH's 30-day retention window. Only fall back to Data Lake when the lookback exceeds 30 days or AH fails.
+
+**Timestamp column:** All tables used in this skill (SigninLogs, AuditLogs, SecurityAlert, SecurityIncident, OfficeActivity, CloudAppEvents, AADUserRiskEvents, Signinlogs_Anomalies_KQL_CL, ThreatIntelIndicators) use `TimeGenerated` in both tools — no adaptation needed when switching.
 
 ---
 
