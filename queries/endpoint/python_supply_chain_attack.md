@@ -3,8 +3,8 @@
 **Created:** 2026-03-25  
 **Platform:** Both  
 **Tables:** DeviceProcessEvents, DeviceFileEvents, DeviceNetworkEvents, ASimDnsActivityLogs, DeviceEvents, DeviceRegistryEvents, CloudAppEvents, DeviceTvmSoftwareInventory  
-**Keywords:** litellm, pypi, pip install, supply chain, credential stealer, python package, site-packages, .pth file, secret exfiltration, environment variable harvesting, cloud credential theft, models.litellm.cloud, checkmarx.zone, trivy, CI/CD compromise, sysmon.py, node-setup, kubernetes lateral movement, fork bomb, uvx, MCP server, transitive dependency, TeamPCP, aquasecurtiy.org, GitHub Actions tag poisoning, mutable tags  
-**MITRE:** T1195.002, T1059.006, T1027, T1555, T1552.001, T1041, T1071.001, T1547.004, T1082, T1083, T1005, T1543.002, T1610, T1552.007, T1499.004  
+**Keywords:** litellm, pypi, pip install, supply chain, credential stealer, python package, site-packages, .pth file, secret exfiltration, environment variable harvesting, cloud credential theft, models.litellm.cloud, checkmarx.zone, trivy, CI/CD compromise, sysmon.py, node-setup, kubernetes lateral movement, fork bomb, uvx, MCP server, transitive dependency, TeamPCP, aquasecurtiy.org, GitHub Actions tag poisoning, mutable tags, startup folder, msbuild masquerade, wav steganography  
+**MITRE:** T1195.002, T1059.006, T1027, T1555, T1552.001, T1041, T1071.001, T1547.001, T1547.004, T1082, T1083, T1005, T1543.002, T1610, T1552.007, T1499.004, T1036.005  
 **Timeframe:** Last 30 days (configurable)
 
 ---
@@ -38,7 +38,8 @@ LiteLLM was one of several downstream targets in a broader supply chain campaign
 | **C2 Domain (v1.82.8)** | `models.litellm[.]cloud` (NOT a legitimate BerriAI domain) |
 | **C2 Domain (v1.82.7)** | `checkmarx[.]zone/raw` (typosquat of legitimate Checkmarx security vendor) |
 | **Exfil Method** | AES-256-CBC encryption (random session key) + RSA-4096 public key wrapping → tar archive → POST to C2 |
-| **Persistence** | `~/.config/sysmon/sysmon.py` + `~/.config/systemd/user/sysmon.service` |
+| **Persistence (Linux)** | `~/.config/sysmon/sysmon.py` + `~/.config/systemd/user/sysmon.service` |
+| **Persistence (Windows)** | `msbuild.exe` dropped in `%AppData%\Microsoft\Windows\Start Menu\Programs\Startup\` — masquerades as legitimate Microsoft Build Engine. Payload delivered via WAV steganography. See [startup_folder_persistence.md](startup_folder_persistence.md) for dedicated hunting queries |
 | **K8s Lateral Movement** | Reads ALL cluster secrets, deploys privileged `alpine:latest` pods (`node-setup-*`) on every node in `kube-system` with host filesystem mount. **Note:** On macOS/non-pod hosts, K8s lateral movement likely fails — no service account token at `/var/run/secrets/`, and fork bomb may crash process before reaching K8s code path |
 | **Credential Targets** | Env vars, SSH keys, AWS/GCP/Azure creds, K8s tokens/configs, DB passwords, git creds, Docker configs, npm/vault tokens, shell history, crypto wallets, SSL private keys, CI/CD files, IMDS metadata |
 | **MCP Attack Surface** | Cursor/Claude Code MCP servers with unpinned litellm transitive deps pulled malicious version via `uvx` auto-download. **Re-infection risk:** Opening Cursor again re-triggers `uvx` which pulls from uv cache — must purge `~/.cache/uv` before restarting IDE |
@@ -81,6 +82,8 @@ Reconstructed from the [FutureSearch discovery transcript](https://futuresearch.
 | System Information Discovery | T1082 | Environment variable enumeration, hostname, whoami, uname |
 | File and Directory Discovery | T1083 | Scanning for credential files (SSH, cloud configs, crypto wallets) |
 | Data from Local System | T1005 | Collecting secrets from local filesystem |
+| Boot or Logon Autostart Execution: Startup Folder | T1547.001 | `msbuild.exe` payload dropped in Windows Startup folder for login persistence. See [startup_folder_persistence.md](startup_folder_persistence.md) |
+| Masquerading: Match Legitimate Name or Location | T1036.005 | Payload named `msbuild.exe` to impersonate Microsoft Build Engine |
 | Endpoint Denial of Service: Application or System Exploitation | T1499.004 | Fork bomb from .pth re-trigger bug (detection artifact) |
 
 ### IoCs
@@ -98,6 +101,7 @@ Reconstructed from the [FutureSearch discovery transcript](https://futuresearch.
 | `litellm==1.82.8` | Package version | Compromised PyPI release (.pth payload) |
 | `tpcp.tar.gz` | Filename | Encrypted exfil archive created before POST to C2 |
 | `scan.aquasecurtiy[.]org` | Domain | TeamPCP C2 for Trivy campaign (typosquat of "aquasecurity" — note deliberate misspelling) |
+| `%AppData%\...\Startup\msbuild.exe` | File path | Masquerading payload in Windows Startup folder — NOT the legitimate MSBuild (`C:\Windows\Microsoft.NET\Framework\`) |
 | `45.148.10.212` | IP | TeamPCP C2 IP address (Trivy campaign) |
 | `plug-tab-protective-relay.trycloudflare.com` | Domain | TeamPCP C2 — Cloudflare Tunnel relay |
 | `tdtqy-oyaaa-aaaae-af2dq-cai.raw.icp0.io` | Domain | TeamPCP C2 — Internet Computer Protocol canister |
