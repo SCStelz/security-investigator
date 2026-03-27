@@ -16,41 +16,41 @@
 canvas:
   width: 1400
   height: 1400          # 7 rows — comprehensive email posture layout with incident data
-  background: "#1b1a19"
-  padding: 40
-  row_gap: 24
+  background: "#0d1117"
+  padding: 30
+  row_gap: 20
   col_gap: 20
   font_family: "Segoe UI, Roboto, sans-serif"
 
-# ─── Color Palette (SharePoint Dark Theme) ───────────────────────────────────
+# ─── Color Palette ───────────────────────────────────────────────────────────
 palette:
-  primary: "#0078d4"        # Microsoft Blue — primary KPI highlights
-  secondary: "#2b88d8"      # lighter blue — secondary data
-  accent: "#00bcf2"         # cyan — informational highlights
-  danger: "#d13438"         # red — threats, phishing
-  success: "#107c10"        # green — clean, passed, healthy
-  warning: "#ff8c00"        # orange — spam, moderate risk
-  muted: "#a19f9d"          # gray — labels, secondary text
-  card_bg: "#252423"        # dark card background
-  card_border: "#3b3a39"    # subtle border / grid lines
-  text_primary: "#f3f2f1"
-  text_secondary: "#a19f9d"
-  grid_line: "#3b3a39"
+  primary: "#409AE1"      # blue   — KPI highlights, primary data
+  secondary: "#b4a0ff"    # purple — secondary charts
+  accent: "#FFC83D"       # yellow — warnings, informational highlights
+  danger: "#EF6950"       # red    — threats, phishing
+  success: "#40C5AF"      # green  — clean, passed, healthy
+  warning: "#ff8c00"      # orange — spam, moderate risk
+  muted: "#b2b2b2"        # gray   — labels, axis text
+  card_bg: "#161b22"      # dark card background
+  card_border: "#30363d"  # subtle border / grid lines
+  text_primary: "#e6edf3"
+  text_secondary: "#b2b2b2"
+  grid_line: "#30363d"
 
 # ─── Score Rating Colors ────────────────────────────────────────────────────
 score_rating_colors:
-  strong: "#107c10"          # green  — 85–100
-  good: "#ff8c00"            # orange — 65–84
+  strong: "#40C5AF"          # green  — 85–100
+  good: "#FFC83D"            # yellow — 65–84
   needs_improvement: "#ff8c00" # orange — 45–64
-  critical: "#d13438"        # red    — 0–44
+  critical: "#EF6950"        # red    — 0–44
 
 # ─── Dimension Colors (Email Protection Score — 5 dimensions) ───────────────
 dimension_colors:
-  threat_block_rate: "#0078d4"     # blue
-  email_authentication: "#107c10"  # green
-  zap_effectiveness: "#00bcf2"     # cyan
-  safe_links: "#2b88d8"           # light blue
-  phishing_delivery: "#d13438"    # red
+  threat_block_rate: "#409AE1"     # blue
+  email_authentication: "#40C5AF"  # green
+  zap_effectiveness: "#FFC83D"     # yellow
+  safe_links: "#b4a0ff"           # purple
+  phishing_delivery: "#EF6950"    # red
 
 # ─── Row Definitions ─────────────────────────────────────────────────────────
 

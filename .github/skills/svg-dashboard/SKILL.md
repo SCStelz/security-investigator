@@ -173,23 +173,23 @@ You are still bound by the **Quality Standards** and **Color & Typography** rule
 - Widget titles: **bold, 14-16px**, `palette.text_primary`.
 - Axis labels and table headers: 10-12px, `palette.text_secondary`.
 - Data labels: 10-11px, `palette.text_primary`.
-- The default palette is aligned with SharePoint Dark Theme colors (https://learn.microsoft.com/en-us/sharepoint/dev/design/themes-colors). Skills may override with their own `palette` in `svg-widgets.yaml`.
+- The default palette uses a cool dark theme consistent across all skill manifests. Skills may override with their own `palette` in `svg-widgets.yaml`.
 
 #### Default Palette (Freeform Mode)
 
 ```yaml
 palette:
-  background: "#1b1a19"
-  card_bg: "#252423"
-  primary: "#0078d4"       # Microsoft Blue
-  secondary: "#2b88d8"
-  success: "#107c10"
-  warning: "#ff8c00"
-  danger: "#d13438"
-  text_primary: "#f3f2f1"
-  text_secondary: "#a19f9d"
-  accent: "#00bcf2"
-  grid_line: "#3b3a39"
+  background: "#0d1117"
+  card_bg: "#161b22"
+  primary: "#409AE1"       # Blue — KPI highlights
+  secondary: "#b4a0ff"     # Purple — secondary charts
+  success: "#40C5AF"       # Teal-green — healthy metrics
+  warning: "#ff8c00"       # Orange — moderate risk
+  danger: "#EF6950"        # Red — critical findings
+  text_primary: "#e6edf3"
+  text_secondary: "#b2b2b2"
+  accent: "#FFC83D"        # Yellow — warnings, anomalies
+  grid_line: "#30363d"
 ```
 
 ### Widget Type Reference — Component Library
