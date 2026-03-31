@@ -867,6 +867,44 @@ The Graph API enforces **3 unique `{{Column}}` references** across `title` and `
 
 **Additional validated finding:** `ingestion_time()` IS accepted by the CD API (tested and confirmed Mar 2026, despite MS Learn documentation ambiguity). The CD query validator accepts all functions that Advanced Hunting accepts for scheduled (non-NRT) rules.
 
+### Pitfall 16: StrictMode `.Count` on Pipeline Scalars — Array Unwrapping
+
+**Root cause (Mar 2026):** With `Set-StrictMode -Version Latest`, calling `.Count` on an object that doesn't have the property throws a terminating error. PowerShell pipelines that return exactly **1 result** unwrap the array to a scalar — and scalars (e.g., `[string]`) don't have `.Count`.
+
+**Concrete trigger in Deploy-CustomDetections.ps1:** The dynamic column validation extracted unique `{{Column}}` references from `title` + `description`. When only 1 unique column existed (e.g., `{{DeviceName}}` in both title and description), `Sort-Object -Unique` returned a scalar string `"DeviceName"` instead of `@("DeviceName")`. The subsequent `$dynamicCols.Count` check threw:
+
+```
+The property 'Count' cannot be found on this object. Verify that the property exists.
+```
+
+Rules with 2+ unique dynamic columns worked fine because the pipeline returned an `Object[]`, which has `.Count`.
+
+**The pattern affects ANY pipeline where the result count varies:**
+
+```powershell
+# ❌ BUG — returns scalar string when 1 match, Object[] when 2+
+$items = Get-ChildItem *.log | ForEach-Object { $_.Name } | Sort-Object -Unique
+$items.Count  # 💥 StrictMode error if exactly 1 .log file
+
+# ✅ FIX — @() forces array regardless of result count
+$items = @(Get-ChildItem *.log | ForEach-Object { $_.Name } | Sort-Object -Unique)
+$items.Count  # Always works: 0, 1, or N
+```
+
+**Also affects `ConvertFrom-Json`:** A JSON file containing a single-element array (`[{...}]`) is deserialized as a scalar `PSCustomObject`, not an `Object[]`. Wrapping in `@()` is required:
+
+```powershell
+# ❌ BUG — single-rule manifest: $manifest is PSCustomObject, .Count fails
+$manifest = Get-Content manifest.json -Raw | ConvertFrom-Json
+
+# ✅ FIX — always an array
+$manifest = @(Get-Content manifest.json -Raw | ConvertFrom-Json)
+```
+
+**Rule:** In any PowerShell script using `Set-StrictMode -Version Latest`, wrap **every** pipeline or `ConvertFrom-Json` call in `@()` if you'll later access `.Count`, `.Length`, or iterate with `foreach`. The cost is zero (wrapping an existing array in `@()` is a no-op), and it prevents the scalar unwrapping trap.
+
+**Fixed in:** [Deploy-CustomDetections.ps1](Deploy-CustomDetections.ps1) — all pipeline results that use `.Count` are now wrapped in `@()`.
+
 ---
 
 ## CD Metadata Contract

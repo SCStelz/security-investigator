@@ -74,7 +74,10 @@ function Build-RuleBody {
     # Graph API rejects >3 with 400: "Dynamic properties in alertTitle and alertDescription must not exceed 3 fields"
     $alertTitle = if ($Rule.PSObject.Properties['title'] -and $Rule.title) { $Rule.title } else { $Rule.displayName }
     $combinedText = "$alertTitle $($Rule.description)"
-    $dynamicCols = [regex]::Matches($combinedText, '\{\{(\w+)\}\}') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+    # NOTE: @() wrapper is mandatory — Sort-Object -Unique returns a scalar string (not array)
+    # when only 1 unique column exists. Under Set-StrictMode -Version Latest, calling .Count
+    # on a scalar string throws "The property 'Count' cannot be found on this object".
+    $dynamicCols = @([regex]::Matches($combinedText, '\{\{(\w+)\}\}') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
     if ($dynamicCols.Count -gt 3) {
         throw "title + description contain $($dynamicCols.Count) unique dynamic columns ($($dynamicCols -join ', ')) — max 3 allowed. Remove or inline some as static text."
     }
@@ -178,8 +181,9 @@ Write-Host "`n╔═════════════════════
 Write-Host   "║    Custom Detection Rule Deployment              ║" -ForegroundColor Cyan
 Write-Host   "╚══════════════════════════════════════════════════╝`n" -ForegroundColor Cyan
 
-# Load manifest
-$manifest = Get-Content -Path $ManifestPath -Raw | ConvertFrom-Json
+# Load manifest — @() forces array even for single-rule manifests (ConvertFrom-Json
+# returns a scalar PSCustomObject for single-element JSON arrays under StrictMode)
+$manifest = @(Get-Content -Path $ManifestPath -Raw | ConvertFrom-Json)
 Write-Host "📋 Loaded $($manifest.Count) rule(s) from manifest" -ForegroundColor White
 
 if ($DryRun) {
@@ -189,9 +193,9 @@ if ($DryRun) {
 # Connect to Graph
 Connect-GraphIfNeeded
 
-# Get existing rules for dedup
-$existingRules = Get-ExistingRules
-$existingNames = $existingRules | ForEach-Object { $_.displayName }
+# Get existing rules for dedup — @() forces array for tenants with 0 or 1 existing rule
+$existingRules = @(Get-ExistingRules)
+$existingNames = @($existingRules | ForEach-Object { $_.displayName })
 Write-Host "📊 Found $($existingRules.Count) existing rule(s) in tenant`n" -ForegroundColor White
 
 # Process each rule
