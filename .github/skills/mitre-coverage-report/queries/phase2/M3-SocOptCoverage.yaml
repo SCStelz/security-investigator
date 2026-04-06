@@ -1,0 +1,17 @@
+# M3: SOC Optimization Coverage Recommendations
+# Fetches all SOC Optimization recommendations from the Sentinel REST API.
+# Coverage-type recommendations (Precision_Coverage*) contain rich MITRE data:
+#   - Tactics array with CurrentCount vs RecommendedCount per tactic and technique
+#   - CoverageEntities with per-rule coverage status (Covered/NotCovered/CoveredAlternative)
+#   - TemplateIds for recommended Content Hub rule templates
+#   - DataSources required by recommended rules
+# Also captures MITRE Tagging recommendations (Precision_Coverage_DetectionMitreTagging)
+# with AI-suggested tactic/technique tags for untagged rules.
+
+id: mitre-m3
+name: SOC Optimization Coverage Recommendations
+description: Fetch SOC Optimization recommendations via Sentinel REST API (preview)
+phase: 2
+type: rest
+url: https://management.azure.com/subscriptions/{subscription_id}/resourceGroups/{resource_group}/providers/Microsoft.OperationalInsights/workspaces/{workspace_name}/providers/Microsoft.SecurityInsights/recommendations?api-version=2024-01-01-preview
+jmespath: value[?starts_with(properties.recommendationTypeId, 'Precision_Coverage')].{id:name, title:properties.title, state:properties.state, typeId:properties.recommendationTypeId, description:properties.description, useCaseName:properties.additionalProperties.UseCaseName, suggestions:properties.suggestions}

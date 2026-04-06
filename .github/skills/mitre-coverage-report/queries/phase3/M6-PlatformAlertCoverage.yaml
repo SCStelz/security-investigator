@@ -1,0 +1,30 @@
+# M6: Platform-Native Alert MITRE Coverage
+# Queries SecurityAlert for built-in product detections (NOT custom analytic rules).
+# Extracts techniques directly attributed by the product detection engine.
+# This answers: "What MITRE techniques are the M365 Defender products actually detecting?"
+# Used to derive Tier 1 (alert-proven) platform coverage and active product list.
+
+id: mitre-m6
+name: Platform Alert MITRE Coverage
+description: SecurityAlert platform-native detections with MITRE technique attribution (excludes custom analytic rules)
+phase: 3
+type: kql
+timespan: P{days}D
+query: |
+  SecurityAlert
+  | where TimeGenerated > ago({days}d)
+  | where ProviderName !in~ ('ASI Scheduled Alerts', 'ASI NRT Alerts')
+  | where isnotempty(Techniques)
+  | mv-expand Technique = todynamic(Techniques) to typeof(string)
+  | where isnotempty(Technique)
+  | where Technique matches regex @'^T\d{4}'
+  | extend ParentTechnique = extract(@'^(T\d{4})', 1, Technique)
+  | where isnotempty(ParentTechnique)
+  | summarize
+      AlertCount = count(),
+      DistinctAlertTypes = dcount(AlertName),
+      Products = make_set(ProductName, 20),
+      AlertNames = make_set(strcat(ProductName, '|||', AlertName), 10)
+      by ParentTechnique
+  | project Technique = ParentTechnique, AlertCount, DistinctAlertTypes, Products, AlertNames
+  | order by AlertCount desc

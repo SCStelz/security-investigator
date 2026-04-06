@@ -1,0 +1,31 @@
+# M8: SentinelHealth Data Connector Health (7-day)
+# Queries the SentinelHealth table for data connector fetch status changes.
+# Used to enrich Data Readiness: detects connector failures BEFORE they degrade
+# the M7 Usage table averages. A rule may show "Ready" in M7 while its feeding
+# connector is actively failing — M8 catches this early-warning signal.
+#
+# SentinelHealth coverage is limited to supported connectors only (AWS, O365,
+# Dynamics, MDE, TI-TAXII, CCP-based). This SUPPLEMENTS M7, not replaces it.
+#
+# CRITICAL: SentinelResourceType must be "Data connector" (capital D, lowercase c).
+
+id: mitre-m8
+name: Data Connector Health (7d)
+description: SentinelHealth connector fetch status — latest state, success/failure counts, health percentage per connector
+phase: 3
+type: kql
+timespan: P7D
+query: |
+  SentinelHealth
+  | where TimeGenerated > ago(7d)
+  | where SentinelResourceType == 'Data connector'
+  | where OperationName == 'Data fetch status change'
+  | where Status in ('Success', 'Failure')
+  | summarize
+      TimeGenerated = arg_max(TimeGenerated, Status),
+      SuccessCount = countif(Status == 'Success'),
+      FailureCount = countif(Status == 'Failure')
+      by SentinelResourceName, SentinelResourceId
+  | extend HealthPct = round(100.0 * SuccessCount / (SuccessCount + FailureCount), 1)
+  | project SentinelResourceName, LastStatus = Status, SuccessCount, FailureCount, HealthPct, LastEvent = TimeGenerated
+  | order by FailureCount desc

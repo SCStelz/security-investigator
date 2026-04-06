@@ -82,6 +82,19 @@ function Build-RuleBody {
         throw "title + description contain $($dynamicCols.Count) unique dynamic columns ($($dynamicCols -join ', ')) — max 3 allowed. Remove or inline some as static text."
     }
 
+    # Valid identifier values per asset type (from Graph API enum — MS Learn /graph/api/resources/security-impacted*asset)
+    $validIdentifiers = @{
+        'device'  = @('deviceId', 'deviceName', 'remoteDeviceName', 'targetDeviceName', 'destinationDeviceName')
+        'user'    = @('accountObjectId', 'accountSid', 'accountUpn', 'accountName', 'accountDomain', 'accountId',
+                       'requestAccountSid', 'requestAccountName', 'requestAccountDomain', 'recipientObjectId',
+                       'processAccountObjectId', 'initiatingAccountSid', 'initiatingProcessAccountUpn',
+                       'initiatingAccountName', 'initiatingAccountDomain', 'servicePrincipalId',
+                       'servicePrincipalName', 'targetAccountUpn')
+        'mailbox' = @('accountUpn', 'fileOwnerUpn', 'initiatingProcessAccountUpn', 'lastModifyingAccountUpn',
+                       'targetAccountUpn', 'senderFromAddress', 'senderDisplayName', 'recipientEmailAddress',
+                       'senderMailFromAddress')
+    }
+
     $impactedAssets = @()
     foreach ($asset in $Rule.impactedAssets) {
         $odataType = switch ($asset.type) {
@@ -90,6 +103,14 @@ function Build-RuleBody {
             'mailbox' { "#microsoft.graph.security.impactedMailboxAsset" }
             default   { throw "Unknown asset type: $($asset.type)" }
         }
+
+        # Validate identifier against the predefined API enum (Pitfall 9 — silent 400 InvalidInput)
+        $allowed = $validIdentifiers[$asset.type]
+        if ($asset.identifier -cnotin $allowed) {
+            $suggestion = $allowed -join ', '
+            throw "Invalid $($asset.type) identifier '$($asset.identifier)'. Valid values (case-sensitive): $suggestion. See SKILL.md Pitfall 9 — the query must also project a column matching this identifier name."
+        }
+
         $assetEntry = @{
             identifier = $asset.identifier
         }
@@ -221,8 +242,16 @@ foreach ($rule in $manifest) {
 
     if ($DryRun) {
         $status = if ($rule.displayName -in $existingNames) { "Exists" } else { "New" }
-        Write-Host "   📝 $status — schedule: $($rule.schedule), severity: $($rule.severity)" -ForegroundColor Gray
-        $results += @{ Name = $rule.displayName; Status = "Validated"; Id = $null }
+        # Run Build-RuleBody to validate even in dry-run (catches identifier, dynamic column, and other errors)
+        try {
+            $null = Build-RuleBody -Rule $rule
+            Write-Host "   📝 $status — schedule: $($rule.schedule), severity: $($rule.severity)" -ForegroundColor Gray
+            $results += @{ Name = $rule.displayName; Status = "Validated"; Id = $null }
+        }
+        catch {
+            Write-Host "   ❌ Validation failed: $($_.Exception.Message)" -ForegroundColor Red
+            $results += @{ Name = $rule.displayName; Status = "Failed"; Id = $null }
+        }
         continue
     }
 

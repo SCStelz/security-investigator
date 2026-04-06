@@ -1,0 +1,13 @@
+# M2: Custom Detection Rule Inventory with MITRE Mapping
+# Fetches Custom Detection rules from Defender XDR via Graph beta endpoint.
+# Requires Microsoft.Graph.Authentication module + CustomDetection.Read.All scope.
+# May be skipped gracefully if module/auth unavailable — status recorded in scratchpad.
+# mitreTechniques field contains technique IDs mapped to the custom detection.
+
+id: mitre-m2
+name: Custom Detection Rules with MITRE Mapping
+description: Fetch Custom Detection rules via Microsoft Graph PowerShell SDK with MITRE techniques
+phase: 1
+type: graph
+endpoint: /beta/security/rules/detectionRules
+scope: CustomDetection.Read.All

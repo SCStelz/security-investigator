@@ -1,0 +1,376 @@
+# SVG Dashboard Widget Manifest — MITRE ATT&CK Coverage Report
+#
+# This file defines the layout and data mapping for generating an SVG dashboard
+# from a completed MITRE ATT&CK Coverage report. It is consumed by the shared
+# SVG rendering skill at .github/skills/svg-dashboard/SKILL.md
+#
+# Usage:  After generating a MITRE coverage report, ask:
+#           "Generate an SVG dashboard from the report"
+#         Copilot will read this manifest + the report data + the skill,
+#         then produce a single SVG file in reports/sentinel/.
+#
+# Customization:  Tweak rows, reorder widgets, add/remove items, change colors.
+#                 The renderer adapts to whatever is defined here.
+#
+# NOTE:  Earlier versions used a `coverage-matrix` widget (250 technique cells)
+#        which exceeded SVG output token limits. This manifest uses a stacked
+#        bar chart per tactic instead — same coverage data, ~90% fewer SVG elements.
+
+# ─── Canvas ──────────────────────────────────────────────────────────────────
+canvas:
+  width: 1400
+  height: 1050          # 5 rows — compact, within token budget
+  background: "#0d1117"
+  padding: 30
+  row_gap: 20
+  col_gap: 20
+  font_family: "Segoe UI, Roboto, sans-serif"
+
+# ─── Color Palette ───────────────────────────────────────────────────────────
+palette:
+  primary: "#409AE1"      # blue   — KPI highlights, custom rule coverage
+  secondary: "#b4a0ff"    # purple — secondary charts
+  accent: "#FFC83D"       # yellow — warnings
+  danger: "#EF6950"       # red    — critical gaps, 0% coverage
+  success: "#40C5AF"      # green  — healthy coverage, Tier 1 alerts
+  warning: "#ff8c00"      # orange — moderate gaps
+  muted: "#b2b2b2"        # gray   — labels, axis text
+  card_bg: "#161b22"      # dark card background
+  card_border: "#30363d"  # subtle border / grid lines
+  text_primary: "#e6edf3"
+  text_secondary: "#b2b2b2"
+  grid_line: "#30363d"
+
+# ─── Score Rating Colors ────────────────────────────────────────────────────
+score_rating_colors:
+  strong: "#40C5AF"          # green  — 80–100
+  good: "#409AE1"            # blue   — 60–79
+  moderate: "#FFC83D"        # yellow — 40–59
+  developing: "#ff8c00"      # orange — 20–39
+  critical: "#EF6950"        # red    — 0–19
+
+# ─── Coverage Tier Colors (stacked bar segments + donut) ────────────────────
+tier_colors:
+  custom_rule: "#409AE1"     # blue   — covered by custom analytic/detection rule
+  tier_1: "#40C5AF"          # green  — Tier 1: platform alert-proven in 30d
+  tier_2: "#2d6a5a"          # dark teal — Tier 2: deployed capability, no alerts
+  tier_3: "#4a4a6a"          # muted purple — Tier 3: catalog only
+
+# ─── Dimension Colors (MITRE Coverage Score — 5 dimensions) ─────────────────
+dimension_colors:
+  breadth: "#409AE1"         # blue
+  balance: "#40C5AF"         # green
+  operational: "#FFC83D"     # yellow
+  tagging: "#b4a0ff"         # purple
+  soc_alignment: "#EF6950"   # red
+
+# ─── Row Definitions ─────────────────────────────────────────────────────────
+
+rows:
+
+  # ── ROW 1: Title Banner ─────────────────────────────────────────────────────
+  - id: title-banner
+    height: 72
+    widgets:
+      - type: title-banner
+        fields:
+          title: "MITRE ATT&CK Coverage Dashboard"
+          subtitle_fields:
+            - workspace_name           # e.g. "Contoso SOC"
+            - attck_version            # e.g. "Enterprise v16.1"
+            - report_date              # e.g. "2026-04-02"
+            - alert_lookback           # e.g. "30-day lookback"
+        style:
+          title_align: center
+          title_size: 22
+          subtitle_size: 12
+          accent_color: palette.primary
+
+  # ── ROW 2: Score Card + KPI Cards ──────────────────────────────────────────
+  - id: score-and-kpis
+    height: 130
+    widgets:
+      - type: score-card
+        title: "MITRE Coverage Score"
+        field: mitre_coverage_score      # from §1 — composite score
+        width_pct: 20
+        ranges:
+          - { min: 0,  max: 19, color: palette.danger,  label: "Critical" }
+          - { min: 20, max: 39, color: palette.warning,  label: "Developing" }
+          - { min: 40, max: 59, color: palette.accent,   label: "Moderate" }
+          - { min: 60, max: 79, color: palette.primary,  label: "Good" }
+          - { min: 80, max: 100, color: palette.success, label: "Strong" }
+        show_rating_label: true
+
+      - type: kpi-card
+        label: "Rule-Based Techniques"
+        field: rule_based_techniques_covered   # e.g. "40/250"
+        unit: ""
+        highlight_color: palette.primary
+        sub_field: rule_based_techniques_pct   # e.g. "16%"
+
+      - type: kpi-card
+        label: "Enabled Rules"
+        field: combined_enabled_rules      # e.g. "107"
+        unit: ""
+        highlight_color: palette.primary
+        sub_field: rule_breakdown          # e.g. "98 AR + 9 CD"
+
+      - type: kpi-card
+        label: "Combined Coverage"
+        field: combined_techniques         # e.g. "126/250"
+        unit: ""
+        highlight_color: palette.success
+        sub_field: combined_pct            # e.g. "50.4%"
+
+      - type: kpi-card
+        label: "Data Readiness"
+        field: data_readiness_pct          # e.g. "91.7%"
+        unit: ""
+        highlight_color: palette.success
+        sub_field: readiness_detail        # e.g. "77 ready · 4 partial · 3 no data"
+
+  # ── ROW 3: Combined Tactic Coverage (stacked bar) + Score Dimensions ──────
+  # 14 tactic bars with 2 non-overlapping segments: Rule-Based + Platform Uplift.
+  # Gray background = framework total. Blue = rule-based. Green = platform uplift.
+  # Platform Uplift = combined - rule_based (additional techniques from T1+T2 only).
+  # This avoids the T1/T2/T3 overlap problem that causes SVG rendering spirals.
+  - id: tactic-coverage-and-dimensions
+    height: 300
+    widgets:
+      - type: stacked-bar-chart
+        title: "Combined Tactic Coverage (Rule-Based + Platform)"
+        field: tactic_combined_coverage    # from §5.1 Combined Tactic Coverage table
+        width_pct: 65
+        orientation: vertical
+        bar_width: 45
+        max_items: 14                      # all 14 tactics
+        label_field: "tactic"
+        value_field: "combined_count"
+        total_field: "framework_count"     # gray background bar height
+        segments:
+          # Only 2 segments — no overlap, no ambiguity:
+          # rule_based:       techniques with ≥1 enabled analytic/detection rule
+          # platform_uplift:  combined minus rule_based (extra T1+T2 techniques)
+          - { label: "Rule-Based",       field: "rule_based",       color: tier_colors.custom_rule }
+          - { label: "Platform Uplift",  field: "platform_uplift",  color: tier_colors.tier_1 }
+        show_totals: true                  # e.g. "6/11" above each bar
+        legend_position: "top-right"
+        # Abbreviated tactic labels for x-axis:
+        # Recon | ResDev | InitAcc | Exec | Persist | PrivEsc | DefEvas |
+        # CredAcc | Disc | LatMov | Collect | C2 | Exfil | Impact
+
+      - type: horizontal-bar-chart
+        title: "Score Dimensions"
+        field: score_dimensions            # from §1 score table
+        width_pct: 35
+        bar_height: 28
+        max_items: 5
+        label_field: "dimension"
+        value_field: "score"
+        value_suffix: "/100"
+        bar_color_map:
+          "Breadth (25%)": dimension_colors.breadth
+          "Balance (10%)": dimension_colors.balance
+          "Operational (30%)": dimension_colors.operational
+          "Tagging (15%)": dimension_colors.tagging
+          "SOC Align (20%)": dimension_colors.soc_alignment
+        reference_line: 50                 # "passing" reference
+
+  # ── ROW 4: SOC Scenarios Table + Product Techniques Bar Chart ───────────
+  - id: scenarios-and-products
+    height: 280
+    widgets:
+      - type: table-widget
+        title: "Threat Scenario Gaps (SOC Optimization)"
+        field: soc_scenarios               # from §4 Threat Scenario Coverage table
+        width_pct: 60
+        columns:
+          - { header: "Scenario",    field: "scenario",    width: 40 }
+          - { header: "Active",      field: "active",      width: 12 }
+          - { header: "Rec.",        field: "recommended",  width: 12 }
+          - { header: "Gap",         field: "gap",         width: 12 }
+          - { header: "Priority",    field: "priority",    width: 12, badge: true }
+          - { header: "State",       field: "state",       width: 12, badge: true }
+        max_items: 8
+        sort_by: "gap desc"
+        # ── Priority Badge Rendering (MANDATORY) ──
+        # The Priority column MUST render as colored pill badges with SHORT
+        # UPPERCASE WORD LABELS — never as emoji dots or colored circles.
+        # Map the report's emoji-prefixed priority values to these badges:
+        #   🔴 → pill badge: fill=palette.danger,  text="HIGH" (dark text on red bg)
+        #   🟠 → pill badge: fill=palette.warning,  text="MED"  (dark text on orange bg)
+        #   🟡 → pill badge: fill=palette.accent,   text="MED"  (dark text on yellow bg)
+        #   ✅ → pill badge: fill=palette.success,  text="OK"   (dark text on green bg)
+        # Badge anatomy: <rect rx="4" fill="none" stroke="{color}" stroke-width="1.5"/> + <text fill="{color}" font-weight="bold" font-size="9"/>
+        # Text is centered inside the pill. Text color MATCHES the border color (ghost style — no fill).
+        priority_badge_style: ghost   # "ghost" = colored border + colored text, no fill. Clean on dark themes.
+        badge_colors:
+          HIGH: palette.danger
+          MED: palette.warning
+          OK: palette.success
+          Active: palette.primary
+          InProgress: palette.warning
+
+      # Donut chart — use the simple rendering pattern described below.
+      # DO NOT iterate on arc math. Use one <circle> per segment with:
+      #   stroke-dasharray="<arc_len> <circumference - arc_len>"
+      #   stroke-dashoffset="<circumference - cumulative_start>"
+      #   transform="rotate(-90, cx, cy)"
+      # Where circumference = 2πr, arc_len = (value/total) * circumference,
+      # cumulative_start tracks the running sum of previous arc_lens.
+      - type: donut-chart
+        title: "Alert-Proven Techniques by Source"
+        field: platform_products           # from §5.1 Active Detection Sources + AR/CD alert-firing
+        width_pct: 40
+        show_center_total: true
+        center_label: "TECHNIQUES"
+        # ⚠️ CENTER TOTAL: Use the DEDUPLICATED Tier 1 technique count from
+        # §5.1 CTID Tier Classification ("Tier 1: Alert-Proven" row), NOT
+        # sum(segments). Product technique counts overlap heavily (e.g., T1134
+        # is detected by MDE, MDI, and MXDR simultaneously). Summing segments
+        # inflates the total ~2× (e.g., 122 vs true unique 67).
+        center_total_source: "tier_1_unique_techniques"  # from CTID Tier 1 row
+        segment_colors:
+          "MDE": "#409AE1"
+          "MXDR": "#b4a0ff"
+          "MDC": "#40C5AF"
+          "MDI": "#FFC83D"
+          "MDCA": "#ff8c00"
+          "AADIP": "#EF6950"
+          "MDO": "#6e7681"
+          "AR": "#8B5CF6"
+          "CD": "#F472B6"
+        legend_position: "right"
+
+  # ── ROW 5: Recommendations ────────────────────────────────────────────────
+  - id: recommendations
+    height: 130
+    widgets:
+      - type: recommendation-cards
+        title: "Top Recommendations"
+        field: top_recommendations         # from §1 Top 3 Recommendations
+        max_items: 3
+        priority_colors:
+          high: palette.danger
+          medium: palette.warning
+          low: palette.accent
+        show_impact_estimate: true
+
+# ─── Data Source Mapping ─────────────────────────────────────────────────────
+data_sources:
+  field_mapping_notes: |
+    All fields are extracted from the completed MITRE ATT&CK Coverage Report markdown.
+    Section references use § numbers from the report structure.
+
+  # Row 1 — Title
+  workspace_name: "Report header → Workspace field"
+  attck_version: "Report header → ATT&CK Version field (short form: 'Enterprise v16.1')"
+  report_date: "Report header → Generated field"
+  alert_lookback: "Report header → Alert/Incident Lookback field"
+
+  # Row 2 — Score + KPIs
+  mitre_coverage_score: "§1 Executive Summary → MITRE Coverage Score value (e.g., 43.7)"
+  rule_based_techniques_covered: "§1 Detection Inventory → 'Techniques covered' row (e.g., '40/250')"
+  rule_based_techniques_pct: "§1 Detection Inventory → percentage (e.g., '16%')"
+  combined_techniques: "§1 Platform Coverage → Combined row (e.g., '126/250')"
+  combined_pct: "§1 Platform Coverage → Combined percentage (e.g., '50.4%')"
+  combined_enabled_rules: "§1 Detection Inventory → 'Combined Enabled Rules' row value"
+  rule_breakdown: "§1 — compute from Enabled AR + Enabled CD counts"
+  data_readiness_pct: "§5.5 Data Readiness → Summary table percentage"
+  readiness_detail: "§5.5 Data Readiness → Ready/Partial/NoData counts"
+
+  # Row 3 — Tactic Bars + Score Dimensions
+  tactic_combined_coverage: |
+    §5.1 Combined Tactic Coverage table — extract per-tactic:
+    rule_based (from RuleBased column) and framework_count (from Framework column).
+    Compute platform_uplift = Combined - RuleBased for each tactic.
+    combined_count = Combined column (for the "X/Y" label above each bar).
+    Use abbreviated tactic labels for x-axis:
+    Recon, ResDev, InitAcc, Exec, Persist, PrivEsc, DefEvas,
+    CredAcc, Disc, LatMov, Collect, C2, Exfil, Impact.
+  score_dimensions: |
+    §1 Executive Summary → Score dimension table. Extract 5 rows:
+    Breadth (25%), Balance (10%), Operational (30%), Tagging (15%), SOC Align (20%)
+    — each with score value out of 100.
+
+  # Row 4 — SOC Scenarios + Platform Products
+  soc_scenarios: |
+    §4 Threat Scenario Coverage table — top 8 by gap size.
+    Map Priority emoji to badge. Include Active/Recommended/Gap counts and State.
+  platform_products: |
+    §5.1 Active Detection Sources list — abbreviated product names + technique count,
+    plus AR/CD alert-proven technique counts (listed as "Analytic Rules (AR): N techniques"
+    and "Custom Detections (CD): N techniques" in the same list).
+    Each source becomes a donut segment (label = abbreviation, value = technique count).
+    Product examples: MDE=58, MXDR=18, MDC=13, MDI=8, MDCA=6, AADIP=2, MDO=1.
+    Rule sources: AR=N, CD=N — include only if listed in the report.
+    ⚠️ OVERLAP WARNING: Technique counts overlap between sources (one technique
+    may be covered by multiple products AND rules). The donut segments show
+    contribution breadth per source, NOT mutually exclusive slices.
+    🔴 CENTER TOTAL: The donut center number MUST be the DEDUPLICATED Tier 1
+    unique technique count from §5.1 CTID Tier Classification table ("Tier 1:
+    Alert-Proven" row). Do NOT sum the segment values — that double-counts
+    techniques detected by multiple products (e.g., sum=122 vs unique=67).
+
+  # Row 5 — Recommendations
+  top_recommendations: "§1 Top 3 Recommendations — priority, text, impact"
+
+# ─── Rendering Efficiency ────────────────────────────────────────────────────
+# This dashboard has 11 widgets (near the 12 max) and 14 stacked bars (above
+# the 8-bar freeform guideline — acceptable in manifest mode because only 2
+# segments, keeping SVG element count low: 14×3 rects = 42 vs 8×6 = 48).
+#
+# The primary token risk is NOT the SVG output size — it's the LLM reasoning
+# chain computing coordinates from scratch. These formulas prevent that spiral.
+
+rendering_hints:
+
+  # ── Stacked Bar Chart: 14 tactic bars ──────────────────────────────────
+  # ANTI-PATTERN: Do NOT manually compute x,y for each bar. Use these formulas
+  # to build a data table ONCE, then render rects from the table without
+  # recalculating.
+  #
+  # Given:
+  #   chart_x = widget_x + 40         (left margin for y-axis)
+  #   chart_w = widget_w - 50         (chart drawing width)
+  #   chart_y = widget_y + 35         (top margin for title + legend)
+  #   chart_h = widget_h - 75         (chart drawing height, leaves room for x-axis labels)
+  #   bar_count = 14
+  #   bar_gap = 8                     (px between bars)
+  #   bar_w = (chart_w - (bar_count - 1) * bar_gap) / bar_count
+  #   max_val = max(framework_count)  (e.g. 47 for Defense Evasion)
+  #   scale = chart_h / max_val
+  #   base_y = chart_y + chart_h      (bottom of chart = y-axis zero)
+  #
+  # For bar i (0-indexed):
+  #   bar_x = chart_x + i * (bar_w + bar_gap)
+  #   gray_h = framework[i] * scale   → rect(bar_x, base_y - gray_h, bar_w, gray_h)
+  #   blue_h = rule_based[i] * scale  → rect(bar_x, base_y - blue_h, bar_w, blue_h)
+  #   green_h = uplift[i] * scale     → rect(bar_x, base_y - blue_h - green_h, bar_w, green_h)
+  #   label at (bar_x + bar_w/2, base_y + 15) rotated -45°
+  #   total at (bar_x + bar_w/2, base_y - gray_h - 5)
+  #
+  # CRITICAL: Compute the data table (14 rows of bar_x, gray_h, blue_h, green_h)
+  # in ONE pass. Do NOT recalculate. If you doubt a value, trust the formula.
+
+  stacked_bar_formula: "See comments above — compute data table once, render from it"
+
+  # ── Donut Chart: 7 product segments ────────────────────────────────────
+  # Use the circle-with-dasharray method from the SVG skill.
+  # Pre-sorted by value desc: MDE=58, MXDR=18, MDC=13, MDI=8, MDCA=6, AADIP=2, MDO=1
+  # total=106, radius=70, circumference=439.82
+  # Compute arc_len = (value/106) * 439.82 for each, accumulate start offsets.
+  # Do NOT iterate on arc math. One pass, then render.
+
+  donut_formula: "circumference=2πr; arc=value/total*C; offset=C-cumulative_start"
+
+  # ── General ────────────────────────────────────────────────────────────
+  # - Build all coordinate data FIRST (as a mental table), THEN write SVG
+  # - Never re-derive a position you already computed
+  # - If uncertain about a coordinate, re-check the formula — do not start over
+  # - Use <g transform="translate(x,y)"> for widget positioning (simplifies child coords)
+  # - Row 2 (5 cards) → 1 score-card at 20% + 4 KPI cards (Rule-Based, Enabled Rules, Combined, Data Readiness) in remaining 80%
+  # - Row 3 → 65%/35% split, use translate for each widget group
+  # - Row 4 → 60%/40% split
+  # - Row 5 → 3 equal cards, full width

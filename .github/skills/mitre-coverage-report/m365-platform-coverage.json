@@ -1,0 +1,864 @@
+{
+  "metadata": {
+    "source": "Center for Threat-Informed Defense",
+    "project": "M365 Defender ATT&CK Mapping",
+    "ctid_version": "07/18/2025",
+    "attack_version": "16.1",
+    "total_mappings": 806,
+    "total_capabilities": 38,
+    "techniques_with_detect": 81,
+    "techniques_with_protect": 56,
+    "techniques_with_respond": 32
+  },
+  "product_mapping": {
+    "Microsoft Defender for Identity": [
+      "DEF-ID-E5",
+      "DEF-LM-E5"
+    ],
+    "Microsoft Cloud App Security": [
+      "DEF-CAPP-E5",
+      "DEF-APGV-E5"
+    ],
+    "Microsoft Defender for Office 365": [
+      "DEF-AAPH-E5",
+      "DEF-ASP-E3",
+      "DEF-PSP-E3",
+      "DEF-QUAR-E3",
+      "DEF-SATT-E3",
+      "DEF-SLNK-E3",
+      "DEF-ZHAP-E3",
+      "EOP-AMW-E3",
+      "EOP-APH-E3",
+      "EOP-ASP-E3"
+    ],
+    "Microsoft 365 Defender": [
+      "DEF-AIR-E5",
+      "DEF-SECA-E3"
+    ],
+    "Azure Active Directory Identity Protection": [
+      "EID-IDPR-E5"
+    ],
+    "Microsoft Data Loss Prevention": [
+      "PUR-INPR-E5"
+    ],
+    "Azure Security Center": [
+      "DEF-AACI-E3"
+    ]
+  },
+  "capability_to_product": {
+    "DEF-ID-E5": "Microsoft Defender for Identity",
+    "DEF-LM-E5": "Microsoft Defender for Identity",
+    "DEF-CAPP-E5": "Microsoft Cloud App Security",
+    "DEF-APGV-E5": "Microsoft Cloud App Security",
+    "DEF-AAPH-E5": "Microsoft Defender for Office 365",
+    "DEF-ASP-E3": "Microsoft Defender for Office 365",
+    "DEF-PSP-E3": "Microsoft Defender for Office 365",
+    "DEF-QUAR-E3": "Microsoft Defender for Office 365",
+    "DEF-SATT-E3": "Microsoft Defender for Office 365",
+    "DEF-SLNK-E3": "Microsoft Defender for Office 365",
+    "DEF-ZHAP-E3": "Microsoft Defender for Office 365",
+    "EOP-AMW-E3": "Microsoft Defender for Office 365",
+    "EOP-APH-E3": "Microsoft Defender for Office 365",
+    "EOP-ASP-E3": "Microsoft Defender for Office 365",
+    "DEF-AIR-E5": "Microsoft 365 Defender",
+    "DEF-SECA-E3": "Microsoft 365 Defender",
+    "EID-IDPR-E5": "Azure Active Directory Identity Protection",
+    "PUR-INPR-E5": "Microsoft Data Loss Prevention",
+    "DEF-AACI-E3": "Azure Security Center"
+  },
+  "non_alert_capabilities": [
+    "DEF-ATH-E5",
+    "DEF-IR-E5",
+    "DEF-SIMT-E5",
+    "DEF-SSCO-E3",
+    "DEF-THEX-E5",
+    "DEF-THTR-E5",
+    "DEF-TPSR-E3",
+    "EID-CA-E3",
+    "EID-CAE-E3",
+    "EID-IDSS-E3",
+    "EID-MFA-E3",
+    "EID-PIM-E5",
+    "EID-PWLA-E3",
+    "EID-PWP-E3",
+    "EID-PWPR-E3",
+    "EID-RBAC-E3",
+    "EOP-MFR-E3",
+    "PUR-AUS-E5",
+    "PUR-PAM-E5"
+  ],
+  "detect_coverage": {
+    "T1003": [
+      "DEF-ID-E5",
+      "DEF-SECA-E3"
+    ],
+    "T1011": [
+      "DEF-SECA-E3"
+    ],
+    "T1016": [
+      "DEF-CAPP-E5"
+    ],
+    "T1018": [
+      "DEF-SECA-E3"
+    ],
+    "T1021": [
+      "DEF-ID-E5",
+      "DEF-SSCO-E3",
+      "EID-IDPR-E5"
+    ],
+    "T1027": [
+      "DEF-ATH-E5",
+      "DEF-CAPP-E5"
+    ],
+    "T1036": [
+      "DEF-AACI-E3"
+    ],
+    "T1046": [
+      "DEF-SECA-E3"
+    ],
+    "T1047": [
+      "DEF-ID-E5"
+    ],
+    "T1048": [
+      "DEF-ATH-E5",
+      "DEF-ID-E5"
+    ],
+    "T1049": [
+      "DEF-SECA-E3"
+    ],
+    "T1055": [
+      "DEF-AIR-E5"
+    ],
+    "T1059": [
+      "DEF-ATH-E5",
+      "DEF-ID-E5",
+      "DEF-SSCO-E3",
+      "PUR-AUS-E5",
+      "PUR-PAM-E5"
+    ],
+    "T1068": [
+      "DEF-LM-E5",
+      "DEF-SECA-E3"
+    ],
+    "T1069": [
+      "DEF-ID-E5",
+      "DEF-SECA-E3"
+    ],
+    "T1070": [
+      "PUR-AUS-E5"
+    ],
+    "T1071": [
+      "DEF-CAPP-E5",
+      "DEF-ID-E5"
+    ],
+    "T1072": [
+      "DEF-SSCO-E3"
+    ],
+    "T1078": [
+      "DEF-APGV-E5",
+      "DEF-ATH-E5",
+      "DEF-CAPP-E5",
+      "DEF-LM-E5",
+      "DEF-SECA-E3",
+      "DEF-SSCO-E3",
+      "EID-CAE-E3",
+      "EID-IDPR-E5",
+      "EID-IDSS-E3",
+      "PUR-PAM-E5"
+    ],
+    "T1080": [
+      "DEF-SSCO-E3"
+    ],
+    "T1087": [
+      "DEF-APGV-E5",
+      "DEF-ATH-E5",
+      "DEF-ID-E5",
+      "DEF-SECA-E3",
+      "PUR-AUS-E5",
+      "PUR-INPR-E5"
+    ],
+    "T1098": [
+      "DEF-CAPP-E5",
+      "DEF-ID-E5",
+      "DEF-LM-E5",
+      "DEF-SECA-E3",
+      "EID-CAE-E3",
+      "EID-IDPR-E5",
+      "EID-PIM-E5",
+      "PUR-PAM-E5"
+    ],
+    "T1110": [
+      "DEF-APGV-E5",
+      "DEF-ATH-E5",
+      "DEF-CAPP-E5",
+      "DEF-ID-E5",
+      "DEF-LM-E5",
+      "DEF-SECA-E3",
+      "DEF-SSCO-E3",
+      "EID-CAE-E3",
+      "EID-IDPR-E5"
+    ],
+    "T1114": [
+      "DEF-ATH-E5",
+      "DEF-SSCO-E3",
+      "EID-CAE-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1119": [
+      "DEF-CAPP-E5"
+    ],
+    "T1133": [
+      "DEF-CAPP-E5",
+      "DEF-ID-E5",
+      "EID-IDSS-E3",
+      "PUR-PAM-E5"
+    ],
+    "T1134": [
+      "DEF-SECA-E3",
+      "EID-CAE-E3",
+      "EID-IDSS-E3"
+    ],
+    "T1136": [
+      "DEF-SSCO-E3"
+    ],
+    "T1137": [
+      "DEF-SSCO-E3"
+    ],
+    "T1187": [
+      "DEF-CAPP-E5",
+      "DEF-SECA-E3"
+    ],
+    "T1189": [
+      "DEF-ATH-E5",
+      "DEF-CAPP-E5",
+      "DEF-PSP-E3",
+      "DEF-SIMT-E5",
+      "DEF-SSCO-E3",
+      "DEF-THEX-E5",
+      "DEF-TPSR-E3"
+    ],
+    "T1199": [
+      "DEF-APGV-E5",
+      "DEF-ATH-E5"
+    ],
+    "T1201": [
+      "DEF-ID-E5"
+    ],
+    "T1202": [
+      "DEF-SECA-E3"
+    ],
+    "T1204": [
+      "DEF-AACI-E3",
+      "DEF-PSP-E3",
+      "DEF-SATT-E3",
+      "DEF-SIMT-E5",
+      "DEF-SLNK-E3",
+      "DEF-SSCO-E3"
+    ],
+    "T1207": [
+      "DEF-ID-E5"
+    ],
+    "T1210": [
+      "DEF-ID-E5",
+      "DEF-LM-E5",
+      "DEF-SECA-E3"
+    ],
+    "T1211": [
+      "DEF-SSCO-E3"
+    ],
+    "T1213": [
+      "DEF-CAPP-E5",
+      "DEF-LM-E5",
+      "DEF-SSCO-E3",
+      "PUR-PAM-E5"
+    ],
+    "T1219": [
+      "DEF-CAPP-E5"
+    ],
+    "T1482": [
+      "DEF-ID-E5"
+    ],
+    "T1484": [
+      "DEF-CAPP-E5",
+      "DEF-SECA-E3"
+    ],
+    "T1485": [
+      "DEF-CAPP-E5"
+    ],
+    "T1486": [
+      "DEF-CAPP-E5"
+    ],
+    "T1496": [
+      "DEF-CAPP-E5"
+    ],
+    "T1526": [
+      "DEF-CAPP-E5"
+    ],
+    "T1528": [
+      "DEF-APGV-E5",
+      "DEF-CAPP-E5",
+      "DEF-SIMT-E5"
+    ],
+    "T1530": [
+      "DEF-CAPP-E5",
+      "DEF-LM-E5",
+      "DEF-SSCO-E3",
+      "PUR-INPR-E5",
+      "PUR-PAM-E5"
+    ],
+    "T1531": [
+      "DEF-CAPP-E5",
+      "EID-CAE-E3"
+    ],
+    "T1534": [
+      "DEF-AAPH-E5",
+      "DEF-ASP-E3",
+      "DEF-ATH-E5",
+      "DEF-CAPP-E5",
+      "DEF-PSP-E3",
+      "DEF-SLNK-E3",
+      "DEF-SSCO-E3",
+      "DEF-TPSR-E3"
+    ],
+    "T1535": [
+      "DEF-CAPP-E5"
+    ],
+    "T1538": [
+      "DEF-APGV-E5",
+      "DEF-ATH-E5"
+    ],
+    "T1539": [
+      "DEF-SIMT-E5",
+      "EID-CAE-E3"
+    ],
+    "T1543": [
+      "DEF-ID-E5"
+    ],
+    "T1546": [
+      "DEF-ATH-E5",
+      "DEF-SSCO-E3",
+      "PUR-AUS-E5",
+      "PUR-INPR-E5"
+    ],
+    "T1548": [
+      "DEF-SSCO-E3",
+      "EID-CAE-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1550": [
+      "DEF-ID-E5",
+      "DEF-LM-E5",
+      "DEF-SECA-E3",
+      "DEF-SIMT-E5",
+      "DEF-SSCO-E3"
+    ],
+    "T1552": [
+      "DEF-ATH-E5",
+      "DEF-SECA-E3",
+      "PUR-INPR-E5"
+    ],
+    "T1553": [
+      "DEF-AACI-E3"
+    ],
+    "T1554": [
+      "DEF-AACI-E3"
+    ],
+    "T1555": [
+      "DEF-ID-E5",
+      "DEF-SECA-E3"
+    ],
+    "T1556": [
+      "DEF-APGV-E5",
+      "DEF-ATH-E5",
+      "DEF-ID-E5",
+      "DEF-SECA-E3",
+      "EID-CAE-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1557": [
+      "DEF-ID-E5",
+      "DEF-SECA-E3"
+    ],
+    "T1558": [
+      "DEF-ID-E5",
+      "DEF-SECA-E3"
+    ],
+    "T1562": [
+      "DEF-APGV-E5",
+      "DEF-ATH-E5",
+      "DEF-SSCO-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1564": [
+      "DEF-SSCO-E3",
+      "EOP-MFR-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1566": [
+      "DEF-AAPH-E5",
+      "DEF-APGV-E5",
+      "DEF-ATH-E5",
+      "DEF-PSP-E3",
+      "DEF-SATT-E3",
+      "DEF-SIMT-E5",
+      "DEF-SLNK-E3",
+      "DEF-SSCO-E3",
+      "DEF-THEX-E5",
+      "DEF-THTR-E5",
+      "DEF-TPSR-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1567": [
+      "DEF-ATH-E5",
+      "DEF-CAPP-E5",
+      "DEF-SSCO-E3"
+    ],
+    "T1569": [
+      "DEF-ID-E5"
+    ],
+    "T1574": [
+      "DEF-CAPP-E5",
+      "PUR-AUS-E5"
+    ],
+    "T1578": [
+      "DEF-CAPP-E5"
+    ],
+    "T1585": [
+      "EID-CAE-E3"
+    ],
+    "T1586": [
+      "EID-CAE-E3",
+      "PUR-PAM-E5"
+    ],
+    "T1598": [
+      "DEF-SATT-E3",
+      "DEF-SIMT-E5"
+    ],
+    "T1606": [
+      "DEF-APGV-E5",
+      "DEF-ATH-E5",
+      "DEF-SECA-E3",
+      "DEF-SSCO-E3",
+      "EID-IDPR-E5",
+      "EID-IDSS-E3"
+    ],
+    "T1621": [
+      "DEF-APGV-E5",
+      "DEF-ATH-E5"
+    ],
+    "T1651": [
+      "DEF-SSCO-E3",
+      "EID-CAE-E3",
+      "PUR-PAM-E5"
+    ],
+    "T1656": [
+      "DEF-AAPH-E5",
+      "DEF-PSP-E3",
+      "DEF-SSCO-E3",
+      "DEF-THEX-E5",
+      "DEF-TPSR-E3"
+    ],
+    "T1657": [
+      "DEF-SSCO-E3"
+    ],
+    "T1665": [
+      "PUR-AUS-E5"
+    ],
+    "T1666": [
+      "DEF-CAPP-E5",
+      "PUR-AUS-E5"
+    ]
+  },
+  "protect_coverage": {
+    "T1020": [
+      "PUR-INPR-E5"
+    ],
+    "T1021": [
+      "DEF-CAPP-E5",
+      "EID-PWLA-E3"
+    ],
+    "T1027": [
+      "DEF-ATH-E5",
+      "DEF-CAPP-E5",
+      "EOP-AMW-E3",
+      "EOP-APH-E3"
+    ],
+    "T1036": [
+      "DEF-AAPH-E5",
+      "DEF-ATH-E5",
+      "DEF-SATT-E3",
+      "EOP-AMW-E3"
+    ],
+    "T1040": [
+      "EID-IDSS-E3"
+    ],
+    "T1048": [
+      "PUR-INPR-E5"
+    ],
+    "T1053": [
+      "DEF-CAPP-E5"
+    ],
+    "T1059": [
+      "DEF-ATH-E5",
+      "EID-CA-E3",
+      "EID-RBAC-E3",
+      "EOP-AMW-E3"
+    ],
+    "T1070": [
+      "PUR-AUS-E5",
+      "PUR-INPR-E5"
+    ],
+    "T1074": [
+      "EID-CA-E3"
+    ],
+    "T1078": [
+      "EID-CA-E3",
+      "EID-IDSS-E3",
+      "EID-MFA-E3",
+      "EID-PIM-E5",
+      "EID-PWLA-E3",
+      "EID-PWP-E3",
+      "EID-PWPR-E3",
+      "EID-RBAC-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1080": [
+      "EOP-AMW-E3"
+    ],
+    "T1087": [
+      "EID-RBAC-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1098": [
+      "EID-IDPR-E5",
+      "EID-MFA-E3",
+      "EID-PIM-E5",
+      "EID-PWLA-E3",
+      "EID-RBAC-E3"
+    ],
+    "T1110": [
+      "EID-CA-E3",
+      "EID-IDPR-E5",
+      "EID-IDSS-E3",
+      "EID-MFA-E3",
+      "EID-PWLA-E3",
+      "EID-PWP-E3",
+      "EID-PWPR-E3"
+    ],
+    "T1114": [
+      "EOP-MFR-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1119": [
+      "DEF-CAPP-E5",
+      "PUR-INPR-E5"
+    ],
+    "T1127": [
+      "EID-RBAC-E3"
+    ],
+    "T1133": [
+      "DEF-CAPP-E5"
+    ],
+    "T1136": [
+      "EID-MFA-E3",
+      "EID-PIM-E5",
+      "EID-PWLA-E3",
+      "EID-RBAC-E3"
+    ],
+    "T1187": [
+      "DEF-CAPP-E5"
+    ],
+    "T1199": [
+      "EID-RBAC-E3"
+    ],
+    "T1204": [
+      "EOP-AMW-E3"
+    ],
+    "T1213": [
+      "DEF-CAPP-E5",
+      "EID-CA-E3",
+      "EID-RBAC-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1216": [
+      "EID-RBAC-E3"
+    ],
+    "T1218": [
+      "PUR-AUS-E5"
+    ],
+    "T1219": [
+      "DEF-CAPP-E5"
+    ],
+    "T1480": [
+      "EID-RBAC-E3"
+    ],
+    "T1484": [
+      "EID-RBAC-E3"
+    ],
+    "T1485": [
+      "PUR-AUS-E5"
+    ],
+    "T1496": [
+      "EID-CA-E3"
+    ],
+    "T1528": [
+      "DEF-CAPP-E5",
+      "EID-IDSS-E3",
+      "EID-RBAC-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1530": [
+      "EID-CA-E3",
+      "EID-MFA-E3",
+      "EID-RBAC-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1531": [
+      "EID-IDSS-E3",
+      "EID-PWLA-E3"
+    ],
+    "T1534": [
+      "DEF-AAPH-E5",
+      "EOP-ASP-E3"
+    ],
+    "T1538": [
+      "EID-RBAC-E3"
+    ],
+    "T1539": [
+      "EID-PWLA-E3"
+    ],
+    "T1546": [
+      "EID-RBAC-E3"
+    ],
+    "T1548": [
+      "DEF-APGV-E5",
+      "EID-RBAC-E3"
+    ],
+    "T1550": [
+      "EID-IDSS-E3"
+    ],
+    "T1552": [
+      "EID-IDSS-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1556": [
+      "EID-IDPR-E5",
+      "EID-PIM-E5",
+      "EID-RBAC-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1557": [
+      "EID-CA-E3"
+    ],
+    "T1558": [
+      "DEF-CAPP-E5",
+      "EID-IDSS-E3"
+    ],
+    "T1562": [
+      "DEF-APGV-E5",
+      "EID-RBAC-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1564": [
+      "EOP-MFR-E3",
+      "PUR-AUS-E5",
+      "PUR-INPR-E5"
+    ],
+    "T1565": [
+      "DEF-CAPP-E5"
+    ],
+    "T1566": [
+      "DEF-AAPH-E5",
+      "DEF-ASP-E3",
+      "EID-MFA-E3",
+      "EOP-AMW-E3",
+      "EOP-APH-E3",
+      "EOP-ASP-E3",
+      "PUR-AUS-E5"
+    ],
+    "T1567": [
+      "DEF-CAPP-E5",
+      "PUR-INPR-E5"
+    ],
+    "T1586": [
+      "EID-CA-E3",
+      "EID-IDPR-E5",
+      "EID-PWP-E3",
+      "EID-PWPR-E3"
+    ],
+    "T1606": [
+      "PUR-AUS-E5"
+    ],
+    "T1621": [
+      "EID-CA-E3",
+      "EID-IDPR-E5",
+      "EID-MFA-E3"
+    ],
+    "T1648": [
+      "EID-RBAC-E3"
+    ],
+    "T1649": [
+      "DEF-CAPP-E5"
+    ],
+    "T1651": [
+      "EID-PIM-E5",
+      "EID-RBAC-E3"
+    ],
+    "T1656": [
+      "DEF-AAPH-E5",
+      "DEF-ASP-E3",
+      "EOP-APH-E3",
+      "EOP-ASP-E3"
+    ]
+  },
+  "respond_coverage": {
+    "T1027": [
+      "DEF-QUAR-E3",
+      "DEF-ZHAP-E3"
+    ],
+    "T1036": [
+      "DEF-QUAR-E3",
+      "DEF-ZHAP-E3"
+    ],
+    "T1048": [
+      "DEF-AIR-E5"
+    ],
+    "T1059": [
+      "DEF-IR-E5",
+      "DEF-ZHAP-E3"
+    ],
+    "T1078": [
+      "DEF-AIR-E5",
+      "DEF-IR-E5",
+      "EID-CA-E3",
+      "EID-IDPR-E5"
+    ],
+    "T1080": [
+      "DEF-QUAR-E3",
+      "DEF-ZHAP-E3"
+    ],
+    "T1087": [
+      "DEF-IR-E5"
+    ],
+    "T1098": [
+      "DEF-IR-E5"
+    ],
+    "T1110": [
+      "DEF-IR-E5",
+      "EID-IDPR-E5"
+    ],
+    "T1114": [
+      "DEF-AIR-E5"
+    ],
+    "T1136": [
+      "DEF-IR-E5"
+    ],
+    "T1137": [
+      "DEF-AIR-E5"
+    ],
+    "T1189": [
+      "DEF-AIR-E5",
+      "DEF-SIMT-E5"
+    ],
+    "T1204": [
+      "DEF-AIR-E5",
+      "DEF-QUAR-E3",
+      "DEF-SATT-E3",
+      "DEF-SIMT-E5",
+      "DEF-ZHAP-E3"
+    ],
+    "T1213": [
+      "DEF-IR-E5",
+      "DEF-QUAR-E3"
+    ],
+    "T1528": [
+      "DEF-SIMT-E5"
+    ],
+    "T1530": [
+      "DEF-IR-E5",
+      "DEF-QUAR-E3"
+    ],
+    "T1531": [
+      "DEF-IR-E5"
+    ],
+    "T1534": [
+      "DEF-AIR-E5",
+      "DEF-QUAR-E3",
+      "DEF-ZHAP-E3"
+    ],
+    "T1538": [
+      "DEF-IR-E5"
+    ],
+    "T1539": [
+      "DEF-SIMT-E5"
+    ],
+    "T1550": [
+      "DEF-AIR-E5",
+      "DEF-IR-E5",
+      "DEF-SIMT-E5"
+    ],
+    "T1552": [
+      "DEF-IR-E5"
+    ],
+    "T1556": [
+      "DEF-IR-E5"
+    ],
+    "T1562": [
+      "DEF-IR-E5"
+    ],
+    "T1564": [
+      "DEF-AIR-E5",
+      "DEF-IR-E5"
+    ],
+    "T1566": [
+      "DEF-AAPH-E5",
+      "DEF-AIR-E5",
+      "DEF-IR-E5",
+      "DEF-QUAR-E3",
+      "DEF-SATT-E3",
+      "DEF-SIMT-E5",
+      "DEF-ZHAP-E3"
+    ],
+    "T1567": [
+      "DEF-AIR-E5"
+    ],
+    "T1598": [
+      "DEF-IR-E5",
+      "DEF-SATT-E3",
+      "DEF-SIMT-E5"
+    ],
+    "T1606": [
+      "DEF-IR-E5",
+      "EID-IDPR-E5"
+    ],
+    "T1621": [
+      "DEF-IR-E5"
+    ],
+    "T1656": [
+      "DEF-AAPH-E5",
+      "DEF-AIR-E5",
+      "DEF-QUAR-E3",
+      "DEF-ZHAP-E3"
+    ]
+  },
+  "product_aliases": {
+    "Azure Advanced Threat Protection": "Microsoft Defender for Identity",
+    "Office 365 Advanced Threat Protection": "Microsoft Defender for Office 365",
+    "Microsoft Defender Advanced Threat Protection": "Microsoft Defender for Endpoint",
+    "Azure Security Center for IoT": "Azure Security Center"
+  },
+  "product_families": {
+    "Microsoft Defender for Endpoint": "Microsoft 365 Defender"
+  },
+  "display_names": {
+    "Microsoft Defender for Identity": "Microsoft Defender for Identity",
+    "Microsoft Cloud App Security": "Microsoft Defender for Cloud Apps",
+    "Microsoft Defender for Office 365": "Microsoft Defender for Office 365",
+    "Microsoft 365 Defender": "Microsoft Defender XDR",
+    "Azure Active Directory Identity Protection": "Microsoft Entra ID Protection",
+    "Microsoft Data Loss Prevention": "Microsoft Purview DLP",
+    "Azure Security Center": "Microsoft Defender for Cloud",
+    "Microsoft Defender for Endpoint": "Microsoft Defender for Endpoint",
+    "Azure Security Center for IoT": "Microsoft Defender for IoT"
+  }
+}

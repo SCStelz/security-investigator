@@ -91,6 +91,7 @@ Step 6:  Render SVG → save to temp/{descriptive_name}_dashboard.svg or user-sp
 | Tabular detail rows | `table-widget` | IP enrichment results, alert details |
 | Prioritized action items | `recommendation-cards` | High/Medium/Low priority findings |
 | Executive summary | `assessment-banner` | Overall risk assessment with key risks/strengths |
+| 2D framework coverage (categories × items) | `coverage-matrix` | MITRE ATT&CK tactic × technique map, permission grids |
 | Report header | `title-banner` | Investigation title, date, scope |
 
 ### Layout Heuristics (Freeform)
@@ -167,12 +168,13 @@ You are still bound by the **Quality Standards** and **Color & Typography** rule
 ### Color & Typography
 
 - Use `palette.*` values from the manifest. In freeform mode, use the default palette below.
+- **🔴 GLOBAL TEXT FILL RULE:** SVG defaults `fill` to black — which is invisible on dark backgrounds. **Every `<text>` element MUST have an explicit `fill` attribute.** Set `fill="{palette.text_primary}"` on the root `<svg>` or a top-level `<g>` so all text inherits white by default. Never rely on SVG's implicit black fill.
 - All text uses `canvas.font_family` (manifest) or `Segoe UI, sans-serif` (freeform default).
 - KPI values: **bold, 28-36px**, colored with `palette.primary` or widget's `highlight_color`.
 - KPI labels: 11-12px, `palette.text_secondary`.
 - Widget titles: **bold, 14-16px**, `palette.text_primary`.
 - Axis labels and table headers: 10-12px, `palette.text_secondary`.
-- Data labels: 10-11px, `palette.text_primary`.
+- Data labels and value labels: 10-11px, `palette.text_primary`. **Never place value labels inside bars** — always position them after/outside the bar.
 - The default palette uses a cool dark theme consistent across all skill manifests. Skills may override with their own `palette` in `svg-widgets.yaml`.
 
 #### Default Palette (Freeform Mode)
@@ -210,13 +212,28 @@ Rounded rectangle card (`rx="12"`) with `card_bg` background. Render the numeric
 Vertical or horizontal bars where each bar is subdivided into colored segments representing categories (e.g., severity levels, sources, status). Include a legend mapping segment colors to category names. If `orientation: horizontal`, render left-to-right stacked rows with labels on the left. If `orientation: vertical` (default), render bottom-to-top stacked columns with labels on the x-axis. Show segment values on hover via `<title>` elements. If `show_totals` is true, display the total above each bar. Use `segment_colors` from the manifest or assign from palette automatically.
 
 #### `horizontal-bar-chart`
-Horizontal bars sorted by value descending. Layout per row (left to right): **label** → optional inline badges → **bar** (proportional to max value) → **value label** (with `value_unit` if specified) → optional **extra column** (rightmost). If `show_rule_count: right`, render the rule count as the rightmost column, right-aligned. If a value is 0, render it in `palette.danger`. If `show_tier_badge` is true, render a small colored badge after each label using colors from the YAML `segments` or `badge_colors` definitions. If `bar_color_by: severity` is set, color bars by severity level. If `show_error_overlay` is true, render a red overlay segment proportional to failure count. If `highlight_sensitive` is true, mark flagged items with a warning indicator.
+Horizontal bars sorted by value descending. Layout per row (left to right): **label** → optional inline badges → **bar** (proportional to max value) → **value label** → optional **extra column** (rightmost). **Value labels MUST be positioned outside (after) the bar**, never inside it — use `fill="{palette.text_primary}"` (white on dark themes). Append `value_suffix` if specified. If `show_rule_count: right`, render the rule count as the rightmost column, right-aligned. If a value is 0, render it in `palette.danger`. If `show_tier_badge` is true, render a small colored badge after each label using colors from the YAML `segments` or `badge_colors` definitions. If `bar_color_by: severity` is set, color bars by severity level. If `show_error_overlay` is true, render a red overlay segment proportional to failure count. If `highlight_sensitive` is true, mark flagged items with a warning indicator.
 
 #### `line-chart`
 SVG `<polyline>` or `<path>` for the trend line with optional area fill (`fill_opacity`). X-axis = dates, Y-axis = values. Render annotations as labeled markers: peak (triangle up), low (triangle down), average (dashed horizontal line). Grid lines at sensible intervals. If `show_weekday_pattern` is true, add subtle mini-bars along the bottom showing day-of-week averages.
 
 #### `donut-chart`
-SVG `<circle>` arcs using `stroke-dasharray`/`stroke-dashoffset`. Legend to the right or below. If `show_center_total` is true, display the total count in the donut center. If `compact` is true, reduce the donut radius and legend font size to fit alongside a stacked widget below.
+Render using SVG `<circle>` elements with `stroke-dasharray`/`stroke-dashoffset`. **Use this exact formula — do not iterate or try alternative approaches:**
+
+```
+circumference = 2 * π * radius    (e.g., radius=70 → C ≈ 439.82)
+
+For each segment i (ordered by value descending):
+  arc_len_i    = (value_i / total) * circumference
+  start_i      = sum of all previous arc_lens (0 for first segment)
+  dasharray    = "arc_len_i, (circumference - arc_len_i)"
+  dashoffset   = circumference - start_i
+  transform    = "rotate(-90, cx, cy)"     ← starts at 12 o'clock
+```
+
+Each segment is a `<circle cx cy r>` with `fill="none"`, `stroke="{segment_color}"`, `stroke-width="20"`. Stack all circles at the same position — the dasharray/dashoffset combination makes each one draw only its arc portion. Add `<title>` tooltips.
+
+Legend to the right or below. If `show_center_total` is true, display the total count in the donut center. If `compact` is true, reduce the donut radius and legend font size to fit alongside a stacked widget below.
 
 #### `waterfall-chart`
 Stacked/cascading vertical bars: each segment starts where the previous ended. Negative segments (benefits) flow downward. Show values on each bar. Final bar shows net total.
@@ -235,6 +252,34 @@ Side-by-side rounded cards. Left border colored by priority (`card_colors`). Tit
 
 #### `assessment-banner`
 Large panel with a colored left border. Title + main assessment text. Sub-fields rendered as bullet lists (key_risks in `palette.danger`, strengths in `palette.success`).
+
+#### `coverage-matrix`
+Compact grid visualization for displaying coverage status across a two-dimensional framework (e.g., MITRE ATT&CK tactics × techniques, permission matrices, data readiness grids). Renders as a grid of small colored `<rect>` cells organized into columns, where each column represents a category (e.g., tactic) and each cell represents an item (e.g., technique) within that category.
+
+**Layout:** Columns are arranged left-to-right. Each column has a **rotated header label** at the top (45° angle, 10-11px text) and a vertical stack of cells below. Columns are variable-height — each has as many cells as items in that category. A **legend** bar is rendered below the grid mapping colors to status labels.
+
+**Cell rendering:** Each cell is a small `<rect>` (default `cell_size: 12` × 12px, `cell_gap: 2`px between cells). Cells are colored according to their `status` field using the `status_colors` map from the manifest. Cells within each column are **sorted by status priority** (covered items at top, uncovered at bottom) to create a visible "waterline" effect. Each cell has a `<title>` element containing the item name and status for hover tooltips — this is essential since cell text is not rendered at this scale.
+
+**Column rendering:** Each column is `cell_size + cell_gap` wide. Columns are separated by `col_gap` (default 6px). Column header text is right-rotated and positioned above the first cell. An optional **column footer** shows the count or percentage (e.g., "5/11" or "45%") in 9px text below the last cell.
+
+**Legend:** Horizontal bar below the grid with colored squares and labels for each status. Rendered in a single row, 10px text, using the `status_colors` map.
+
+**Manifest fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `field` | ✅ | Data source — array of `{column, items: [{name, status}]}` objects |
+| `status_colors` | ✅ | Map of status label → hex color (e.g., `custom_rule: "#409AE1"`, `tier_1: "#40C5AF"`, `uncovered: "#21262d"`) |
+| `cell_size` | ❌ | Cell width and height in px (default: 12) |
+| `cell_gap` | ❌ | Gap between cells in px (default: 2) |
+| `col_gap` | ❌ | Gap between columns in px (default: 6) |
+| `show_col_footer` | ❌ | Show count/percentage below each column (default: true) |
+| `sort_order` | ❌ | Array of status labels defining top-to-bottom cell sort order (covered statuses first) |
+| `max_rows` | ❌ | Cap the tallest column at this many cells; excess items are collapsed into a single "+" cell with count in tooltip |
+
+**Token budget:** This widget is compact by design — 250 cells ≈ 250 `<rect>` elements (~15KB SVG). No text per cell keeps it efficient. The primary token cost is the `<title>` tooltip content. For grids exceeding 300 items, set `max_rows` to cap column height and keep SVG size manageable.
+
+**Example use cases:** MITRE ATT&CK tactic × technique coverage map, data source × table readiness grid, permission scope × application access matrix, compliance framework × control status.
 
 ### Quality Standards
 

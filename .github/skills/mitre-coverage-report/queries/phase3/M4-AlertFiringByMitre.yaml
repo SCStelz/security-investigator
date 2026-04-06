@@ -1,0 +1,41 @@
+# M4: SecurityAlert Firing by MITRE Tactic — SOC-authored rules only
+# Queries SecurityAlert for Analytic Rules (AR) and Custom Detections (CD)
+# to correlate which SOC-authored rules are actually generating alerts.
+#
+# Scope: AR + CD only. Platform alerts (MDE, MDI, MDO, MCAS, etc.) are
+# covered separately by M6 (Platform Alert MITRE Coverage).
+#
+# CD discrimination: AlertType == 'CustomDetection' (literal string).
+# This is the ONLY reliable marker — seen on MDATP-sourced CDs.
+# ExtendedProperties.DetectionSource == 'customDetection' is NOT reliable
+# (MicrosoftThreatProtection correlation wrappers also carry this).
+#
+# This answers: "Of my rules, which ones are actually firing?"
+
+id: mitre-m4
+name: Alert Firing by MITRE Tactic
+description: SecurityAlert firing counts for SOC-authored rules (AR + CD) correlated with MITRE mappings
+phase: 3
+type: kql
+timespan: P{days}D
+query: |
+  SecurityAlert
+  | where TimeGenerated > ago({days}d)
+  | where ProviderName == 'ASI Scheduled Alerts' or AlertType == 'CustomDetection'
+  | extend Source = iff(ProviderName == 'ASI Scheduled Alerts', 'AR', 'CD')
+  | extend RuleId = iff(Source == 'AR',
+      extract(@'_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$', 1, AlertType),
+      AlertType)
+  | summarize
+      AlertCount = count(),
+      FirstAlert = min(TimeGenerated),
+      LastAlert = max(TimeGenerated),
+      HighSev = countif(AlertSeverity == 'High'),
+      MediumSev = countif(AlertSeverity == 'Medium'),
+      LowSev = countif(AlertSeverity == 'Low'),
+      InfoSev = countif(AlertSeverity == 'Informational'),
+      Tactics = make_set(Tactics),
+      Source = any(Source)
+      by AlertName, RuleId
+  | order by AlertCount desc
+  | take 50

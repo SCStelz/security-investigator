@@ -1,0 +1,28 @@
+# M5: Incident Volume by MITRE Tactic
+# Queries SecurityIncident for tactic distribution across real incidents.
+# Provides operational context: which tactics are generating investigation workload.
+
+id: mitre-m5
+name: Incident Volume by MITRE Tactic
+description: SecurityIncident tactic distribution for operational coverage assessment
+phase: 3
+type: kql
+timespan: P{days}D
+query: |
+  SecurityIncident
+  | where CreatedTime > ago({days}d)
+  | summarize arg_max(TimeGenerated, *) by IncidentNumber
+  | mv-expand AdditionalData.tactics
+  | extend Tactic = tostring(AdditionalData_tactics)
+  | where isnotempty(Tactic)
+  | summarize
+      IncidentCount = dcount(IncidentNumber),
+      HighSev = dcountif(IncidentNumber, Severity == 'High'),
+      MediumSev = dcountif(IncidentNumber, Severity == 'Medium'),
+      LowSev = dcountif(IncidentNumber, Severity == 'Low'),
+      InfoSev = dcountif(IncidentNumber, Severity == 'Informational'),
+      TP = dcountif(IncidentNumber, Classification == 'TruePositive'),
+      FP = dcountif(IncidentNumber, Classification == 'FalsePositive'),
+      BP = dcountif(IncidentNumber, Classification == 'BenignPositive')
+      by Tactic
+  | order by IncidentCount desc

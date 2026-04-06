@@ -76,6 +76,7 @@ Custom detection queries have strict requirements that differ from Sentinel anal
 
 | Requirement | Detail |
 |-------------|--------|
+| **🔴 Author-only by default** | The default behavior is to **author, validate, and write the manifest only** — do NOT call the Graph API to deploy rules unless the user explicitly says "deploy", "create the rule", "push to Defender", or similar deployment-intent language. If deployment intent is ambiguous, ask before calling the API. |
 | **Timestamp column must be projected as-is** | The query MUST project the timestamp column **exactly as it appears in the source table** — `TimeGenerated` for Sentinel/LA tables, `Timestamp` for XDR-native tables. Do not alias one to the other (e.g., `Timestamp = TimeGenerated` causes `400 Bad Request`). See [Pitfall 1](#pitfall-1-timestamp-vs-timegenerated). |
 | **Event-unique columns (per table type)** | Required columns that uniquely identify the event differ by table family. A bare `summarize count()` or `make_set()` loses these columns and fails. `summarize` with `arg_max` IS allowed — see [Pitfall 3](#pitfall-3-summarize--allowed-only-with-row-level-output). See table below for per-type requirements. |
 | **Impacted asset identifier column** | The query must project at least one column whose name matches a valid `impactedAssets` identifier (e.g., `AccountUpn`, `DeviceName`, `DeviceId`). See [Impacted Asset Types](#impacted-asset-types) and [Pitfall 9](#pitfall-9-impactedassets-identifier-must-be-a-predefined-api-value). Queries without `project` or `summarize` typically return these columns automatically. |
@@ -225,7 +226,7 @@ Valid user identifiers: `accountObjectId`, `accountSid`, `accountUpn`, `accountN
 }
 ```
 
-Valid mailbox identifiers: `recipientEmailAddress`, `senderFromAddress`, `senderMailFromAddress`, `senderEmailAddress`, `senderObjectId`
+Valid mailbox identifiers: `accountUpn`, `fileOwnerUpn`, `initiatingProcessAccountUpn`, `lastModifyingAccountUpn`, `targetAccountUpn`, `senderFromAddress`, `senderDisplayName`, `recipientEmailAddress`, `senderMailFromAddress`
 
 ### Minimal Valid POST Body
 
@@ -350,6 +351,8 @@ For rules based entirely on Sentinel-ingested data, a custom frequency is availa
 ---
 
 ## Deployment Workflow
+
+> **🔴 DEPLOYMENT GATE:** Only proceed to Steps 2-3 (API calls) when the user has **explicitly requested deployment**. Trigger phrases: "deploy", "create the rule", "push", "POST it", "make it live". If the user asked to "author", "write", "create a manifest", "prepare", or "draft" a detection — stop after validation (Step 1) and manifest generation. Present the manifest JSON for review and wait for explicit deployment confirmation.
 
 ### Single Rule Deployment
 
@@ -746,8 +749,9 @@ Additionally, the query MUST project a column whose name matches the chosen iden
 | `"identifier": "UserId"` | `"identifier": "accountUpn"` + project `AccountUpn = UserId` |
 | `"identifier": "Actor"` | `"identifier": "accountUpn"` + rename `Actor` → `AccountUpn` |
 | `"identifier": "TargetComputer"` | `"identifier": "deviceName"` + project `DeviceName = Computer` |
-| `"identifier": "TargetUPN"` | `"identifier": "accountUpn"` + rename `TargetUPN` → `AccountUpn` |
+| `"identifier": "TargetUPN"` | `"identifier": "accountUpn"` + rename `TargetUPN` → `AccountUpn` || `"identifier": "initiatingProcessAccountName"` | `"identifier": "accountName"` + project `AccountName = InitiatingProcessAccountName` |
 
+> **⚠️ `InitiatingProcess*` column trap (Apr 2026):** Device\* tables project many `InitiatingProcess*` columns (e.g., `InitiatingProcessAccountName`, `InitiatingProcessAccountSid`, `InitiatingProcessAccountUpn`, `InitiatingProcessAccountObjectId`). Only **three** of these are valid user identifiers: `initiatingProcessAccountUpn`, **and the `initiatingAccount*` variants** (`initiatingAccountSid`, `initiatingAccountName`, `initiatingAccountDomain`). Notably, `initiatingProcessAccountName` is **NOT** valid — it looks correct because the column exists, but the API enum uses `accountName` instead. The API rejects invalid identifiers with a silent `400 InvalidInput` (empty error message), making this very hard to debug. **Always alias the column:** `AccountName = InitiatingProcessAccountName`.
 > **DeviceId requirement:** For XDR-native tables (Device\*, Email\*, CloudAppEvents) with a device-type impactedAsset, the query must project `DeviceId` (not just `DeviceName`). Sentinel/LA tables (SecurityEvent, AuditLogs) do not require `DeviceId`.
 
 ### Pitfall 10: PowerShell Empty Array Swallowing & `organizationalScope`
@@ -952,6 +956,6 @@ This explicitly documents the assessment so the detection skill doesn't re-evalu
 1. **User says "deploy query 8 as a custom detection"** → Skill reads the query file, finds the cd-metadata block for Query 8
 2. **Pre-populates manifest entry** from cd-metadata fields (schedule, category, severity, title, impactedAssets)
 3. **Applies [Query Adaptation Checklist](#query-adaptation-checklist)** to the Sentinel KQL query in that section
-4. **Deploys** via Graph API or generates manifest JSON for batch deployment
+4. **Writes manifest JSON** to `temp/` for review. Only deploys via Graph API if the user explicitly requested deployment (see [Deployment Gate](#deployment-workflow))
 
 If a query file has **no cd-metadata blocks**, the skill assesses CD-readiness manually based on the query structure and the [Query Adaptation Checklist](#query-adaptation-checklist).

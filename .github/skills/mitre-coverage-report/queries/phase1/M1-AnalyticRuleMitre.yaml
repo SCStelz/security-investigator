@@ -1,0 +1,11 @@
+# M1: Analytic Rule Inventory with MITRE ATT&CK Mapping
+# Fetches all Scheduled + NRT analytic rules with tactics, techniques, and severity.
+# Extended from ingestion-q9 to include MITRE fields.
+
+id: mitre-m1
+name: Analytic Rules with MITRE Mapping
+description: Fetch Scheduled + NRT analytic rules via Sentinel REST API with tactics and techniques
+phase: 1
+type: rest
+url: https://management.azure.com/subscriptions/{subscription_id}/resourceGroups/{resource_group}/providers/Microsoft.OperationalInsights/workspaces/{workspace_name}/providers/Microsoft.SecurityInsights/alertRules?api-version=2024-03-01
+jmespath: value[?kind=='Scheduled' || kind=='NRT'].{displayName:properties.displayName, ruleId:name, enabled:properties.enabled, kind:kind, severity:properties.severity, tactics:properties.tactics, techniques:properties.techniques, query:properties.query, alertRuleTemplateName:properties.alertRuleTemplateName, queryFrequency:properties.queryFrequency}

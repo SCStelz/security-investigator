@@ -1,6 +1,6 @@
 # 🔒 Security Investigation Automation System
 
-**Comprehensive, automated security investigations powered by Microsoft Sentinel, Defender XDR, Graph API, and threat intelligence — with 22 specialized Agent Skills**
+**Comprehensive, automated security investigations powered by Microsoft Sentinel, Defender XDR, Graph API, and threat intelligence — with 23 specialized Agent Skills**
 
 > 📺 **Video Walkthrough:** See this project in action — [Watch on YouTube](https://youtu.be/3UFqWA4cmoE?t=1470) (starts at the Security Investigator demo). Covers the end-to-end workflow: natural language investigations, MCP server integration, KQL query execution, threat intelligence enrichment, and automated report generation.
 
@@ -37,7 +37,7 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 
 **For detailed workflows and KQL queries:**
 → [.github/copilot-instructions.md](.github/copilot-instructions.md) (universal patterns, skill detection)
-→ [.github/skills/](.github/skills/) (22 specialized investigation workflows)
+→ [.github/skills/](.github/skills/) (23 specialized investigation workflows)
 → [queries/](queries/) (verified KQL query library)
 
 ---
@@ -52,7 +52,7 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 │            (Skill detection, universal patterns, routing)          │
 ├────────────────────────────────────────────────────────────────────┤
 │                     .github/skills/*.md                            │
-│       (22 specialized workflows with KQL, risk assessment)         │
+│       (23 specialized workflows with KQL, risk assessment)         │
 ├────────────────────────────────────────────────────────────────────┤
 │                     MCP Servers (Platform)                         │
 │  ┌─────────────┐  ┌──────────────┐  ┌───────────────────────────┐  │
@@ -80,7 +80,7 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 ```
 
 **Key Components:**
-- **22 Agent Skills** — Modular investigation workflows for incidents, users, devices, IoCs, authentication, scope drift (SPN/User/Device), MCP monitoring, exposure management, AI agent posture, identity posture, data security analysis, email threat posture, ingestion analysis, detection authoring, SVG dashboards, and more
+- **23 Agent Skills** — Modular investigation workflows for incidents, users, devices, IoCs, authentication, scope drift (SPN/User/Device), MCP monitoring, exposure management, AI agent posture, identity posture, data security analysis, email threat posture, MITRE ATT&CK coverage, ingestion analysis, detection authoring, SVG dashboards, and more
 - **7 MCP Server Integrations** — Sentinel Data Lake, Graph API, Defender XDR Triage, KQL Search, Microsoft Learn, Azure MCP Server, Sentinel Graph (private preview)
 - **3 Local MCP Apps** — Interactive heatmaps, geographic attack maps, incident commenting
 - **Python Utilities** — HTML report generation with IP enrichment (geolocation, VPN detection, abuse scores, Shodan port/service/CVE intelligence)
@@ -101,6 +101,7 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 - **MCP Usage Monitoring** — Graph MCP, Sentinel MCP, Azure MCP server audit with behavioral baselines, anomaly detection, and composite scoring
 - **Email Threat Posture** — Defender for Office 365 reporting: inbound mail flow, threat composition (phishing/spam/malware), email authentication (DMARC/DKIM/SPF), ZAP post-delivery remediation, Safe Links click protection, attachment analysis, MDO incident summary, Email Protection Score
 - **Ingestion & Cost Analysis** — Table-level volume breakdown, tier classification, anomaly detection, analytic rule inventory, license benefit analysis, migration candidates
+- **MITRE ATT&CK Coverage** — Tactic/technique coverage matrix, rule-to-technique mapping, coverage gap identification, SOC Optimization alignment, untagged rule remediation, MITRE Coverage Score (5 weighted dimensions)
 - **Custom Detection Authoring** — Create, deploy, update, and manage Defender XDR custom detection rules via Graph API with manifest-driven batch deployment
 - **AI Agent Posture Audit** — Agent inventory, authentication gaps, MCP tool proliferation, knowledge source exposure, XPIA risk, Agent Security Score for Copilot Studio and M365 Copilot agents
 - **Identity Posture Report** — Multi-provider account inventory, privileged account audit, stale/deleted account hygiene, password posture, risk distribution, multi-provider identity linking, Identity Posture Score
@@ -113,7 +114,7 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 
 This system uses **[VS Code Agent Skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills)** to provide modular, domain-specific investigation workflows. Skills are automatically detected based on keywords in your prompts.
 
-### Available Skills (22)
+### Available Skills (23)
 
 | Category | Skill | Description | Trigger Keywords |
 |----------|-------|-------------|------------------|
@@ -139,6 +140,7 @@ This system uses **[VS Code Agent Skills](https://code.visualstudio.com/docs/cop
 | 🔧 Tooling & Monitoring | **[kql-query-authoring](/.github/skills/kql-query-authoring/SKILL.md)** | KQL query creation using schema validation, community examples, Microsoft Learn | "write KQL", "create KQL query", "help with KQL", "query [table]" |
 | 🔧 Tooling & Monitoring | **[mcp-usage-monitoring](/.github/skills/mcp-usage-monitoring/SKILL.md)** | MCP server usage monitoring and audit: Graph MCP endpoint analysis, Sentinel MCP auth events, Azure MCP ARM operations, workspace query governance, MCP Usage Score with 5 health/risk dimensions | "MCP usage", "MCP server monitoring", "MCP activity", "MCP audit", "Graph MCP", "Sentinel MCP", "Azure MCP" |
 | 🔧 Tooling & Monitoring | **[sentinel-ingestion-report](/.github/skills/sentinel-ingestion-report/SKILL.md)** | Sentinel workspace ingestion & cost analysis: table-level volume breakdown, tier classification (Analytics/Basic/Data Lake), SecurityEvent/Syslog/CommonSecurityLog deep dives, ingestion anomaly detection, analytic rule inventory via REST API, custom detection inventory via Graph API, rule health via SentinelHealth, data lake tier migration candidates, license benefit analysis (DfS P2, M365 E5) | "ingestion report", "usage report", "data volume", "cost analysis", "table breakdown", "data lake tier", "ingestion anomaly", "cost optimization" |
+| 🔧 Tooling & Monitoring | **[mitre-coverage-report](/.github/skills/mitre-coverage-report/SKILL.md)** | MITRE ATT&CK coverage analysis: YAML-driven PowerShell pipeline gathers analytic rule MITRE tags, custom detection techniques, SOC Optimization recommendations, alert/incident operational data. Tactic-level coverage matrix, technique-level drill-down with rule mapping, coverage gap identification, SOC Optimization threat scenario alignment, untagged rule remediation, MITRE Coverage Score (5 weighted dimensions). Inline chat and markdown file output | "MITRE coverage", "ATT&CK coverage", "MITRE report", "tactic coverage", "technique coverage", "coverage gaps", "MITRE score", "detection coverage report", "MITRE matrix" |
 
 ### How Skills Work
 
@@ -177,6 +179,8 @@ You don't need to mention the skill name — keywords are detected automatically
 | "What's our phishing delivery rate for the last 30 days?" | email-threat-posture |
 | "Run an identity posture report for the last 30 days" | identity-posture |
 | "Show me stale accounts and privileged account hygiene" | identity-posture |
+| "Generate a MITRE ATT&CK coverage report" | mitre-coverage-report |
+| "What's our MITRE technique coverage and detection gaps?" | mitre-coverage-report |
 
 ### Follow-ups and Chaining
 
@@ -255,7 +259,7 @@ security-investigator/
 ├── requirements.txt             # Python dependencies
 ├── .github/
 │   ├── copilot-instructions.md  # Skill detection, universal patterns, routing
-│   └── skills/                  # 22 Agent Skills (modular investigation workflows)
+│   └── skills/                  # 23 Agent Skills (modular investigation workflows)
 │       ├── ai-agent-posture/
 │       ├── authentication-tracing/
 │       ├── ca-policy-investigation/
@@ -272,6 +276,7 @@ security-investigator/
 │       ├── ioc-investigation/
 │       ├── kql-query-authoring/
 │       ├── mcp-usage-monitoring/
+│       ├── mitre-coverage-report/
 │       ├── scope-drift-detection/
 │       │   ├── spn/              # Service principal drift (5 dimensions)
 │       │   ├── user/             # User account drift (7+6 dimensions)

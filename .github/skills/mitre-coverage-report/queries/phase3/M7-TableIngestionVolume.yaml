@@ -1,0 +1,21 @@
+# M7: Table Ingestion Volume (7-day average)
+# Queries the Usage table to get average daily ingestion per table.
+# Used for Data Readiness cross-reference: confirms which tables have
+# active data flowing vs tables referenced by rules but with zero ingestion.
+# This catches the silent failure mode: rules targeting tables on Data Lake tier,
+# disconnected connectors, or misconfigured diagnostic settings.
+
+id: mitre-m7
+name: Table Ingestion Volume (7d avg)
+description: Average daily ingestion volume per table from Usage table for data readiness validation
+phase: 3
+type: kql
+timespan: P7D
+query: |
+  Usage
+  | where TimeGenerated > ago(7d)
+  | summarize TotalMB = round(sum(Quantity), 2) by DataType
+  | where TotalMB > 0
+  | extend AvgDailyMB = round(TotalMB / 7.0, 2)
+  | project DataType, TotalMB, AvgDailyMB
+  | order by TotalMB desc
