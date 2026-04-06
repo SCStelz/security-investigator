@@ -105,7 +105,7 @@ When converting a Sentinel query to custom detection format:
 2. ✅ Project the timestamp column as-is: `TimeGenerated = TimeGenerated` for Sentinel/LA tables, `Timestamp` for XDR tables. Never alias one to the other.
 3. ✅ Project the **impacted asset identifier column** — the column name must match a valid identifier from [Impacted Asset Types](#impacted-asset-types). Examples: `DeviceName = Computer` for device-focused detections, `AccountUpn = UserId` for user-focused. See [Pitfall 9](#pitfall-9-impactedassets-identifier-must-be-a-predefined-api-value).
 4. ✅ Project **event-unique columns** per table type — `DeviceId` + `ReportId` for MDE tables; `ReportId` for other XDR tables; recommended proxy `ReportId` for Sentinel tables (e.g., `ReportId = CorrelationId`). **Caveat:** proxy columns may contain empty strings for some events — acceptable but means those rows won't be individually identifiable in alert details.
-5. ✅ Add a time filter as the first `where` clause — prefer `ingestion_time() > ago(1h)` over `Timestamp > ago(1h)` (see tip below). **NRT exception:** For NRT rules (`schedule: "0"`), omit the time filter entirely — events are processed as they stream in, and the platform pre-filters automatically.
+5. ✅ Add a time filter as the first `where` clause — prefer `ingestion_time() > ago(1h)` over `Timestamp > ago(1h)` (see tip below). **NRT exception:** For NRT rules (`schedule: "0"`), omit **all** time filters — `ingestion_time()` causes `400 Bad Request` in NRT mode (see [Pitfall 17](#pitfall-17-ingestion_time-rejected-in-nrt-rules)). `Timestamp > ago(...)` is accepted but unnecessary.
 6. ✅ Remove `let` variables for NRT rules — **NRT rejects `let` entirely** (generic 400 error, undocumented). Inline all dynamic arrays directly in `where` clauses. Non-NRT rules tolerate `let`.
 7. ✅ Validate via Advanced Hunting dry-run before deployment
 8. ✅ For NRT rules: avoid `tostring()` on dynamic columns — use native string columns instead (e.g., `Properties` instead of `tostring(Properties_d)`). See [Pitfall 11](#pitfall-11-tostring-on-dynamic-columns-rejected-in-nrt-mode).
@@ -321,7 +321,7 @@ NRT (Continuous, `period: "0"`) rules have stricter requirements than scheduled 
 | **No `externaldata`** | Cannot use the `externaldata` operator |
 | **No comments** | Query text must not contain any comment lines (`//`) |
 | **Supported operators only** | Limited to [supported KQL features](https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/data-collection-transformations-structure#supported-kql-features). **`tostring()` on dynamic columns is rejected** — use native string columns instead (e.g., `Properties` instead of `tostring(Properties_d)`). See [Pitfall 11](#pitfall-11-tostring-on-dynamic-columns-rejected-in-nrt-mode). |
-| **No time filter needed** | NRT processes events as they stream in. The platform pre-filters automatically. Adding a time filter (e.g., `TimeGenerated > ago(1h)`) is unnecessary but harmless. |
+| **No time filter needed** | NRT processes events as they stream in. The platform pre-filters automatically. `Timestamp > ago(1h)` is unnecessary but harmless. **However, `ingestion_time()` is rejected** — the API returns `400 Bad Request`. See [Pitfall 17](#pitfall-17-ingestion_time-rejected-in-nrt-rules). |
 
 ### NRT-Supported Tables
 
@@ -869,7 +869,7 @@ The Graph API enforces **3 unique `{{Column}}` references** across `title` and `
 
 **Rule:** For ANY `queryText`, **always use `@'...'@`**. This eliminates both `$` interpolation bugs and escaping confusion. Applies to inline PowerShell, the batch deployment script, and any LLM-generated deployment commands.
 
-**Additional validated finding:** `ingestion_time()` IS accepted by the CD API (tested and confirmed Mar 2026, despite MS Learn documentation ambiguity). The CD query validator accepts all functions that Advanced Hunting accepts for scheduled (non-NRT) rules.
+**Additional validated finding:** `ingestion_time()` IS accepted by the CD API for **scheduled (non-NRT) rules** (tested and confirmed Mar 2026). However, **NRT rules reject `ingestion_time()`** with `400 Bad Request` — empirically confirmed Apr 2026, reproducible on retry. See [Pitfall 17](#pitfall-17-ingestion_time-rejected-in-nrt-rules).
 
 ### Pitfall 16: StrictMode `.Count` on Pipeline Scalars
 
@@ -883,6 +883,28 @@ $x = @(... | Sort-Object -Unique)
 ```
 
 **Fixed in** [Deploy-CustomDetections.ps1](Deploy-CustomDetections.ps1) (Mar 2026): dynamic column validation, manifest load, and existing rule fetch all wrapped in `@()`.
+
+### Pitfall 17: `ingestion_time()` Rejected in NRT Rules
+
+**NRT rules (`schedule: "0"`) reject `ingestion_time()` with `400 Bad Request`.** The NRT Constraints table notes that `Timestamp > ago(...)` is "unnecessary but harmless" — however, `ingestion_time()` is NOT harmless in NRT mode. It is a function call (not a column filter), and the NRT streaming pipeline rejects it outright.
+
+**Empirically confirmed (Apr 2026):** Four-attempt A/B test on the same query (`DeviceProcessEvents` with vssadmin/bcdedit destructive command detection):
+
+| Attempt | `ingestion_time()` present | Result |
+|---------|---------------------------|--------|
+| 1st deploy | Yes | ❌ `400 Bad Request` |
+| 2nd deploy | Removed | ✅ Created |
+| Delete + redeploy | Restored | ❌ `400 Bad Request` |
+| Delete + redeploy | Removed | ✅ Created |
+
+**Root cause hypothesis:** NRT rules process events via streaming ingestion — `ingestion_time()` likely depends on a materialized ingestion timestamp that isn't available (or isn't filterable) in the NRT streaming pipeline.
+
+**Fix:** For NRT rules, omit `ingestion_time()` entirely. If you need a time filter, use `Timestamp > ago(...)` instead (accepted but unnecessary since NRT pre-filters automatically).
+
+| Rule type | `ingestion_time()` | `Timestamp > ago(...)` |
+|-----------|-------------------|------------------------|
+| Scheduled (1H+) | ✅ Accepted (preferred) | ✅ Accepted |
+| NRT (`"0"`) | ❌ **400 Bad Request** | ✅ Accepted (unnecessary) |
 
 ---
 
