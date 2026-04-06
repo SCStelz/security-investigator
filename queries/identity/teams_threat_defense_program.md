@@ -2,7 +2,7 @@
 
 **Created:** 2026-02-12  
 **Platform:** Both  
-**Tables:** CloudAppEvents, MessageEvents, MessagePostDeliveryEvents, MessageUrlInfo, UrlClickEvents, EmailEvents, DeviceProcessEvents, DeviceEvents, DeviceNetworkEvents, OfficeActivity, AuditLogs, SigninLogs, AADSignInEventsBeta, SecurityAlert, SecurityIncident, AlertInfo, AlertEvidence, IdentityLogonEvents  
+**Tables:** CloudAppEvents, MessageEvents, MessagePostDeliveryEvents, MessageUrlInfo, UrlClickEvents, EmailEvents, DeviceProcessEvents, DeviceEvents, DeviceNetworkEvents, OfficeActivity, AuditLogs, SigninLogs, EntraIdSignInEvents, SecurityAlert, SecurityIncident, AlertInfo, AlertEvidence, IdentityLogonEvents  
 **Keywords:** Teams, vishing, social engineering, tech support scam, email bombing, device code phishing, TeamsPhisher, DarkGate, Quick Assist, RMM, external access, guest access, federation, deepfake, Storm-1811, Storm-2372, Storm-1674, Storm-0324, Midnight Blizzard, Octo Tempest, Void Blizzard, Peach Sandstorm, Sangria Tempest, BRc4, ConvoC2, GraphRunner, AADInternals, TeamFiltration  
 **MITRE:** T1566 (Phishing), T1566.003 (Phishing via Service), T1598 (Phishing for Information), T1534 (Internal Spearphishing), T1204 (User Execution), T1219 (Remote Access Software), T1078 (Valid Accounts), T1528 (Steal Application Access Token), T1550.001 (Application Access Token), T1136 (Create Account), T1098 (Account Manipulation), T1071 (Application Layer Protocol), T1567 (Exfiltration Over Web Service), T1087 (Account Discovery), T1069 (Permission Groups Discovery), T1106 (Native API), TA0001, TA0003, TA0005, TA0006, TA0007, TA0009, TA0010, TA0011  
 **Timeframe:** Last 30 days (configurable)
@@ -615,7 +615,7 @@ title: "Device code authentication by {{UserPrincipalName}} from {{Country}}"
 impactedAssets:
   - type: user
     identifier: accountUpn
-adaptation_notes: "Sentinel Data Lake query using SigninLogs. For CD, adapt to AADSignInEventsBeta with `LogonType == 'deviceCode'` and `Timestamp` column. See Query 20 for the AH equivalent."
+adaptation_notes: "Sentinel Data Lake query using SigninLogs. For CD, adapt to EntraIdSignInEvents with `LogonType == 'deviceCode'` and `Timestamp` column. See Query 20 for the AH equivalent."
 recommendedActions: "Verify whether device code auth was legitimate (IoT/conference room scenario). If unexpected, revoke sessions and investigate for token theft."
 -->
 ```kql
@@ -1091,7 +1091,7 @@ responseActions:
 // Storm-2372: Device code auth success + risk correlation
 // Platform: Defender XDR Advanced Hunting
 // MITRE: T1528 (Steal Application Access Token)
-AADSignInEventsBeta
+EntraIdSignInEvents
 | where Timestamp > ago(14d)
 | where ErrorCode == 0
 | where LogonType == "deviceCode"

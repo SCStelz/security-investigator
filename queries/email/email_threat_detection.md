@@ -973,7 +973,7 @@ Full chain: phishing email with URL → user clicked the URL → subsequent sign
 
 <!-- cd-metadata
 cd_ready: false
-adaptation_notes: "3-table join investigation chain (EmailUrlInfo → UrlClickEvents → AADSignInEventsBeta). Complex multi-step correlation with leftouter joins. Better as forensic investigation query, not automated CD."
+adaptation_notes: "3-table join investigation chain (EmailUrlInfo → UrlClickEvents → EntraIdSignInEvents). Complex multi-step correlation with leftouter joins. Better as forensic investigation query, not automated CD."
 -->
 ```kql
 let SuspiciousClicks = UrlClickEvents

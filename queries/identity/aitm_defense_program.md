@@ -2,7 +2,7 @@
 
 **Created:** 2026-02-11  
 **Platform:** Both  
-**Tables:** SigninLogs, AADSignInEventsBeta, AADUserRiskEvents, AuditLogs, SecurityAlert, SecurityIncident, OfficeActivity, CloudAppEvents, EmailEvents, UrlClickEvents, IdentityLogonEvents, DeviceEvents, AlertInfo, AlertEvidence  
+**Tables:** SigninLogs, EntraIdSignInEvents, AADUserRiskEvents, AuditLogs, SecurityAlert, SecurityIncident, OfficeActivity, CloudAppEvents, EmailEvents, UrlClickEvents, IdentityLogonEvents, DeviceEvents, AlertInfo, AlertEvidence  
 **Keywords:** AiTM, adversary-in-the-middle, token theft, session cookie, phishing resistant, FIDO2, passkey, Evilginx, token replay, BEC, MFA bypass, attack disruption, compliant network, Global Secure Access, token protection, CAE, continuous access evaluation  
 **MITRE:** T1557, T1539, T1528, T1550.004, T1114.003, T1098, T1078, TA0006, TA0001, TA0009  
 **Timeframe:** Last 30 days (configurable)
@@ -290,14 +290,14 @@ adaptation_notes: "Multi-let join query. CD supports `let` blocks. High-signal d
 // AiTM Detection: OfficeHome proxy sign-in with cross-country session replay
 // Platform: Defender XDR Advanced Hunting
 let OfficeHomeSessionIds = 
-AADSignInEventsBeta
+EntraIdSignInEvents
 | where Timestamp > ago(7d)
 | where ErrorCode == 0
 | where ApplicationId == "4765445b-32c6-49b0-83e6-1d93765276ca" // OfficeHome application 
 | where ClientAppUsed == "Browser" 
 | where LogonType has "interactiveUser" 
 | summarize arg_min(Timestamp, Country) by SessionId;
-AADSignInEventsBeta
+EntraIdSignInEvents
 | where Timestamp > ago(7d)
 | where ApplicationId != "4765445b-32c6-49b0-83e6-1d93765276ca"
 | where ClientAppUsed == "Browser" 
