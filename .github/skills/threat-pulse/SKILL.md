@@ -815,20 +815,35 @@ Based on today's findings, these query files contain pre-built hunting campaigns
 
 1. **[<Title>](queries/<subfolder>/<filename>.md)**
    — Q<N>: <finding summary>
+   — 💡 *"<Dynamic prompt derived from the specific finding — reference the entity, TTP, or IOC from the query results>"*
 
 2. **[<Title>](queries/<subfolder>/<filename>.md)**
    — Q<N>: <finding summary>
+   — 💡 *"<Dynamic prompt derived from the specific finding>"*
 
 ...
 
-> 💡 **Follow-up prompt:** Open a query file above and ask:
-> *"Run a hunting campaign against these TTPs and IOCs and summarize any key findings"*
+> **How to use:** Open a query file link above to add it as chat context, then use the suggested prompt (or adapt it) to launch a targeted hunting campaign.
 
 <If no matching query files found:>
 
 📂 No matching query files found for today's findings. Consider authoring new hunting queries:
 > *"Read this threat intel article: <URL> — extract TTPs and IOCs, then write, test, and tune a queries file for reusable threat hunts"*
 ```
+
+**Dynamic prompt generation rules:**
+- Each follow-up prompt MUST reference specific entities, IOCs, or TTPs from the Threat Pulse findings that triggered the query file match
+- Use the actual values from query results (usernames, IPs, CVE IDs, process names, SPN names, ActionTypes) — not generic placeholders
+- The prompt should ask for a focused investigation, not a broad sweep
+
+**Examples of dynamic prompts (for reference — do NOT use these verbatim):**
+
+| Finding Source | Example Dynamic Prompt |
+|---------------|----------------------|
+| Q4 found spray from 203.0.113.42 | *"Hunt for all activity from IP 203.0.113.42 — check lateral movement, successful auth, and any post-compromise behavior"* |
+| Q7 found singleton `wscript.exe→certutil.exe` | *"Hunt for certutil.exe abuse patterns — LOLBin download, encode/decode, and any files written to temp directories"* |
+| Q9 found `New-InboxRule` by user@domain.com | *"Hunt for email exfiltration patterns by user@domain.com — forwarding rules, mailbox delegation, and OAuth app grants"* |
+| Q12 found CVE-2024-1234 on 15 devices | *"Run the vulnerability hunting queries against CVE-2024-1234 — check for active exploitation attempts and lateral movement from affected devices"* |
 
 ### 🔴 MANDATORY: Clickable File Links
 
