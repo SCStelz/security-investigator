@@ -156,23 +156,15 @@ You don't need to mention the skill name — keywords are detected automatically
 | "Check user behavioral drift for user@domain.com" | scope-drift-detection/user |
 | "Analyze device process drift across the fleet" | scope-drift-detection/device |
 | "Show me MCP server usage for the last 30 days" | mcp-usage-monitoring |
-| "Generate a Sentinel ingestion report for the last 30 days" | sentinel-ingestion-report |
+| "Generate a Sentinel ingestion report" | sentinel-ingestion-report |
 | "Create custom detections for Event ID 4799" | detection-authoring |
-| "Deploy these detection rules to Defender XDR" | detection-authoring |
 | "Audit AI agent security posture" | ai-agent-posture |
-| "Show me unauthenticated Copilot Studio agents" | ai-agent-posture |
 | "Who accessed files with credit card numbers?" | data-security-analysis |
-| "Run a data security analysis for the last 30 days" | data-security-analysis |
 | "Generate an email threat protection report" | email-threat-posture |
-| "What's our phishing delivery rate for the last 30 days?" | email-threat-posture |
-| "Run an identity posture report for the last 30 days" | identity-posture |
-| "Show me stale accounts and privileged account hygiene" | identity-posture |
+| "Run an identity posture report" | identity-posture |
 | "Generate a MITRE ATT&CK coverage report" | mitre-coverage-report |
-| "What's our MITRE technique coverage and detection gaps?" | mitre-coverage-report |
 | "Run a threat pulse scan" | threat-pulse |
-| "What can you do? / Where do I start?" | threat-pulse |
 | "Audit our app registration security posture" | app-registration-posture |
-| "Show dangerous app permissions and ownership risks" | app-registration-posture |
 
 ### Follow-ups and Chaining
 
