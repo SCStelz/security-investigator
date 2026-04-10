@@ -205,10 +205,16 @@ Estimated time: ~2–4 minutes
    - **Header:** `Follow-Up Investigation`
    - **Question:** `Select an action to launch (or skip):`
    - **Options:** One per prompt — **Label:** `<icon> <dynamic prompt text>`, **Description:** `Q<N>: <finding> → <skill or query file>`
+   - Penultimate option: **Label:** `💾 Save full investigation report` / **Description:** `Save the complete Threat Pulse session (scan + all drill-downs) as a markdown file`
    - Final option: **Label:** `Skip` / **Description:** `No follow-up — investigation complete`
    - **multiSelect:** `false`
 3. If user selects **Skip** or pool is empty: end skill execution
-4. If user selects an action:
+4. If user selects **💾 Save full investigation report:**
+   a. Compile the original Threat Pulse dashboard + all drill-down investigation results accumulated during this session into a single markdown file
+   b. Save to `reports/threat-pulse/Threat_Pulse_YYYYMMDD_HHMMSS.md` using the [Markdown File Report Template](#markdown-file-report-template)
+   c. Append a `## Drill-Down Investigation Results` section containing the findings from each follow-up action completed during this session, in the order they were executed
+   d. Return to step 2 — the save option is removed from the pool (report already saved), remaining prompts stay available
+5. If user selects an action:
    a. **Skill prompt:** load the skill's SKILL.md, execute the investigation with the target entity
    b. **Query file prompt:** read the query file, add as context, execute the hunt
    c. **IOC prompt:** load `ioc-investigation` skill, execute with the target indicator
