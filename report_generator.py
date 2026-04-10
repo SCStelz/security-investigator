@@ -1960,7 +1960,7 @@ union isfuzzy=true
         current_date = None
         
         from datetime import datetime
-        from zoneinfo import ZoneInfo
+        from pytz import timezone
         
         for event in consolidated_events:  # Show ALL events (no limit)
             if not event['time']:
@@ -1969,7 +1969,9 @@ union isfuzzy=true
             try:
                 # Parse UTC time and convert to PST
                 utc_time = datetime.fromisoformat(event['time'].replace('Z', '+00:00'))
-                pst_time = utc_time.astimezone(ZoneInfo('America/Los_Angeles'))
+                utc_time = utc_time.replace(tzinfo=None)  # Strip tzinfo for pytz compatibility
+                pst = timezone('America/Los_Angeles')
+                pst_time = pst.localize(utc_time)
                 event_date = pst_time.strftime('%Y-%m-%d')
                 event_time = pst_time.strftime('%H:%M')
             except:
@@ -2250,6 +2252,8 @@ union isfuzzy=true
         
         details {
             margin: 9px 0;
+            border-top: 1.125px solid #3a3a3a;
+            padding-top: 9px;
         }
         
         summary {
@@ -2259,14 +2263,16 @@ union isfuzzy=true
             border-radius: 4.5px;
             font-weight: 600;
             color: #00a1f1;
+            font-size: 0.95625em;
+            transition: all 0.2s ease;
         }
         
         summary:hover {
             background: #333;
         }
         
-        details[open] summary {
-            margin-bottom: 9px;
+        summary:hover::marker {
+            color: #00a1f1;
         }
         
         .ip-card details {
@@ -2279,10 +2285,10 @@ union isfuzzy=true
             padding: 6.75px 9px;
             background: #333;
             border-radius: 3.375px;
+            font-weight: 600;
+            color: #00a1f1;
             font-size: 0.95625em;
             cursor: pointer;
-            color: #00a1f1;
-            font-weight: 500;
         }
         
         .ip-card summary::marker {
