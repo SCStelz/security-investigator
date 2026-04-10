@@ -18,7 +18,7 @@ The Threat Pulse skill is a rapid, broad-spectrum security scan designed for the
 | 🤖 **Identity (NonHuman)** | Which service principals expanded their resource/IP/location footprint? |
 | 💻 **Endpoint** | Which endpoints deviated most from their process behavioral baseline? What singleton process chains exist? |
 | 📧 **Email Threats** | What's the phishing/spam/malware breakdown? Were any phishing emails delivered? |
-| 🔑 **Admin & Cloud Ops** | What mailbox rules, OAuth consents, transport rules, or Copilot interactions occurred? Who performed high-impact admin operations? |
+| 🔑 **Admin & Cloud Ops** | What mailbox rules, OAuth consents, transport rules, or mailbox permission changes occurred? Who performed high-impact admin operations? |
 | 🛡️ **Exposure** | Are any critical assets internet-facing with RCE vulnerabilities? What exploitable CVEs (CVSS ≥ 8) are present across the fleet? |
 
 **Data sources:** `SecurityIncident`, `SecurityAlert`, `Signinlogs_Anomalies_KQL_CL` (custom, fallback: `SigninLogs`), `SigninLogs`, `DeviceProcessEvents`, `DeviceLogonEvents`, `ExposureGraphNodes`, `AADServicePrincipalSignInLogs`, `EmailEvents`, `CloudAppEvents`, `AuditLogs`, `DeviceTvmSoftwareVulnerabilities`, `DeviceTvmSoftwareVulnerabilitiesKB`
@@ -601,7 +601,7 @@ EmailEvents
 
 ### Query 9: Cloud App Suspicious Activity
 
-🔑 **Cloud ops monitoring** — Detects mailbox rule manipulation, transport rule changes, mailbox delegation, Copilot interactions, and programmatic mailbox access via CloudAppEvents.
+🔑 **Cloud ops monitoring** — Detects mailbox rule manipulation, transport rule changes, mailbox delegation, and programmatic mailbox access via CloudAppEvents.
 
 **Tool:** `RunAdvancedHuntingQuery`
 
@@ -614,7 +614,6 @@ CloudAppEvents
     "Add-MailboxPermission",
     "New-TransportRule", "Set-TransportRule",
     "New-Mailbox",
-    "CopilotInteraction",
     "MailItemsAccessed"
 )
 | summarize
@@ -626,12 +625,12 @@ CloudAppEvents
 | take 20
 ```
 
-**Purpose:** Surfaces cloud app activity that Q10 (AuditLogs) cannot see — mailbox rule creation/modification (T1114.003 email exfiltration via forwarding), transport rule changes (org-wide mail routing manipulation), mailbox permission grants (delegate access abuse), Copilot interactions, and `MailItemsAccessed` (programmatic/API mailbox access distinct from normal email reading — a key indicator of OAuth app abuse or token theft accessing mailbox content via Graph/EWS).
+**Purpose:** Surfaces cloud app activity that Q10 (AuditLogs) cannot see — mailbox rule creation/modification (T1114.003 email exfiltration via forwarding), transport rule changes (org-wide mail routing manipulation), mailbox permission grants (delegate access abuse), and `MailItemsAccessed` (programmatic/API mailbox access distinct from normal email reading — a key indicator of OAuth app abuse or token theft accessing mailbox content via Graph/EWS).
 
 **Verdict logic:**
 - 🔴 Escalate: `New-InboxRule` or `Set-InboxRule` with forwarding targets to external domains; `MailItemsAccessed` from unexpected accounts (non-service, non-admin)
 - 🟠 Investigate: Any `New-TransportRule` / `Set-TransportRule` (org-wide impact); `Add-MailboxPermission` from non-admin accounts; high-volume `MailItemsAccessed`
-- 🟡 Monitor: `CopilotInteraction` activity (informational); `Set-Mailbox` changes
+- 🟡 Monitor: `Set-Mailbox` changes
 - ✅ Clear: 0 results — none of these high-signal operations occurred
 
 **Drill-down:** Use `user-investigation` skill for actors performing suspicious mailbox operations.
