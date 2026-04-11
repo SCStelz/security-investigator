@@ -1,27 +1,27 @@
 ---
 name: threat-pulse
-description: 'Recommended starting point for new users and daily SOC operations. Quick 15-minute security posture scan across 9 domains: active incidents, identity (human + NonHuman), device process drift, rare process chains, email threats, admin & cloud ops, critical asset exposure, and exploitable CVEs. 13 queries executed in parallel batches, producing a prioritized Threat Pulse Dashboard with color-coded verdicts (🔴 Escalate / 🟠 Investigate / 🟡 Monitor / ✅ Clear) and drill-down recommendations pointing to specialized skills. Trigger on getting-started questions like "what can you do", "where do I start", "help me investigate". Supports inline chat and markdown file output'
+description: 'Recommended starting point for new users and daily SOC operations. Quick 15-minute security posture scan across 9 domains: active incidents, identity (human + NonHuman), device process drift, rare process chains, email threats, admin & cloud ops, critical asset exposure, and exploitable CVEs. 12 queries executed in parallel batches, producing a prioritized Threat Pulse Dashboard with color-coded verdicts (🔴 Escalate / 🟠 Investigate / 🟡 Monitor / ✅ Clear) and drill-down recommendations pointing to specialized skills. Trigger on getting-started questions like "what can you do", "where do I start", "help me investigate". Supports inline chat and markdown file output'
 ---
 
 # Threat Pulse — Instructions
 
 ## Purpose
 
-The Threat Pulse skill is a rapid, broad-spectrum security scan designed for the "if you only had 15 minutes" scenario. It executes 13 queries across 9 security domains in parallel, producing a prioritized dashboard of findings with drill-down recommendations to specialized investigation skills.
+The Threat Pulse skill is a rapid, broad-spectrum security scan designed for the "if you only had 15 minutes" scenario. It executes 12 queries across 9 security domains in parallel, producing a prioritized dashboard of findings with drill-down recommendations to specialized investigation skills.
 
 **What this skill covers:**
 
 | Domain | Key Questions Answered |
 |--------|----------------------|
 | 🔴 **Incidents** | What high-severity incidents are open and unresolved? How old are they? Who owns them? What was recently resolved — TP rate, MITRE tactics, severity distribution? |
-| 🔐 **Identity (Human)** | Which users have the most anomalous sign-in patterns this week? How many risky sign-ins? Are there password spray / brute-force patterns? |
+| 🔐 **Identity (Human)** | Which users are flagged as risky by Identity Protection? What risk events (sign-in-level and user-level AI signals) are driving the risk? Are there password spray / brute-force patterns? |
 | 🤖 **Identity (NonHuman)** | Which service principals expanded their resource/IP/location footprint? |
 | 💻 **Endpoint** | Which endpoints deviated most from their process behavioral baseline? What singleton process chains exist? |
 | 📧 **Email Threats** | What's the phishing/spam/malware breakdown? Were any phishing emails delivered? |
 | 🔑 **Admin & Cloud Ops** | What mailbox rules, OAuth consents, transport rules, or mailbox permission changes occurred? Who performed high-impact admin operations? |
 | 🛡️ **Exposure** | Are any critical assets internet-facing with RCE vulnerabilities? What exploitable CVEs (CVSS ≥ 8) are present across the fleet? |
 
-**Data sources:** `SecurityIncident`, `SecurityAlert`, `SigninLogs`, `EntraIdSignInEvents`, `DeviceProcessEvents`, `DeviceLogonEvents`, `ExposureGraphNodes`, `AADServicePrincipalSignInLogs`, `EmailEvents`, `CloudAppEvents`, `AuditLogs`, `DeviceTvmSoftwareVulnerabilities`, `DeviceTvmSoftwareVulnerabilitiesKB`, `Signinlogs_Anomalies_KQL_CL` (optional enrichment)
+**Data sources:** `SecurityIncident`, `SecurityAlert`, `IdentityInfo`, `AADUserRiskEvents`, `EntraIdSignInEvents`, `DeviceProcessEvents`, `DeviceLogonEvents`, `ExposureGraphNodes`, `AADServicePrincipalSignInLogs`, `EmailEvents`, `CloudAppEvents`, `AuditLogs`, `DeviceTvmSoftwareVulnerabilities`, `DeviceTvmSoftwareVulnerabilitiesKB`
 
 ### 🔴 URL Registry
 
@@ -46,7 +46,7 @@ Incidents: `XDR_INCIDENT_BASE` + `ProviderIncidentId`.
 
 1. **[Critical Workflow Rules](#-critical-workflow-rules---read-first-)**
 2. **[Execution Workflow](#execution-workflow)**
-3. **[Sample KQL Queries](#sample-kql-queries)** — 14 queries
+3. **[Sample KQL Queries](#sample-kql-queries)** — 12 queries
 4. **[Post-Processing](#post-processing)** — Drift scores, cross-query correlation
 5. **[Query File Recommendations](#query-file-recommendations)**
 6. **[Report Template](#report-template)** — Dashboard format
@@ -65,19 +65,16 @@ Incidents: `XDR_INCIDENT_BASE` + `ProviderIncidentId`.
 
 4. **⛔ MANDATORY: Evidence-based analysis only** — Every finding must cite query results. Every "clear" verdict must cite 0 results. Follow the Evidence-Based Analysis rule from `copilot-instructions.md`.
 
-5. **Parallel execution** — Run the Data Lake query (Q5) and all Advanced Hunting queries (Q1, Q1b, Q2, Q2b, Q3, Q4, Q6, Q7, Q8, Q9, Q10, Q11, Q12) simultaneously. Q2b may fail silently if the custom table doesn't exist.
+5. **Parallel execution** — Run the Data Lake query (Q5) and all Advanced Hunting queries (Q1, Q1b, Q2, Q4, Q6, Q7, Q8, Q9, Q10, Q11, Q12) simultaneously.
 
-6. **Optional enrichment for Q2** — `Signinlogs_Anomalies_KQL_CL` is a custom table that requires a scheduled KQL job (most workspaces won't have it). Q2b runs in parallel with Q2. If Q2b returns results, merge them as enrichment under the Q2 section. If Q2b fails with `SemanticError: Failed to resolve table`, skip silently — Q2 (Identity Protection) provides full coverage.
-
-7. **Cross-query correlation** — After all queries complete, check for correlated findings:
-   - User appearing in **both** Q2 Identity Protection anomalies AND Q2b custom anomalies → escalate priority (corroborated signal)
+6. **Cross-query correlation** — After all queries complete, check for correlated findings:
    - SPN drift (Q5) + unusual credential/consent activity (Q9) → escalate priority
    - Device in rare process chains (Q7) + device in CVE list (Q12) → escalate priority
-   - Incident entities (Q1) matching users in Q2/Q3 → link findings
+   - Incident entities (Q1) matching users in Q2 → link findings
 
-8. **SecurityIncident output rule** — Every incident MUST include a clickable Defender XDR portal URL: `https://security.microsoft.com/incidents/{ProviderIncidentId}`.
+7. **SecurityIncident output rule** — Every incident MUST include a clickable Defender XDR portal URL: `https://security.microsoft.com/incidents/{ProviderIncidentId}`.
 
-9. **⛔ MANDATORY: Query File Recommendations (tiered)** — After assigning verdicts and BEFORE rendering the final report, execute the [Query File Recommendations](#query-file-recommendations) procedure. Skip only when ALL verdicts are ✅.
+8. **⛔ MANDATORY: Query File Recommendations (tiered)** — After assigning verdicts and BEFORE rendering the final report, execute the [Query File Recommendations](#query-file-recommendations) procedure. Skip only when ALL verdicts are ✅.
 
 | Highest Verdict | Query Files | Proactive Skills | Report Section |
 |----------------|-------------|-----------------|----------------|
@@ -103,16 +100,16 @@ Workspace: <WorkspaceName> (<WorkspaceId>)
 Lookback: <N>d (user-selected or default 7d)
 Output: <Inline / Markdown file / Both>
 
-Executing 14 queries across 9 domains:
+Executing 12 queries across 9 domains:
   🔴 Incidents      — Open high-severity + 7d closed summary (Q1, Q1b)
-  🔐 Identity       — Identity Protection anomalies, risky sign-ins, auth spray (Q2, Q3, Q4)
+  🔐 Identity       — Identity risk posture, risk event enrichment, auth spray (Q2, Q4)
   🤖 NonHuman ID    — Service principal behavioral drift (Q5)
   💻 Endpoint       — Device process drift, rare process chains (Q6, Q7)
   📧 Email          — Inbound threat snapshot (Q8)
   🔑 Admin & Cloud  — Cloud app ops, privileged operations (Q9, Q10)
   🛡️ Exposure       — Critical assets, exploitable CVEs (Q11, Q12)
 
-Data Lake: 1 query | Advanced Hunting: 13 queries in parallel (Q2b may skip silently)
+Data Lake: 1 query | Advanced Hunting: 11 queries in parallel
 Estimated time: ~2–4 minutes
 ```
 
@@ -124,19 +121,17 @@ Estimated time: ~2–4 minutes
 |-------|--------|---------|------|
 | Q5 | 🤖 Identity (NonHuman) | Service principal behavioral drift (90d vs 7d) | `query_lake` |
 
-### Phase 2: Advanced Hunting Queries (Q1, Q1b, Q2, Q2b, Q3, Q4, Q6, Q7, Q8, Q9, Q10, Q11, Q12)
+### Phase 2: Advanced Hunting Queries (Q1, Q1b, Q2, Q4, Q6, Q7, Q8, Q9, Q10, Q11, Q12)
 
-**Run all 13 in parallel — no dependencies between queries. Q2b may fail silently if the custom anomaly table doesn't exist.**
+**Run all 11 in parallel — no dependencies between queries.**
 
-> **Design rationale:** The connected LA workspace makes all Sentinel tables (SecurityIncident, SigninLogs, AuditLogs, custom `_CL` tables on Analytics tier, etc.) queryable via AH. AH is preferred: it's free for Analytics-tier tables and avoids per-query Data Lake billing.
+> **Design rationale:** The connected LA workspace makes all Sentinel tables (SecurityIncident, IdentityInfo, AADUserRiskEvents, AuditLogs, etc.) queryable via AH. AH is preferred: it's free for Analytics-tier tables and avoids per-query Data Lake billing.
 
 | Query | Domain | Purpose | Tool |
 |-------|--------|---------|------|
 | Q1 | 🔴 Incidents | Open High/Critical incidents with MITRE tactics | `RunAdvancedHuntingQuery` |
 | Q1b | 🔴 Incidents | 7-day closed incident summary (classification, MITRE, severity) | `RunAdvancedHuntingQuery` |
-| Q2 | 🔐 Identity (Human) | Identity Protection sign-in anomalies | `RunAdvancedHuntingQuery` |
-| Q2b | 🔐 Identity (Human) | Custom anomaly table enrichment (optional) | `RunAdvancedHuntingQuery` |
-| Q3 | 🔐 Identity (Human) | Risky sign-ins / Identity Protection summary | `RunAdvancedHuntingQuery` |
+| Q2 | 🔐 Identity (Human) | Identity risk posture (IdentityInfo) + risk event enrichment (AADUserRiskEvents) | `RunAdvancedHuntingQuery` |
 | Q4 | 🔐 Identity (Human) | Password spray / brute-force across Entra ID + RDP/SSH | `RunAdvancedHuntingQuery` |
 | Q6 | 💻 Endpoint | Fleet device process drift (7d baseline vs 1d) | `RunAdvancedHuntingQuery` |
 | Q7 | 💻 Endpoint | Rare process chain singletons (30d) | `RunAdvancedHuntingQuery` |
@@ -200,7 +195,7 @@ Estimated time: ~2–4 minutes
    - **Question:** `Select an action to launch (or skip):`
    - **Options:** One per prompt — each option is exactly ONE atomic action (one skill + one entity, or one query file + one hunt). Cross-query correlation context goes in the Description, never in the Label.
      - **Label format:** `<ONE icon> <ONE action>` — nothing else. Examples: `🔍 Investigate user jsmith@contoso.com`, `📄 Hunt delivered phishing emails`, `🎯 Investigate IP 203.0.113.42`
-     - **Description format:** `Q<N>: <finding summary> → <ONE skill or query file>` (correlation context like `Q3+Q9:` is fine here — it explains WHY, not WHAT to do)
+     - **Description format:** `Q<N>: <finding summary> → <ONE skill or query file>` (correlation context like `Q2+Q9:` is fine here — it explains WHY, not WHAT to do)
      - **🔴 HARD RULE:** If you find yourself writing a comma or a second icon in a Label, STOP — you are bundling. Split into two options.
    - Penultimate option: **Label:** `💾 Save full investigation report` / **Description:** `Save the complete Threat Pulse session (scan + all drill-downs) as a markdown file`
    - Final option: **Label:** `Skip` / **Description:** `No follow-up — investigation complete`
@@ -227,7 +222,7 @@ Estimated time: ~2–4 minutes
 - New evidence prompts are prepended (freshest leads first), tagged `🆕`
 - Loop ends when user selects Skip or pool empties (`✅ All follow-up actions completed.`)
 - **🔴 PROHIBITED:** Rendering the prompt pool as a markdown table, numbered list, or plain text instead of calling `vscode_askQuestions`. Every iteration — including after the first follow-up completes — MUST use the interactive question tool so options are clickable. This is the #1 loop-breaking mistake.
-- **🔴 ATOMIC OPTIONS — ONE action per selectable item.** Each option Label MUST contain exactly ONE icon (🔍, 📄, or 🎯) and map to exactly ONE executable action: one skill + one entity, OR one query file + one hunt prompt. When cross-query correlations link multiple findings (e.g., Q3+Q9 correlating a user with both risky sign-ins and inbox rule manipulation), generate **separate options** for each distinct action — do NOT bundle them into a single option. Note the correlation in the **Description** field to preserve context, but keep the Label and action singular.
+- **🔴 ATOMIC OPTIONS — ONE action per selectable item.** Each option Label MUST contain exactly ONE icon (🔍, 📄, or 🎯) and map to exactly ONE executable action: one skill + one entity, OR one query file + one hunt prompt. When cross-query correlations link multiple findings (e.g., Q2+Q9 correlating a user with both risky identity and inbox rule manipulation), generate **separate options** for each distinct action — do NOT bundle them into a single option. Note the correlation in the **Description** field to preserve context, but keep the Label and action singular.
 
   **Self-check before presenting:** For each option, verify: (1) the Label has exactly ONE icon prefix, (2) there is NO comma separating a second action, (3) the Description has exactly ONE `→` pointing to ONE skill or query file. If any check fails, split the option.
 
@@ -238,7 +233,7 @@ Estimated time: ~2–4 minutes
   Description: `Q2+Q9: ... → user-investigation, queries/email/email_threat_detection.md`
 
   **✅ CORRECT — one action per option, correlation context in Description only:**
-  - Option 1 — Label: `🔍 Investigate user cameron@contoso.com` / Description: `Q2+Q9: Risky sign-ins + inbox rule manipulation — potential email exfiltration → user-investigation`
+  - Option 1 — Label: `🔍 Investigate user cameron@contoso.com` / Description: `Q2+Q9: Identity risk (AtRisk, aiCompoundAccountRisk + anonymizedIPAddress) + inbox rule manipulation — potential email exfiltration → user-investigation`
   - Option 2 — Label: `📄 Hunt delivered phishing emails and recipients` / Description: `Q8: Trace the 4 delivered phishing emails → queries/email/email_threat_detection.md`
 
 ---
@@ -335,7 +330,7 @@ SecurityIncident
 
 **Purpose:** Provides a 7-day closed incident summary with classification breakdown (TP/BP/FP/Undetermined), severity distribution, aggregated MITRE tactics, and aggregated MITRE technique IDs. This data feeds three downstream uses:
 1. **TP rate signal** — High TruePositive ratio indicates an active threat environment
-2. **MITRE tactic context** — Tactics from closed TPs identify the current threat landscape for cross-correlation with Q2/Q3/Q7/Q8 findings
+2. **MITRE tactic context** — Tactics from closed TPs identify the current threat landscape for cross-correlation with Q2/Q7/Q8 findings
 3. **Manifest MITRE matching** — The `Techniques` array contains ATT&CK technique IDs (e.g., `T1566`, `T1078`, `T1059`) directly matchable against manifest entry `mitre` fields. No tactic→technique mapping needed — the technique IDs are the primary matching key for query file recommendations
 
 **Verdict logic:**
@@ -353,117 +348,75 @@ SecurityIncident
 
 ---
 
-### Query 2: Fleet-Wide Sign-In Anomalies (Primary — Identity Protection)
+### Query 2: Identity Risk Posture & Risk Event Enrichment
 
-🔐 **Anomaly detection** — Queries `SigninLogs` Identity Protection risk detections for users with anomalous sign-in patterns. Works in every workspace — no custom table required.
+🔐 **Identity risk posture** — Two-layer query: `IdentityInfo` identifies users needing attention (High/Medium risk, AtRisk/ConfirmedCompromised, or high criticality), then `AADUserRiskEvents` enriches with the specific risk detections explaining *why* they're flagged. Covers both sign-in-level detections (e.g., `anonymizedIPAddress`, `unfamiliarFeatures`) AND user-level AI-driven signals (e.g., `aiCompoundAccountRisk`, `adminConfirmedUserCompromised`) that never appear in sign-in tables.
 
 **Tool:** `RunAdvancedHuntingQuery`
 
 ```kql
-let RiskySignins = SigninLogs
-| where TimeGenerated > ago(7d)
-| where RiskLevelDuringSignIn in ("high", "medium", "low") or RiskState in ("atRisk", "confirmedCompromised")
-| where isnotempty(RiskEventTypes_V2)
-| extend RiskEvents = parse_json(RiskEventTypes_V2)
-| mv-expand RiskEvent = RiskEvents
-| extend RiskEventType = tostring(RiskEvent)
+let lookback = 7d;
+// Layer 1: IdentityInfo — filtered to users needing attention
+let IdentityPosture = IdentityInfo
+| where Timestamp > ago(lookback)
+| summarize arg_max(Timestamp, *) by AccountUpn
+| where RiskLevel in ("High", "Medium") 
+    or RiskStatus in ("AtRisk", "ConfirmedCompromised") 
+    or CriticalityLevel >= 3
+| project AccountUpn, AccountObjectId, AccountName, AccountDomain, OnPremSid,
+    AccountDisplayName, IdP_RiskLevel = RiskLevel, IdP_RiskStatus = RiskStatus, CriticalityLevel;
+// Layer 2: AADUserRiskEvents — enrichment (the why)
+let UserRiskEvents = AADUserRiskEvents
+| where TimeGenerated > ago(lookback)
+| extend Country = tostring(parse_json(Location).countryOrRegion)
 | summarize
-    AnomalyCount = count(),
-    HighCount = countif(RiskLevelDuringSignIn == "high"),
-    MediumCount = countif(RiskLevelDuringSignIn == "medium"),
-    TopRiskEvents = make_set(RiskEventType, 5),
-    TopCountries = make_set(Location, 5),
-    TopIPs = make_set(IPAddress, 5),
-    LatestDetection = max(TimeGenerated)
-    by UserPrincipalName
-| order by HighCount desc, AnomalyCount desc
-| take 15;
-RiskySignins
-```
-
-**Purpose:** Surfaces top 15 users with the most Identity Protection risk detections in the past 7 days. Covers ML-driven detections like `unfamiliarFeatures`, `impossibleTravel`, `maliciousIPAddress`, `anonymizedIPAddress`, `mcasSuspiciousInboxManipulationRules`, and token-based threats that require Microsoft's threat intelligence graph.
-
-**Verdict logic:**
-- 🔴 Escalate: Any user with `HighCount > 3` or multiple users with `HighCount > 0`
-- 🟠 Investigate: `HighCount > 0` for any user, or `AnomalyCount > 5` with risk events indicating `impossibleTravel` or `maliciousIPAddress`
-- 🟡 Monitor: Only `MediumCount > 0` with low-severity risk event types (e.g., `unfamiliarFeatures`)
-- ✅ Clear: 0 risky sign-in anomalies across the fleet
-
----
-
-### Query 2b: Fleet-Wide Sign-In Anomalies (Optional Enrichment — Custom Anomaly Table)
-
-🔐 **Baseline deviation enrichment** — Queries the pre-computed `Signinlogs_Anomalies_KQL_CL` table for non-interactive token and device combo anomalies that Identity Protection does not cover. **This is supplementary data, not the primary signal.**
-
-**Tool:** `RunAdvancedHuntingQuery`
-
-**⚠️ CUSTOM TABLE — may not exist in most workspaces. If query fails with table resolution error, skip silently. Q2b is optional enrichment — Q2 (Identity Protection) is the primary data source.**
-
-```kql
-Signinlogs_Anomalies_KQL_CL
-| where TimeGenerated > ago(7d)
-| extend Severity = case(
-    BaselineSize < 3, "Informational",
-    CountryNovelty and CityNovelty and ArtifactHits >= 20, "High",
-    ArtifactHits >= 10, "Medium",
-    CountryNovelty or CityNovelty or StateNovelty, "Medium",
-    ArtifactHits >= 5, "Low",
-    "Informational")
-| where Severity in ("High", "Medium")
-| summarize 
-    AnomalyCount = count(),
-    HighCount = countif(Severity == "High"),
-    TopAnomalyTypes = make_set(AnomalyType, 5),
+    RiskDetections = count(),
+    HighCount = countif(RiskLevel == "high"),
+    TopRiskEventTypes = make_set(RiskEventType, 8),
     TopCountries = make_set(Country, 5),
-    LatestDetection = max(DetectedDateTime),
-    MinBaselineSize = min(BaselineSize)
-    by UserPrincipalName
-| order by HighCount desc, AnomalyCount desc
+    LatestDetection = max(TimeGenerated)
+    by UserPrincipalName;
+// IdentityInfo drives, AADUserRiskEvents enriches
+IdentityPosture
+| join kind=leftouter (UserRiskEvents) on $left.AccountUpn == $right.UserPrincipalName
+| extend 
+    DisplayName = coalesce(AccountDisplayName, AccountName, AccountUpn),
+    RiskSummary = strcat(IdP_RiskLevel, " / ", IdP_RiskStatus),
+    PortalUrl = strcat("https://security.microsoft.com/user?",
+        case(
+            isnotempty(AccountObjectId), strcat("aad=", AccountObjectId, "&upn=", AccountUpn),
+            isnotempty(OnPremSid), strcat("sid=", OnPremSid, "&accountName=", AccountName,
+                                         "&accountDomain=", AccountDomain),
+            isnotempty(AccountUpn), strcat("upn=", AccountUpn),
+            ""),
+        "&tab=overview")
+| project DisplayName, PortalUrl, RiskSummary, CriticalityLevel,
+    RiskDetections = coalesce(RiskDetections, long(0)),
+    HighCount = coalesce(HighCount, long(0)),
+    TopRiskEventTypes, TopCountries, LatestDetection
+| order by HighCount desc, RiskDetections desc, CriticalityLevel desc
 | take 15
 ```
 
-**Purpose:** Supplements Q2 with 90-day per-user IP/device baseline deviation analysis. Unique coverage over Identity Protection:
-- **Non-interactive token origin tracking** — detects refresh token reuse from new geos that IdP doesn't evaluate
-- **Device combo changes** — OS+Browser fingerprint shifts not tracked by IdP
-- **Custom 90d baseline** — more granular per-user artifact history than IdP's ML model
+**Purpose:** Surfaces up to 15 users with the highest identity risk — combining Entra ID risk posture (`IdentityInfo`) with specific risk detection events (`AADUserRiskEvents`). The two-layer approach catches users flagged by:
+- **Sign-in-level detections:** `anonymizedIPAddress`, `unfamiliarFeatures`, `impossibleTravel`, `mcasSuspiciousInboxManipulationRules`, `suspiciousAuthAppApproval`
+- **User-level AI signals:** `aiCompoundAccountRisk` (cross-signal composite from MDE alerts + sign-in patterns + MCAS activity), `adminConfirmedUserCompromised`, `suspiciousAPITraffic`
+- **High-criticality accounts:** `CriticalityLevel >= 3` (Exposure Management) — surfaced even without active risk detections
 
-**Merge rule:** If Q2b returns results, present them in a `📊 Custom Anomaly Enrichment` sub-section under the Q2 section. Users appearing in **both** Q2 and Q2b are escalated (corroborated signal). Q2b-only users are presented as supplementary context, not escalated independently.
+**Output columns:** `DisplayName` (linked to Defender XDR Identity page via `PortalUrl`), `RiskSummary` (e.g., "High / AtRisk"), `CriticalityLevel`, `RiskDetections` (count), `HighCount`, `TopRiskEventTypes` (human-readable strings), `TopCountries`, `LatestDetection`.
 
-**Report note:** When Q2b data is available, include: `📊 Enriched with custom anomaly table (Signinlogs_Anomalies_KQL_CL) — 90d baseline deviation analysis.`
-When Q2b is unavailable, include: `📊 Custom anomaly table not available — using Identity Protection only.`
+**Portal URL resolution:** Three-tier fallback for identity environment coverage:
+- Cloud/Hybrid (has Entra ObjectId): `aad=<ObjectId>&upn=<UPN>`
+- On-prem AD (SID only, no Entra sync): `sid=<SID>&accountName=<Name>&accountDomain=<Domain>`
+- External IdP (UPN only, e.g., CyberArk/Okta): `upn=<UPN>`
 
----
-
-### Query 3: Risky Sign-Ins & Identity Protection Summary
-
-🔐 **Risk posture snapshot** — Fleet-level summary of Identity Protection risk signals.
-
-**Tool:** `RunAdvancedHuntingQuery`
-
-```kql
-SigninLogs
-| where TimeGenerated > ago(7d)
-| where RiskLevelDuringSignIn in ("high", "medium") or RiskState in ("atRisk", "confirmedCompromised")
-| summarize 
-    RiskySignIns = count(),
-    DistinctUsers = dcount(UserPrincipalName),
-    HighRisk = countif(RiskLevelDuringSignIn == "high"),
-    MediumRisk = countif(RiskLevelDuringSignIn == "medium"),
-    AtRisk = countif(RiskState == "atRisk"),
-    Compromised = countif(RiskState == "confirmedCompromised"),
-    TopUsers = make_set(UserPrincipalName, 10),
-    TopRiskEvents = make_set(RiskEventTypes_V2, 10)
-| project RiskySignIns, DistinctUsers, HighRisk, MediumRisk, 
-    AtRisk, Compromised, TopUsers, TopRiskEvents
-```
-
-**Purpose:** Single-row summary of risky sign-in activity — how many, how severe, who's affected. Surfaces users in `atRisk` or `confirmedCompromised` states that need immediate admin attention.
+**Report rendering:** Show top 10 users in the dashboard table. Use `DisplayName` as clickable link text with `PortalUrl` as the target. If >10 results, note `"+N more — drill down with user-investigation skill"`. For each user, render `TopRiskEventTypes` as the key risk indicators.
 
 **Verdict logic:**
-- 🔴 Escalate: `Compromised > 0` or `HighRisk > 10`
-- 🟠 Investigate: `AtRisk > 0` or `HighRisk > 0`
-- 🟡 Monitor: `MediumRisk > 0` only
-- ✅ Clear: 0 risky sign-ins
+- 🔴 Escalate: Any user with `ConfirmedCompromised` status, or `HighCount > 3`, or multiple users with `HighCount > 0`
+- 🟠 Investigate: `HighCount > 0` for any user, or any user `AtRisk` with risk events indicating `aiCompoundAccountRisk`, `impossibleTravel`, or `maliciousIPAddress`
+- 🟡 Monitor: Only `Medium` risk users with low-severity risk event types (e.g., `unfamiliarFeatures`)
+- ✅ Clear: 0 users matching the IdentityInfo risk/criticality filter
 
 ---
 
@@ -852,13 +805,11 @@ After all queries complete, check these correlation patterns and escalate priori
 
 | Pattern | Queries | Implication | Action |
 |---------|---------|-------------|--------|
-| Same user in Identity Protection AND custom anomalies | Q2 + Q2b | Corroborated identity compromise signal — both ML risk AND baseline deviation | Escalate to 🔴 |
-| Same user in anomalies AND risky sign-ins | Q2 + Q3 | Multiple identity risk signals on same user | Escalate to 🔴 |
 | SPN drift AND unusual credential/consent activity | Q5 + Q9 | App credential abuse / persistence | Escalate to 🔴 |
 | Device with rare process chain AND exploitable CVE | Q7 + Q12 | Potential active exploitation | Escalate to 🔴 |
-| Incident entity matches anomaly/risk user | Q1 + Q2/Q3 | Known incident may be expanding | Link findings in report |
-| Closed TP tactics match active findings | Q1b + Q2/Q3/Q7/Q8 | Same attack pattern recurring despite recent closures | Escalate to 🟠, note recurrence |
-| Spray IP overlaps with anomaly/risk user | Q4 + Q2/Q3 | Spray target already flagged by Identity Protection | Escalate to 🔴 |
+| Incident entity matches risky identity | Q1 + Q2 | Known incident involves user already flagged AtRisk/Compromised | Link findings in report |
+| Closed TP tactics match active findings | Q1b + Q2/Q7/Q8 | Same attack pattern recurring despite recent closures | Escalate to 🟠, note recurrence |
+| Spray IP target already flagged as risky | Q4 + Q2 | Spray target has active Identity Protection risk | Escalate to 🔴 |
 | Mailbox rule manipulation AND email threats | Q9 + Q8 | Potential email exfiltration setup following phishing | Escalate to 🔴 |
 
 ---
@@ -876,7 +827,7 @@ Each threat-pulse query group maps to a domain tag. Non-✅ domains drive manife
 | Query Group | Domain Tag |
 |-------------|-----------|
 | Q1, Q1b (Incidents) | `incidents` |
-| Q2, Q3, Q4 (Identity) | `identity` |
+| Q2, Q4 (Identity) | `identity` |
 | Q5 (SPN Drift) | `spn` |
 | Q6, Q7 (Endpoint) | `endpoint` |
 | Q8 (Email) | `email` |
@@ -939,7 +890,7 @@ Insert `📂 Recommended Query Files` section after **Recommended Actions** in t
 **Report structure (all modes):**
 
 1. **Header:** `# 🔍 Threat Pulse — <Workspace> | <Date>` with workspace ID, scan duration, query count
-2. **Dashboard Summary:** 12-row table — one row per query (Q1–Q12), columns: `#`, `Domain`, `Status` (verdict emoji), `Key Finding` (1-line). Verdicts: 🔴 Escalate | 🟠 Investigate | 🟡 Monitor | ✅ Clear | ❓ No Data
+2. **Dashboard Summary:** 10-row table — one row per query (Q1, Q1b, Q2, Q4–Q12), columns: `#`, `Domain`, `Status` (verdict emoji), `Key Finding` (1-line). Verdicts: 🔴 Escalate | 🟠 Investigate | 🟡 Monitor | ✅ Clear | ❓ No Data
 3. **Detailed Findings:** One section per query — EVERY query gets a section (no skipping). Data tables (max 10 rows inline, unlimited in file). Q1 incidents must include `[XDR #<id>](https://security.microsoft.com/incidents/<ProviderIncidentId>)` links. Q1b closed summary always renders after Q1.
 4. **Cross-Query Correlations:** Table of correlated findings per Post-Processing rules, or `✅ No correlations detected`.
 5. **🎯 Recommended Actions:** Prioritized table with action, trigger query, and drill-down skill.
@@ -959,7 +910,6 @@ Insert `📂 Recommended Query Files` section after **Recommended Actions** in t
 
 | Pitfall | Mitigation |
 |---------|------------|
-| Q2b custom table doesn't exist | Skip silently — Q2 (Identity Protection) is primary |
 | Q5 takes ~35s (97d lookback) | Acceptable — runs in parallel. Only query needing Data Lake |
 | Q7 capped at `ago(30d)` | AH Graph API limit. Use `queries/endpoint/rare_process_chains.md` via Data Lake for 90d |
 | Q6 drift scores | Computed in-query — do NOT recompute LLM-side |
@@ -970,7 +920,7 @@ Insert `📂 Recommended Query Files` section after **Recommended Actions** in t
 
 ## Quality Checklist
 
-- [ ] All 13 queries executed (Q2b optional)
+- [ ] All 12 queries executed
 - [ ] Every query has a verdict row — no omissions, no skipped "clear" sections
 - [ ] ✅ verdicts cite table + "0 results"; 🔴/🟠 cite specific evidence
 - [ ] All incidents have clickable XDR portal URLs
