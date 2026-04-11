@@ -977,7 +977,6 @@ class TestInvestigateUser:
     the error handling phase fixes the constructor call.
     """
 
-    @pytest.mark.skip(reason="Bug: investigate_user missing user_id and dlp_events args")
     def test_full_investigation_with_defaults(self):
         inv = _make_investigator()
         result = inv.investigate_user("user@contoso.com", days_back=7)
@@ -987,7 +986,6 @@ class TestInvestigateUser:
         assert result.risk_factors == []
         assert len(result.monitoring_actions) >= 1
 
-    @pytest.mark.skip(reason="Bug: investigate_user missing user_id and dlp_events args")
     def test_date_range_explicit(self):
         inv = _make_investigator()
         result = inv.investigate_user(
@@ -998,7 +996,6 @@ class TestInvestigateUser:
         assert result.start_date == "2026-04-01"
         assert result.end_date == "2026-04-10"
 
-    @pytest.mark.skip(reason="Bug: investigate_user missing user_id and dlp_events args")
     def test_date_range_computed(self):
         inv = _make_investigator()
         result = inv.investigate_user("u@c.com", days_back=3)
@@ -1006,7 +1003,6 @@ class TestInvestigateUser:
         assert result.start_date is not None
         assert result.start_date < result.end_date
 
-    @pytest.mark.skip(reason="Bug: investigate_user missing user_id and dlp_events args")
     def test_result_is_json_serializable(self):
         inv = _make_investigator()
         result = inv.investigate_user("u@c.com")

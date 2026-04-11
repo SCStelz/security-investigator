@@ -14,6 +14,8 @@ import time
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from exceptions import ConfigurationError, EnrichmentError
+
 
 @dataclass
 class InvestigationConfig:
@@ -28,9 +30,14 @@ class InvestigationConfig:
     def from_file(cls, path: str = "config.json"):
         """Load configuration from JSON file"""
         if os.path.exists(path):
-            with open(path, 'r') as f:
-                config = json.load(f)
-                return cls(**config)
+            try:
+                with open(path, 'r') as f:
+                    config = json.load(f)
+                    return cls(**config)
+            except json.JSONDecodeError as e:
+                raise ConfigurationError(f"Invalid JSON in config file {path}: {e}")
+            except (TypeError, KeyError) as e:
+                raise ConfigurationError(f"Invalid configuration structure in {path}: {e}")
         return cls(
             sentinel_workspace_id="",
             tenant_id=""
@@ -299,6 +306,7 @@ class SecurityInvestigator:
         # Initialize result
         result = InvestigationResult(
             upn=upn,
+            user_id=None,
             investigation_date=datetime.now().isoformat(),
             start_date=start_date,
             end_date=end_date,
@@ -314,6 +322,7 @@ class SecurityInvestigator:
             audit_events=[],
             office_events=[],
             security_alerts=[],
+            dlp_events=[],
             risk_level="Unknown",
             risk_factors=[],
             mitigating_factors=[],
@@ -504,7 +513,7 @@ class SecurityInvestigator:
                     risk_level=risk_level,
                     assessment=assessment
                 )
-            except Exception as e:
+            except (requests.RequestException, ConnectionError) as e:
                 return IPIntelligence(
                     ip=ip,
                     city="Error",
@@ -515,6 +524,18 @@ class SecurityInvestigator:
                     timezone="Error",
                     risk_level="Unknown",
                     assessment=f"Enrichment failed: {str(e)}"
+                )
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                return IPIntelligence(
+                    ip=ip,
+                    city="Error",
+                    region="Error",
+                    country="Error",
+                    org="Error",
+                    asn="Error",
+                    timezone="Error",
+                    risk_level="Unknown",
+                    assessment=f"Enrichment data error: {str(e)}"
                 )
 
         # Decide parallel vs sequential
