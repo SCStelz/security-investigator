@@ -1,7 +1,7 @@
 """Tests for .github/manifests/build_manifest.py"""
 
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,7 +12,6 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / ".github" / "manifests"))
 
 import build_manifest
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 

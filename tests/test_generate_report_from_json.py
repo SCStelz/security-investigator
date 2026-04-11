@@ -2,16 +2,16 @@
 
 import json
 import os
+from unittest.mock import MagicMock, patch
+
 import pytest
 import responses
-from unittest.mock import patch, MagicMock
 
 from generate_report_from_json import (
-    load_config,
-    enrich_ip_abuseipdb,
     enrich_ip,
+    enrich_ip_abuseipdb,
+    load_config,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -116,7 +116,7 @@ class TestLoadConfig:
 
             with patch("builtins.open", create=True) as mock_open:
                 mock_open.return_value.__enter__ = MagicMock(
-                    return_value=open(str(config_path), "r")
+                    return_value=open(str(config_path))
                 )
                 mock_open.return_value.__exit__ = MagicMock(return_value=False)
                 # Simplify: just patch at module level
@@ -528,7 +528,7 @@ class TestJsonLoadingValidation:
         path = tmp_path / "valid.json"
         path.write_text(json.dumps(minimal_investigation_data))
 
-        with open(str(path), "r", encoding="utf-8") as f:
+        with open(str(path), encoding="utf-8") as f:
             data = json.load(f)
 
         assert data["upn"] == "testuser@contoso.com"
@@ -540,13 +540,13 @@ class TestJsonLoadingValidation:
         path.write_text("{not valid json")
 
         with pytest.raises(json.JSONDecodeError):
-            with open(str(path), "r") as f:
+            with open(str(path)) as f:
                 json.load(f)
 
     def test_missing_file_raises(self, tmp_path):
         """Opening a non-existent file raises FileNotFoundError."""
         with pytest.raises(FileNotFoundError):
-            with open(str(tmp_path / "nonexistent.json"), "r") as f:
+            with open(str(tmp_path / "nonexistent.json")) as f:
                 json.load(f)
 
     def test_missing_required_keys(self, tmp_path):
@@ -555,7 +555,7 @@ class TestJsonLoadingValidation:
         path = tmp_path / "incomplete.json"
         path.write_text(json.dumps(data))
 
-        with open(str(path), "r") as f:
+        with open(str(path)) as f:
             loaded = json.load(f)
 
         # The main() function accesses data['upn'] directly, so missing it would raise KeyError
@@ -710,7 +710,7 @@ class TestMainFunction:
             main()
 
         # Re-read the JSON file and verify enrichment was saved
-        with open(str(path), "r") as f:
+        with open(str(path)) as f:
             saved = json.load(f)
 
         assert "ip_enrichment" in saved
@@ -847,7 +847,7 @@ class TestConftestFixture:
 
     def test_sample_investigation_json_is_valid(self, sample_investigation_json):
         """The conftest fixture produces a readable, valid JSON file."""
-        with open(sample_investigation_json, "r") as f:
+        with open(sample_investigation_json) as f:
             data = json.load(f)
 
         assert data["subject"] == "jsmith@contoso.com"

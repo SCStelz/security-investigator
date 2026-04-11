@@ -2,11 +2,9 @@
 
 import os
 import time
-import pytest
 from unittest.mock import patch
 
 from cleanup_old_investigations import cleanup_old_investigations, main
-
 
 # ---------------------------------------------------------------------------
 # Helpers

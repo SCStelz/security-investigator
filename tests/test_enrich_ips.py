@@ -2,17 +2,16 @@
 
 import json
 import sys
+from unittest.mock import mock_open, patch
 
 import pytest
 import responses
-from unittest.mock import patch, mock_open
 
 # ---------------------------------------------------------------------------
 # Module under test
 # ---------------------------------------------------------------------------
 sys.path.insert(0, "/tmp/repo-health-security-investigator")
 import enrich_ips
-
 
 # ---------------------------------------------------------------------------
 # Helpers / constants

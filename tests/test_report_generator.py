@@ -1,26 +1,23 @@
 """Tests for CompactReportGenerator."""
 
 import os
-import json
-import pytest
-from unittest.mock import patch, MagicMock
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
+from unittest.mock import patch
 
-from report_generator import CompactReportGenerator
+import pytest
+
 from investigator import (
-    InvestigationResult,
     AnomalyFinding,
-    IPIntelligence,
-    UserProfile,
-    MFAStatus,
     DeviceInfo,
+    DLPEvent,
+    InvestigationResult,
+    IPIntelligence,
+    MFAStatus,
     RiskDetection,
     RiskySignIn,
-    DLPEvent,
+    UserProfile,
     UserRiskProfile,
 )
-
+from report_generator import CompactReportGenerator
 
 # ---------------------------------------------------------------------------
 # Fixtures

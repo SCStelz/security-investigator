@@ -1,11 +1,10 @@
 """Comprehensive tests for investigator.py - dataclasses, SecurityInvestigator, risk logic."""
 
 import json
-import os
+from dataclasses import asdict
+
 import pytest
 import responses
-from dataclasses import asdict
-from unittest.mock import patch
 
 from investigator import (
     AnomalyFinding,
@@ -21,7 +20,6 @@ from investigator import (
     UserProfile,
     UserRiskProfile,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

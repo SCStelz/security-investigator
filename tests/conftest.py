@@ -1,7 +1,7 @@
 """Shared test fixtures for security-investigator."""
 
 import json
-import os
+
 import pytest
 
 
