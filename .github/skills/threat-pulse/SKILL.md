@@ -394,10 +394,12 @@ let lookback = 7d;
 // Layer 1: IdentityInfo — filtered to users needing attention
 let IdentityPosture = IdentityInfo
 | where Timestamp > ago(lookback)
-| summarize arg_max(Timestamp, *) by AccountUpn
 | where RiskLevel in ("High", "Medium") 
     or RiskStatus in ("AtRisk", "ConfirmedCompromised") 
     or CriticalityLevel >= 3
+| project Timestamp, AccountUpn, AccountObjectId, AccountName, AccountDomain, 
+    OnPremSid, AccountDisplayName, RiskLevel, RiskStatus, CriticalityLevel
+| summarize arg_max(Timestamp, *) by AccountUpn
 | project AccountUpn, AccountObjectId, AccountName, AccountDomain, OnPremSid,
     AccountDisplayName, IdP_RiskLevel = RiskLevel, IdP_RiskStatus = RiskStatus, CriticalityLevel;
 // Layer 2: AADUserRiskEvents — enrichment (the why)
@@ -413,7 +415,8 @@ let UserRiskEvents = AADUserRiskEvents
     by UserPrincipalName;
 // IdentityInfo drives, AADUserRiskEvents enriches
 IdentityPosture
-| join kind=leftouter (UserRiskEvents) on $left.AccountUpn == $right.UserPrincipalName
+| join hint.strategy=broadcast kind=leftouter (UserRiskEvents) 
+    on $left.AccountUpn == $right.UserPrincipalName
 | extend 
     DisplayName = coalesce(AccountDisplayName, AccountName, AccountUpn),
     RiskSummary = strcat(IdP_RiskLevel, " / ", IdP_RiskStatus),
