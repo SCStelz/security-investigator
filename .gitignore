@@ -50,7 +50,21 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+.env.production
+
+# Certificates and private keys
+*.pem
+*.key
+*.p12
 
 # MCP Apps - ignore build artifacts and dependencies
 mcp-apps/**/node_modules/
 mcp-apps/**/dist/
+
+# Test / Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.pytest_cache/

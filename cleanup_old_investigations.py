@@ -66,9 +66,11 @@ def cleanup_old_investigations(temp_dir: str = "temp", reports_dir: str = "repor
                     files_deleted += 1
                     space_freed += file_size
             
-            except Exception as e:
+            except OSError as e:
                 print(f"  ⚠️ Error processing {filename}: {e}")
-    
+            except PermissionError as e:
+                print(f"  ⚠️ Permission denied for {filename}: {e}")
+
     # Process HTML report files in reports/user-investigations/
     user_inv_dir = os.path.join(reports_dir, "user-investigations")
     if os.path.exists(user_inv_dir):
@@ -104,9 +106,11 @@ def cleanup_old_investigations(temp_dir: str = "temp", reports_dir: str = "repor
                     files_deleted += 1
                     space_freed += file_size
             
-            except Exception as e:
+            except OSError as e:
                 print(f"  ⚠️ Error processing {filename}: {e}")
-    
+            except PermissionError as e:
+                print(f"  ⚠️ Permission denied for {filename}: {e}")
+
     print()
     if files_deleted > 0:
         space_freed_mb = space_freed / (1024 * 1024)

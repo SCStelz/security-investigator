@@ -14,19 +14,26 @@ Options:
 
 import json
 import sys
+import logging
 from pathlib import Path
 from investigator import InvestigationResult, AnomalyFinding, IPIntelligence, UserProfile, MFAStatus, DeviceInfo, RiskDetection, RiskySignIn, UserRiskProfile, DLPEvent
 from report_generator import CompactReportGenerator
 from datetime import datetime, timedelta
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from exceptions import ConfigurationError, EnrichmentError, DataValidationError, ReportGenerationError
+
+logger = logging.getLogger(__name__)
 
 def load_config():
     """Load configuration from config.json."""
     config_path = Path(__file__).parent / 'config.json'
     if config_path.exists():
-        with open(config_path, 'r') as f:
-            return json.load(f)
+        try:
+            with open(config_path, 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            raise ConfigurationError(f"Invalid JSON in config file {config_path}: {e}")
     return {}
 
 def enrich_ip_abuseipdb(ip: str, api_key: str) -> dict:
@@ -53,7 +60,9 @@ def enrich_ip_abuseipdb(ip: str, api_key: str) -> dict:
             print(f"⚠️  AbuseIPDB rate limit exceeded for {ip} (1000 requests/day limit)")
             return None
         return None
-    except Exception:
+    except (requests.RequestException, ConnectionError):
+        return None
+    except (json.JSONDecodeError, KeyError):
         return None
 
 def enrich_ip(ip: str, config: dict = None) -> IPIntelligence:
@@ -155,7 +164,7 @@ def enrich_ip(ip: str, config: dict = None) -> IPIntelligence:
                 vpn_response = requests.get(f"https://vpnapi.io/api/{ip}?key={vpnapi_token}", timeout=5)
                 if vpn_response.status_code == 429:
                     print(f"⚠️  vpnapi.io rate limit exceeded for {ip}")
-                    raise Exception("Rate limit")
+                    raise EnrichmentError("Rate limit", status_code=429, service="vpnapi.io")
                 vpn_response.raise_for_status()
                 vpn_data = vpn_response.json()
                 
@@ -172,16 +181,24 @@ def enrich_ip(ip: str, config: dict = None) -> IPIntelligence:
                     if ip_intel.is_vpn and not is_major_cloud:
                         if ip_intel.risk_level == "LOW":
                             ip_intel.risk_level = "MEDIUM"
-            except Exception:
+            except (requests.RequestException, ConnectionError, EnrichmentError):
+                pass
+            except (json.JSONDecodeError, KeyError):
                 pass
         
         return ip_intel
         
-    except Exception as e:
+    except (requests.RequestException, ConnectionError) as e:
         return IPIntelligence(
             ip=ip, city="Error", region="Error", country="Error",
             org="Error", asn="Error", timezone="Error",
             risk_level="Unknown", assessment=f"Enrichment failed: {str(e)}"
+        )
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        return IPIntelligence(
+            ip=ip, city="Error", region="Error", country="Error",
+            org="Error", asn="Error", timezone="Error",
+            risk_level="Unknown", assessment=f"Enrichment data error: {str(e)}"
         )
 
 def main():
@@ -454,7 +471,7 @@ def main():
         try:
             investigation_end = datetime.fromisoformat(data['end_date'])
             recency_cutoff = investigation_end - timedelta(days=7)
-        except:
+        except (ValueError, KeyError):
             recency_cutoff = datetime.now() - timedelta(days=7)
         
         print(f"\n📊 Frequency thresholds: High (≥{high_freq_threshold}), Active (≥{active_threshold} + recent)")
@@ -501,7 +518,7 @@ def main():
                 try:
                     last_seen_dt = datetime.fromisoformat(last_seen_str.replace('Z', '+00:00').replace('+00:00', ''))
                     is_recent = last_seen_dt >= recency_cutoff
-                except:
+                except (ValueError, AttributeError):
                     pass
         
         if count >= high_freq_threshold:
@@ -708,7 +725,7 @@ def main():
                     _, ip_intel = future.result()
                     result.ip_intelligence.append(ip_intel)
                     print(f"  ✓ {ip}")
-                except Exception as e:
+                except (requests.RequestException, ConnectionError, json.JSONDecodeError, KeyError, ValueError) as e:
                     print(f"  ✗ {ip} - {str(e)}")
                     # Create error placeholder
                     error_intel = IPIntelligence(
@@ -1144,7 +1161,7 @@ SecurityIncident
     try:
         from cleanup_old_investigations import cleanup_old_investigations
         cleanup_old_investigations(temp_dir="temp", reports_dir="reports", retention_days=3, dry_run=False)
-    except Exception as e:
+    except (ImportError, OSError, PermissionError) as e:
         print(f"⚠️  Cleanup skipped: {e}")
 
 if __name__ == "__main__":

@@ -17,6 +17,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from pathlib import Path
 
+from exceptions import ConfigurationError, EnrichmentError
+
 # AbuseIPDB category ID to name mapping
 ABUSE_CATEGORIES = {
     1: "DNS Compromise", 2: "DNS Poisoning", 3: "Fraud Orders", 4: "DDoS Attack",
@@ -33,8 +35,13 @@ def load_config() -> dict:
     # Auto-load .env file from the project root if present
     load_dotenv(Path(__file__).parent / '.env')
     config_path = Path(__file__).parent / 'config.json'
-    with open(config_path, 'r') as f:
-        config = json.load(f)
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        raise
+    except json.JSONDecodeError as e:
+        raise ConfigurationError(f"Invalid JSON in config file {config_path}: {e}") from e
     # Environment variables take precedence over config.json for API tokens
     env_token_map = {
         'ipinfo_token': 'IPINFO_TOKEN',
@@ -118,8 +125,10 @@ def enrich_single_ip(ip: str, config: dict) -> dict:
             org_str = ipinfo_data.get('org', '')
             if org_str.startswith('AS'):
                 result['asn'] = org_str.split(' ')[0]
-    except Exception as e:
+    except (requests.RequestException, ConnectionError) as e:
         print(f"  [ipinfo.io] Error for {ip}: {str(e)}", file=sys.stderr)
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"  [ipinfo.io] Data error for {ip}: {str(e)}", file=sys.stderr)
     
     # 2. VPNapi.io enrichment
     vpnapi_token = config.get('vpnapi_token')
@@ -135,8 +144,10 @@ def enrich_single_ip(ip: str, config: dict) -> dict:
             result['vpnapi_security_proxy'] = security.get('proxy', False)
             result['vpnapi_security_tor'] = security.get('tor', False)
             result['vpnapi_security_relay'] = security.get('relay', False)
-    except Exception as e:
+    except (requests.RequestException, ConnectionError) as e:
         print(f"  [vpnapi.io] Error for {ip}: {str(e)}", file=sys.stderr)
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"  [vpnapi.io] Data error for {ip}: {str(e)}", file=sys.stderr)
     
     # 3. AbuseIPDB enrichment
     abuseipdb_token = config.get('abuseipdb_token')
@@ -161,8 +172,10 @@ def enrich_single_ip(ip: str, config: dict) -> dict:
                 result['is_whitelisted'] = abuse_data.get('isWhitelisted', False)
             elif response.status_code == 429:
                 print(f"  [AbuseIPDB] Rate limit for {ip}", file=sys.stderr)
-        except Exception as e:
+        except (requests.RequestException, ConnectionError) as e:
             print(f"  [AbuseIPDB] Error for {ip}: {str(e)}", file=sys.stderr)
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f"  [AbuseIPDB] Data error for {ip}: {str(e)}", file=sys.stderr)
         
         # 4. Fetch AbuseIPDB comments/reports (separate API call)
         if result['total_reports'] > 0:
@@ -186,8 +199,10 @@ def enrich_single_ip(ip: str, config: dict) -> dict:
                             'categories': cat_names,
                             'comment': report.get('comment', '(no comment)')[:300]
                         })
-            except Exception as e:
+            except (requests.RequestException, ConnectionError) as e:
                 print(f"  [AbuseIPDB Reports] Error for {ip}: {str(e)}", file=sys.stderr)
+            except (json.JSONDecodeError, KeyError) as e:
+                print(f"  [AbuseIPDB Reports] Data error for {ip}: {str(e)}", file=sys.stderr)
     
     # 5. Shodan enrichment (full API primary, InternetDB fallback)
     shodan_token = config.get('shodan_token')
@@ -232,8 +247,10 @@ def enrich_single_ip(ip: str, config: dict) -> dict:
             elif response.status_code == 404:
                 shodan_full_ok = True  # API worked, IP just not indexed
             # 403 (free key) / 429 (out of credits) / other → fall through to InternetDB
-        except Exception as e:
+        except (requests.RequestException, ConnectionError) as e:
             print(f"  [Shodan] Error for {ip}: {str(e)}", file=sys.stderr)
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f"  [Shodan] Data error for {ip}: {str(e)}", file=sys.stderr)
     
     # Step 5b: InternetDB fallback — free, no API key needed (used when full API unavailable or out of credits)
     if not shodan_full_ok:
@@ -248,8 +265,10 @@ def enrich_single_ip(ip: str, config: dict) -> dict:
                 result['shodan_tags'] = idb_data.get('tags', [])
                 result['shodan_hostnames'] = idb_data.get('hostnames', [])
                 result['shodan_cpes'] = idb_data.get('cpes', [])
-        except Exception as e:
+        except (requests.RequestException, ConnectionError) as e:
             print(f"  [Shodan InternetDB] Error for {ip}: {str(e)}", file=sys.stderr)
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f"  [Shodan InternetDB] Data error for {ip}: {str(e)}", file=sys.stderr)
     
     return result
 
@@ -289,8 +308,8 @@ def enrich_ips(ip_list: list[str], max_workers: int = 3) -> list[dict]:
                 
                 flag_str = f"[{', '.join(flags)}]" if flags else "[Clean]"
                 print(f"  OK {ip:<17} {flag_str}")
-            except Exception as e:
-                print(f"  FAIL {ip} - {str(e)}")
+            except (requests.RequestException, ConnectionError, json.JSONDecodeError, KeyError, ValueError) as e:
+                print(f"  FAIL {ip} - {str(e)}", file=sys.stderr)
     
     return sorted(results, key=lambda x: x['ip'])
 
@@ -462,7 +481,12 @@ def print_summary(results: list[dict]):
 
 
 def extract_ips_from_investigation(json_path: str) -> list[str]:
-    """Extract unenriched IPs from an investigation JSON file or simple IP list JSON"""
+    """Extract unenriched IPs from an investigation JSON file or simple IP list JSON
+
+    Raises:
+        FileNotFoundError: If json_path does not exist.
+        json.JSONDecodeError: If the file contains invalid JSON.
+    """
     with open(json_path, 'r') as f:
         data = json.load(f)
     

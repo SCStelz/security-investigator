@@ -8,7 +8,11 @@ from datetime import datetime
 import json
 import os
 import socket
+import logging
 from investigator import InvestigationResult, AnomalyFinding, IPIntelligence, DeviceInfo
+from exceptions import ReportGenerationError
+
+logger = logging.getLogger(__name__)
 
 
 class CompactReportGenerator:
@@ -22,14 +26,14 @@ class CompactReportGenerator:
         """Get current Windows username"""
         try:
             return os.getlogin().upper()
-        except:
+        except OSError:
             return os.environ.get('USERNAME', 'UNKNOWN').upper()
     
     def _get_machine_name(self) -> str:
         """Get current machine hostname"""
         try:
             return socket.gethostname().upper()
-        except:
+        except OSError:
             return 'UNKNOWN'
     
     def _get_ip_category_badges(self, categories: list, size: str = 'normal') -> str:
@@ -1147,7 +1151,7 @@ union isfuzzy=true
                 from datetime import datetime
                 dt = datetime.fromisoformat(last_seen_timestamp.replace('Z', '+00:00'))
                 last_seen_sort = dt.strftime('%Y-%m-%d %H:%M:%S')
-            except:
+            except (ValueError, AttributeError):
                 last_seen_sort = last_seen_timestamp
         else:
             last_seen_sort = '1970-01-01 00:00:00'  # Fallback for missing dates
@@ -1229,7 +1233,7 @@ union isfuzzy=true
                 from datetime import datetime
                 dt = datetime.fromisoformat(event.time_generated.replace('Z', '+00:00'))
                 time_str = dt.strftime('%b %d %H:%M')
-            except:
+            except (ValueError, AttributeError):
                 time_str = event.time_generated
             
             # Operation badge
@@ -1321,7 +1325,7 @@ union isfuzzy=true
                     from datetime import datetime
                     dt = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
                     time_str = dt.strftime('%b %d %H:%M')
-                except:
+                except (ValueError, AttributeError):
                     time_str = created_time
             
             severity_badge_map = {
@@ -1972,7 +1976,7 @@ union isfuzzy=true
                 pst_time = utc_time.astimezone(ZoneInfo('America/Los_Angeles'))
                 event_date = pst_time.strftime('%Y-%m-%d')
                 event_time = pst_time.strftime('%H:%M')
-            except:
+            except (ValueError, AttributeError, KeyError):
                 # Fallback to original parsing if conversion fails
                 event_date = event['time'].split('T')[0] if 'T' in event['time'] else event['time'].split(' ')[0]
                 event_time = event['time'].split('T')[1][:5] if 'T' in event['time'] else event['time'].split(' ')[1][:5] if ' ' in event['time'] else ''
