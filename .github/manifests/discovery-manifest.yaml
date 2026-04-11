@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-04-11T20:16:58Z'
+generated: '2026-04-11T22:46:08Z'
 valid_domains:
 - admin
 - cloud
@@ -364,6 +364,9 @@ queries:
   - identity
   mitre:
   - T1021.001
+  - T1110.001
+  - T1110.003
+  - T1133
   - TA0008
 - title: Windows Startup Folder Persistence Hunting
   path: queries/endpoint/startup_folder_persistence.md

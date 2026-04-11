@@ -1,10 +1,10 @@
 # RDP Lateral Movement Detection Queries
 
 **Created:** 2026-01-28  
-**Platform:** Microsoft Sentinel  
-**Tables:** SecurityEvent  
-**Keywords:** RDP, lateral movement, brute force, password spray, credential stuffing, failed logon, remote desktop, EventID 4624, EventID 4625, LogonType 10  
-**MITRE:** T1021.001, TA0008  
+**Platform:** Both  
+**Tables:** SecurityEvent, DeviceLogonEvents  
+**Keywords:** RDP, lateral movement, brute force, password spray, credential stuffing, failed logon, remote desktop, EventID 4624, EventID 4625, LogonType 10, RemoteInteractive, external RDP, internet-facing  
+**MITRE:** T1021.001, T1110.001, T1110.003, T1133, TA0008  
 **Domains:** endpoint, identity  
 **Timeframe:** Last 7 days (configurable)
 
@@ -603,11 +603,185 @@ Expected results:
 
 ---
 
+## DeviceLogonEvents Queries (MDE)
+
+> **When to use:** These queries use the `DeviceLogonEvents` table from Microsoft Defender for Endpoint. Use them in environments with MDE onboarded devices — they provide richer context (`RemoteIP`, `Protocol`, `IsLocalAdmin`) without requiring SecurityEvent log forwarding. Available in both Advanced Hunting (30d) and Sentinel Data Lake (90d+).
+
+### Query 7: External RDP Brute-Force Detection (DeviceLogonEvents)
+
+**Purpose:** Detect external IPs performing RDP brute-force against MDE-enrolled devices. Covers both password spray (1 IP → many users) and brute-force (1 IP → many attempts) patterns on internet-facing RDP endpoints.
+
+**MITRE:** T1110.001, T1110.003 | **Tactic:** Credential Access, Initial Access
+
+<!-- cd-metadata
+cd_ready: true
+name: "External RDP Brute-Force: {{RemoteIP}} targeted {{TargetUsers}} users on {{DeviceName}}"
+frequency: "1h"
+lookback: "1h"
+severity: "medium"
+mitre: ["T1110.001", "T1110.003", "T1021.001"]
+impacted_entity: "DeviceName"
+-->
+
+```kql
+// External RDP Brute-Force Detection (DeviceLogonEvents)
+// Platform: Both (AH uses Timestamp, Data Lake uses TimeGenerated)
+DeviceLogonEvents
+| where Timestamp > ago(7d)
+| where ActionType == "LogonFailed"
+| where LogonType in ("RemoteInteractive", "Network")
+| where isnotempty(RemoteIP)
+| where not(RemoteIP startswith "10." or RemoteIP startswith "172.16."
+    or RemoteIP startswith "172.17." or RemoteIP startswith "172.18."
+    or RemoteIP startswith "172.19." or RemoteIP startswith "172.20."
+    or RemoteIP startswith "172.21." or RemoteIP startswith "172.22."
+    or RemoteIP startswith "172.23." or RemoteIP startswith "172.24."
+    or RemoteIP startswith "172.25." or RemoteIP startswith "172.26."
+    or RemoteIP startswith "172.27." or RemoteIP startswith "172.28."
+    or RemoteIP startswith "172.29." or RemoteIP startswith "172.30."
+    or RemoteIP startswith "172.31."
+    or RemoteIP startswith "192.168." or RemoteIP == "127.0.0.1" or RemoteIP == "::1")
+| summarize
+    FailedAttempts = count(),
+    TargetUsers = dcount(AccountName),
+    SampleTargets = make_set(AccountName, 5),
+    TargetDevices = make_set(DeviceName, 3),
+    FirstSeen = min(Timestamp),
+    LastSeen = max(Timestamp)
+    by RemoteIP
+| where FailedAttempts >= 10
+| order by TargetUsers desc, FailedAttempts desc
+```
+
+**Tuning:**
+- Increase `FailedAttempts >= 10` threshold for noisy internet-facing honeypots
+- Add `| where DeviceName in ("server1", "server2")` to scope to known internet-facing assets
+
+---
+
+### Query 8: Successful External RDP Access (DeviceLogonEvents)
+
+**Purpose:** Detect successful RDP logons from external (non-RFC1918) IP addresses. Critical for identifying successful breaches on internet-facing RDP endpoints and unauthorized external access. Filters out `0.0.0.0` (RDP Gateway/AVD broker sessions where source IP is stripped).
+
+**MITRE:** T1021.001, T1133 | **Tactic:** Lateral Movement, Initial Access
+
+<!-- cd-metadata
+cd_ready: true
+name: "External RDP Success: {{AccountName}} from {{RemoteIP}} on {{DeviceName}}"
+frequency: "1h"
+lookback: "1h"
+severity: "high"
+mitre: ["T1021.001", "T1133"]
+impacted_entity: "DeviceName"
+-->
+
+```kql
+// Successful External RDP Access (DeviceLogonEvents)
+// Platform: Both (AH uses Timestamp, Data Lake uses TimeGenerated)
+// Filters: Excludes RFC1918 (internal), 0.0.0.0 (RDP Gateway/AVD broker), loopback
+DeviceLogonEvents
+| where Timestamp > ago(7d)
+| where ActionType == "LogonSuccess"
+| where LogonType == "RemoteInteractive"
+| where isnotempty(RemoteIP)
+| where RemoteIP != "0.0.0.0" and RemoteIP != "::1" and RemoteIP != "127.0.0.1"
+| where not(RemoteIP startswith "10." or RemoteIP startswith "172.16."
+    or RemoteIP startswith "172.17." or RemoteIP startswith "172.18."
+    or RemoteIP startswith "172.19." or RemoteIP startswith "172.20."
+    or RemoteIP startswith "172.21." or RemoteIP startswith "172.22."
+    or RemoteIP startswith "172.23." or RemoteIP startswith "172.24."
+    or RemoteIP startswith "172.25." or RemoteIP startswith "172.26."
+    or RemoteIP startswith "172.27." or RemoteIP startswith "172.28."
+    or RemoteIP startswith "172.29." or RemoteIP startswith "172.30."
+    or RemoteIP startswith "172.31."
+    or RemoteIP startswith "192.168.")
+| project Timestamp, DeviceName, AccountName, AccountDomain, RemoteIP,
+    LogonType, Protocol, IsLocalAdmin
+| order by Timestamp desc
+```
+
+**Why filter `0.0.0.0`?** Windows Cloud PC, Azure Virtual Desktop, and RDP Gateway sessions route through a broker that strips the original source IP before the logon event is recorded. These appear as `RemoteIP = 0.0.0.0` and are legitimate broker-mediated sessions — not direct external RDP connections.
+
+**Tuning:**
+- Add known admin IPs to an exclusion list: `| where RemoteIP !in ("1.2.3.4", "5.6.7.8")`
+- Scope to specific critical assets: `| where DeviceName in ("dc01", "sql-prod")`
+- For Data Lake (90d+): replace `Timestamp` with `TimeGenerated`
+
+---
+
+### Query 9: External RDP Failed-Then-Success Correlation (DeviceLogonEvents)
+
+**Purpose:** Correlate failed external RDP attempts with subsequent successful logons from the same IP — the highest-fidelity indicator of a successful external brute-force attack.
+
+**MITRE:** T1110.001, T1021.001 | **Tactic:** Credential Access, Initial Access
+
+<!-- cd-metadata
+cd_ready: true
+name: "External RDP Breach: {{RemoteIP}} brute-forced {{DeviceName}} ({{FailedAttempts}} failures then success)"
+frequency: "1h"
+lookback: "1h"
+severity: "high"
+mitre: ["T1110.001", "T1021.001"]
+impacted_entity: "DeviceName"
+-->
+
+```kql
+// External RDP Failed-Then-Success (DeviceLogonEvents)
+// Platform: Both (AH uses Timestamp, Data Lake uses TimeGenerated)
+let timeframe = 7d;
+let failureThreshold = 3;
+let windowTime = 30m;
+let ExternalFilter = (T:(RemoteIP:string)) {
+    T
+    | where isnotempty(RemoteIP)
+    | where RemoteIP != "0.0.0.0" and RemoteIP != "::1" and RemoteIP != "127.0.0.1"
+    | where not(RemoteIP startswith "10." or RemoteIP startswith "192.168."
+        or RemoteIP matches regex @"^172\.(1[6-9]|2[0-9]|3[01])\.")
+};
+let Failed = DeviceLogonEvents
+    | where Timestamp > ago(timeframe)
+    | where ActionType == "LogonFailed"
+    | where LogonType in ("RemoteInteractive", "Network")
+    | invoke ExternalFilter()
+    | summarize
+        FailedAttempts = count(),
+        FailedAccounts = make_set(AccountName, 5),
+        FirstFailure = min(Timestamp),
+        LastFailure = max(Timestamp)
+        by RemoteIP, DeviceName;
+let Success = DeviceLogonEvents
+    | where Timestamp > ago(timeframe)
+    | where ActionType == "LogonSuccess"
+    | where LogonType in ("RemoteInteractive", "Network")
+    | invoke ExternalFilter()
+    | project SuccessTime = Timestamp, DeviceName, SuccessAccount = AccountName,
+        RemoteIP, IsLocalAdmin;
+Failed
+| where FailedAttempts >= failureThreshold
+| join kind=inner Success on RemoteIP, DeviceName
+| where SuccessTime between (FirstFailure .. (LastFailure + windowTime))
+| project RemoteIP, DeviceName, FailedAttempts, FailedAccounts,
+    FirstFailure, LastFailure, SuccessTime, SuccessAccount, IsLocalAdmin
+| order by FailedAttempts desc
+```
+
+**Tuning:**
+- `failureThreshold`: Minimum failed attempts before flagging (default: 3)
+- `windowTime`: Time window after last failure to check for success (default: 30m)
+- For Data Lake: replace `Timestamp` with `TimeGenerated`
+
+---
+
 ## Version History
 
 - **v1.0 (2026-01-28):** Initial query collection created
   - 6 core detection queries
   - Tested against Microsoft Sentinel SecurityEvent table
+- **v1.1 (2026-04-11):** Added DeviceLogonEvents (MDE) queries
+  - Query 7: External RDP brute-force detection
+  - Query 8: Successful external RDP access (with 0.0.0.0 RDP Gateway filter)
+  - Query 9: External RDP failed-then-success correlation
+  - Validated against live DeviceLogonEvents data (180d lookback)
   - All queries validated for syntax and performance
 
 ---
