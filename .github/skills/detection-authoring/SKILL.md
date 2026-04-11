@@ -17,6 +17,8 @@ This skill deploys **custom detection rules** to Microsoft Defender XDR via the 
 
 **Entity Type:** Custom detection rules (Defender XDR)
 
+> **Writing new detection queries from scratch?** This skill focuses on deploying and managing detection rules — not query creation. If you need to write detection KQL from scratch (schema validation, community examples, performance optimization), use the **kql-query-authoring** skill first with CD intent markers (say "create custom detection queries for [scenario]"). It will produce Sentinel-format queries with `cd-metadata` blocks ready for this skill to adapt and deploy.
+
 ---
 
 ## 📑 TABLE OF CONTENTS

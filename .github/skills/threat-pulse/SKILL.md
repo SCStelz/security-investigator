@@ -276,7 +276,8 @@ SecurityIncident
 | mv-expand AlertId = AlertIds | extend AlertId = tostring(AlertId)
 | join kind=leftouter (
     SecurityAlert
-    | summarize arg_max(TimeGenerated, *) by SystemAlertId
+    | where TimeGenerated > ago(30d)
+    | summarize arg_max(TimeGenerated, Entities, Tactics, Techniques, AlertName, AlertSeverity) by SystemAlertId
     | extend ParsedEntities = parse_json(Entities)
     | mv-expand Entity = ParsedEntities
     | extend EntityType = tostring(Entity.Type),
@@ -355,7 +356,8 @@ SecurityIncident
 | mv-expand AlertId = AlertIds | extend AlertId = tostring(AlertId)
 | join kind=leftouter (
     SecurityAlert
-    | summarize arg_max(TimeGenerated, *) by SystemAlertId
+    | where TimeGenerated > ago(30d)
+    | summarize arg_max(TimeGenerated, Tactics, Techniques) by SystemAlertId
     | project SystemAlertId, Tactics, Techniques
 ) on $left.AlertId == $right.SystemAlertId
 | mv-expand Technique = parse_json(Techniques)
@@ -479,8 +481,8 @@ IdentityPosture
 **Tool:** `RunAdvancedHuntingQuery`
 
 ```kql
-// Step 1: Count spray-specific failures per IP
-let SprayFailures = EntraIdSignInEvents
+// Step 1: Count spray-specific failures per IP (materialized — referenced twice)
+let SprayFailures = materialize(EntraIdSignInEvents
 | where Timestamp > ago(7d)
 | where ErrorCode in (50126, 50053, 50057)
 | summarize
@@ -490,7 +492,7 @@ let SprayFailures = EntraIdSignInEvents
     FailedApps = make_set(Application, 3),
     Countries = make_set(Country, 3)
     by SourceIP = IPAddress
-| where TargetUsers >= 5;
+| where TargetUsers >= 5);
 // Step 2: Get full traffic profile for flagged IPs (success context)
 let IPTrafficProfile = EntraIdSignInEvents
 | where Timestamp > ago(7d)
@@ -792,8 +794,8 @@ AuditLogs
 | where TimeGenerated > ago(7d)
 | where OperationName has_any ("role", "credential", "consent", "Conditional Access", "password", "certificate")
 | where Result == "success"
-| extend Actor = tostring(parse_json(tostring(InitiatedBy.user)).userPrincipalName)
-| extend Target = tostring(parse_json(tostring(TargetResources[0])).displayName)
+| extend Actor = tostring(InitiatedBy.user.userPrincipalName)
+| extend Target = tostring(TargetResources[0].displayName)
 | summarize 
     Count = count(),
     Operations = make_set(OperationName, 5),
@@ -863,9 +865,11 @@ CriticalAssets
 
 ```kql
 DeviceTvmSoftwareVulnerabilities
-| join kind=inner DeviceTvmSoftwareVulnerabilitiesKB on CveId
-| where IsExploitAvailable == true
-| where CvssScore >= 8.0
+| join kind=inner (
+    DeviceTvmSoftwareVulnerabilitiesKB
+    | where IsExploitAvailable == true
+    | where CvssScore >= 8.0
+) on CveId
 | summarize 
     AffectedDevices = dcount(DeviceName),
     SampleDevices = make_set(DeviceName, 3),
