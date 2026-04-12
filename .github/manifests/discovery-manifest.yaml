@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-04-11T22:46:08Z'
+generated: '2026-04-12T04:44:24Z'
 valid_domains:
 - admin
 - cloud
@@ -204,6 +204,21 @@ queries:
   - TA0001
   - TA0006
   - TA0008
+- title: Key Vault & Storage Account Access Monitoring
+  path: queries/cloud/keyvault_storage_access_monitoring.md
+  domains:
+  - cloud
+  - exposure
+  mitre:
+  - T1552.001
+  - T1528
+  - T1530
+  - T1078.004
+  - T1098.001
+  - T1021.007
+  - TA0006
+  - TA0009
+  - TA0003
 - title: Secure Score Leadership Reporting — Defender for Cloud
   path: queries/cloud/secure_score_leadership_reporting.md
   domains:
