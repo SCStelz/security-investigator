@@ -114,7 +114,8 @@ def find_section_headings(lines: list) -> list:
                          "Reconnaissance", "Resource Development", "Initial Access",
                          "Discovery", "Lateral Movement", "Collection",
                          "C2", "Exfiltration", "Impact",
-                         "Level ", "Microsoft Threat"]
+                         "Level ", "Microsoft Threat",
+                         "Tool ", "Discover All", "Find All"]
         # Also skip emoji-prefixed tier/level headings
         if any(heading_text.startswith(p) for p in skip_patterns):
             continue
