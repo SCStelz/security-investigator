@@ -19,9 +19,11 @@ This collection of KQL queries covers email-based threat detection across the Mi
 ## Quick Reference — Query Index
 
 **Investigation shortcuts:**
-- **Delivered phishing drill-down:** **2.4** (recipients) + **7.6** (URL clicks) + **3.3** (inbox rules)
-- **ZAP failures:** **6.2** (failed ZAP) → **6.3** (user activity after)
-- **AiTM full chain:** **3.2** (phishing → token → inbox rule)
+- **Delivered phishing emails and recipients** (TP Q8): **2.4** (delivered phishing list) → **7.6** (URL clicks by recipients) → **3.3** (inbox rules created post-delivery)
+- **Phishing posture and detection gaps** (TP Q8): **1.1** (threat breakdown) + **5.1** (detection methods) + **5.2** (overridden threats)
+- **ZAP failure investigation** (TP Q8): **6.2** (failed ZAP — threats still in mailbox) → **6.3** (user activity after failed ZAP)
+- **AiTM phishing full chain** (TP Q2+Q8): **3.2** (phishing → anomalous token → inbox rule) — cross-ref with aitm_threat_detection.md
+- **Post-compromise email exfiltration** (TP Q9, incident follow-up): **9.1** (outbound from compromised account) + **9.2** (external forwarding) + **9.3** (OfficeActivity forwarding rules)
 
 | # | Query | Use Case | Key Table |
 |---|-------|----------|-----------|

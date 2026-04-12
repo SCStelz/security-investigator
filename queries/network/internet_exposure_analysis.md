@@ -51,6 +51,12 @@ Combines three tiers of internet exposure intelligence to identify, validate, an
 
 ## Quick Reference — Query Index
 
+**Investigation shortcuts:**
+- **Internet-facing device with RDP exposed** (TP Q11, Q4): **1** (which devices) → **7** (RDP cadence + top attackers) → **6** (source IP enrichment)
+- **Critical asset exposure posture** (TP Q11): **1** (authoritative list) + **4** (inbound volumes) + **5** (port breakdown)
+- **Scanning/probing against exposed device** (TP Q11, Q4): **8** (failed connections) → **6** (top attackers) → **12** (specific port hunt)
+- **Full exposure validation for incident device** (TP Q1): **1** (MDE confirmed) + **2** (ExposureGraph topology) + **11** (cross-reference rules vs traffic)
+
 | # | Query | Use Case | Key Table |
 |---|-------|----------|-----------|
 | 1 | [MDE Internet-Facing Devices (DeviceInfo)](#query-1-mde-internet-facing-devices-deviceinfo) | Investigation | `DeviceInfo` |

@@ -19,9 +19,11 @@ This file covers **two RDP threat scenarios** with queries for both `SecurityEve
 ## Quick Reference — Query Index
 
 **Investigation shortcuts:**
-- **Internet-facing device:** **Q7/Q10** (brute-force summary) + **Q9/Q12** (breach correlation)
-- **Internal lateral movement:** **Q2** (failed-then-success)
-- **Part B vs Part C:** Use Part B if SecurityEvent connector is configured, fall back to Part C (DeviceLogonEvents) if not
+- **Internet-facing device with RDP brute-force** (TP Q11, Q4): **Q7/Q10** (scope attack) → **Q8/Q11** (success check) → **Q9/Q12** (breach correlation)
+- **RDP failure reason triage** (TP Q11, Q4): **Q7** (has SubStatus — distinguishes username enumeration `0xC0000064` from bad password `0xC000006A`) — Q10 does NOT surface failure reasons
+- **Internal lateral movement from incident device** (TP Q1): **Q3** (baseline) → **Q2** (failed-then-success) → **Q4** (spray across targets) → **Q5** (failure reasons)
+- **Post-compromise RDP timeline** (TP Q1, incident follow-up): **Q6** (chronological progression for a specific source IP)
+- **Part B vs Part C:** Use Part B (SecurityEvent) if connector is configured — provides SubStatus failure reasons. Fall back to Part C (DeviceLogonEvents) if not — richer device context but no failure codes
 
 | # | Query | Use Case | Key Table |
 |---|-------|----------|-----------|

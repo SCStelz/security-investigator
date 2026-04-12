@@ -26,9 +26,11 @@ This document synthesizes intelligence from [Jeffrey Appel's 2026 AiTM guide](ht
 ## Quick Reference — Query Index
 
 **Investigation shortcuts:**
-- **Suspected AiTM compromise:** **Q7** (token replay) + **Q3** (risk events) + **Q5** (inbox rules)
+- **User with anonymizedIPAddress or AiTM risk + phishing delivery** (TP Q2+Q8): **Q7** (token replay — same SessionId from multiple IPs) → **Q3** (risk events correlated with phishing) → **Q5** (inbox rules during anomalous sessions)
+- **Post-AiTM compromise timeline** (TP Q2, incident follow-up): **Q4** (MFA method registration) → **Q10** (PIM elevation without re-auth) → **Q13** (cloud app reconnaissance)
+- **AiTM endpoint indicators** (TP Q2+Q8): **Q8** (URL click-through to phishing) → **Q9** (network protection blocks) → **Q11** (SmartScreen blocks)
 - **AiTM posture assessment:** See **Part 2** (defensive program)
-- **Response actions:** See **Part 5** (response playbook)
+- **Response actions for confirmed AiTM:** See **Part 5** (response playbook)
 
 | # | Query | Use Case | Key Table |
 |---|-------|----------|-----------|

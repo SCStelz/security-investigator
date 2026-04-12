@@ -22,6 +22,13 @@ This guide covers two approaches for analyzing the Exposure Management attack su
 
 ## Quick Reference — Query Index
 
+**Investigation shortcuts:**
+- **Internet-facing critical asset with CVEs** (TP Q11, Q12): **Q21** (vuln profile) → **Q11** (CVE list) → edges query (all relationships) → **Q6** (attack paths to DCs)
+- **Exploitable CVEs across fleet** (TP Q12): **Q29** (blast radius ranking) → **Q30** (choke points) → **Q28** (critical users at risk)
+- **Attack paths to Azure resources from vulnerable devices** (TP Q11, Q12): **Q22** (direct cookie chains) → **Q23** (group-mediated) → **Q25** (deduplicated union)
+- **Permission escalation via attack paths** (TP Q11, Q12): **Q26** (role breakdown) → **Q27** (high-privilege users) — Reader vs Owner changes everything
+- **New environment discovery** (first run): **Q13** (node types) → **Q14** (edge types) → **Q20** (sample VM properties) — run first in new environments
+
 | # | Query | Use Case | Key Table |
 |---|-------|----------|-----------|
 | 1 | [Find All Critical Devices (Criticality Level < 4)](#query-1-find-all-critical-devices-criticality-level--4) | Investigation | `ExposureGraphNodes` |
