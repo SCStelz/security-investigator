@@ -1,4 +1,4 @@
-# RDP Lateral Movement Detection Queries
+# RDP Threat Detection — Brute-Force, Lateral Movement & External Access
 
 **Created:** 2026-01-28  
 **Platform:** Both  

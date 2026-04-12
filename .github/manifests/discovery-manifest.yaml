@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-04-12T04:44:24Z'
+generated: '2026-04-12T05:05:50Z'
 valid_domains:
 - admin
 - cloud
@@ -372,8 +372,8 @@ queries:
   - T1087
   - TA0007
   - TA0002
-- title: RDP Lateral Movement Detection Queries
-  path: queries/endpoint/rdp_lateral_movement.md
+- title: RDP Threat Detection — Brute-Force, Lateral Movement & External Access
+  path: queries/endpoint/rdp_threat_detection.md
   domains:
   - endpoint
   - identity

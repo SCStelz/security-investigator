@@ -167,7 +167,7 @@ Estimated time: ~2–4 minutes
 | Type | Icon | Source | Example |
 |------|------|--------|---------|
 | **Skill investigation** | 🔍 | Per-query `Drill-down:` skill + entities from findings | `🔍 Investigate user jsmith@contoso.com` → `user-investigation` |
-| **Query file hunt** | 📄 | Manifest domain + MITRE matching → query file | `📄 Hunt for RDP lateral movement from 10.0.0.50` → `queries/endpoint/rdp_lateral_movement.md` |
+| **Query file hunt** | 📄 | Manifest domain + MITRE matching → query file | `📄 Hunt for RDP lateral movement from 10.0.0.50` → `queries/endpoint/rdp_threat_detection.md` |
 | **IOC lookup** | 🎯 | Suspicious IPs, domains, hashes surfaced in findings | `🎯 Enrich and investigate IP 203.0.113.42` → `ioc-investigation` |
 
 **Skill matching rules — derive from findings:**
