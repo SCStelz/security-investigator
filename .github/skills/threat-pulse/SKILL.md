@@ -283,6 +283,22 @@ When executing a `📄` prompt, use the queries **from the file verbatim** with 
 | Using the query file as "inspiration" and rewriting from scratch | ❌ **PROHIBITED** |
 | Executing the file's queries verbatim with entity substitution | ✅ **REQUIRED** |
 
+### 🔍 Skill Drill-Down Execution Rule
+
+**⛔ MANDATORY — applies to ALL `🔍` skill drill-down executions in Phase 4.**
+
+When executing a skill drill-down, **load the child skill's SKILL.md** and use its validated queries. Do NOT write ad-hoc queries from memory — schema hallucination (wrong column names, wrong table) is the #1 drill-down failure mode.
+
+1. Load the child skill's SKILL.md
+2. Match the trigger context (TP Q number) against the skill's **Investigation Shortcuts** section to identify the relevant query chain
+3. Execute the shortcut query chain with entity substitution (workspace and output mode are inherited — the child skill handles this via its "When invoked from a parent skill" section)
+4. For quick triage: run only the shortcut chain. For deep investigation: run the full skill workflow
+
+| Action | Status |
+|--------|--------|
+| Writing ad-hoc KQL queries without loading the child skill's SKILL.md | ❌ **PROHIBITED** |
+| Loading SKILL.md and using its Investigation Shortcuts for the matching TP trigger | ✅ **REQUIRED** |
+
 ---
 
 ### 🎬 Take Action Queries — Portal-Ready Remediation Blocks
@@ -290,6 +306,8 @@ When executing a `📄` prompt, use the queries **from the file verbatim** with 
 After every non-✅ drill-down that surfaces actionable entities, append a **`🎬 Take Action`** section with a portal-ready KQL query or portal links. The user copies the query into [Advanced Hunting](https://security.microsoft.com/v2/advanced-hunting), selects rows, and clicks **Take actions**. Ref: [Take action on AH results](https://learn.microsoft.com/en-us/defender-xdr/advanced-hunting-take-action)
 
 **Skip when:** verdict is ✅/🔵, or the action was already taken (e.g., ZAP purged emails).
+
+> ⚠️ **AI-generated content may be incorrect. Always review Take Action queries for accuracy before executing remediation actions in Advanced Hunting.**
 
 #### Required Columns per Entity Type
 
@@ -342,7 +360,7 @@ DeviceFileEvents
 
 #### Defender XDR Portal Links — All Entity Types
 
-**🔴 Every entity (user, domain, URL, IP, file hash) in action/recommendation tables MUST be a clickable Defender XDR portal link — never plain text.** VS Code renders bare UPNs as `mailto:` and bare URLs/IPs as broken links.
+**🔴 Every entity (user, domain, URL, IP, file hash) in action/recommendation tables MUST be a clickable Defender XDR portal link — the entity name IS the link.** Do NOT add a separate "Portal" column or leave entities as plain text. VS Code renders bare UPNs as `mailto:` and bare URLs/IPs as broken links.
 
 | Entity | URL Pattern | Example |
 |--------|------------|---------|
@@ -353,6 +371,19 @@ DeviceFileEvents
 | **File Hash** | `https://security.microsoft.com/file/<SHA1-or-SHA256>/` | `[da5e459...b1bb1e](https://security.microsoft.com/file/da5e45915354850261cf0e87dc7af19597b1bb1e/)` |
 
 **User fallbacks:** `?upn=<UPN>` when ObjectId is unavailable; `?sid=<SID>&accountName=<Name>&accountDomain=<Domain>` for on-prem AD.
+
+#### Entity Display Decision — Portal Link vs Defang
+
+**Defanging and portal linking are MUTUALLY EXCLUSIVE. For every malicious domain, URL, or IP in a table, apply exactly ONE treatment:**
+
+| Context | Treatment | Example |
+|---------|-----------|----------|
+| **Action / recommendation / Take Action table** | Wrap entity name in Defender XDR portal link. Do NOT defang. | `[evil.com](https://security.microsoft.com/domains/overview?urlDomain=evil.com)` |
+| **Data / results table showing raw query output** | Defang the entity. Do NOT link to portal. | `evil[.]com` |
+
+⛔ **Action tables: use portal links, NOT defanging.** Writing `evil[.]com` in an action table is wrong — write `[evil.com](https://security.microsoft.com/domains/overview?urlDomain=evil.com)` instead. The markdown link target points to `security.microsoft.com`, so VS Code won't auto-linkify to the malicious domain. If you see `[.]` in an Entity cell, you applied the wrong rule.
+
+⛔ **Data tables: use defanging, NOT portal links.** Writing bare `evil.com` in a results table is wrong — VS Code auto-linkifies it. Write `evil[.]com` instead.
 
 #### URL Defanging — Prevent Accidental Clicks
 
@@ -368,7 +399,7 @@ DeviceFileEvents
 
 **When to defang:** Data tables showing threat URLs/domains from query results (e.g., UrlClickEvents, EmailEvents phishing URLs, CloudAppEvents suspicious domains) where the value is displayed as-is, not linked to a Defender XDR portal page.
 
-**When NOT to defang:** When the URL/domain is wrapped in a Defender XDR portal link (the link target is `security.microsoft.com`, not the malicious URL).
+**When NOT to defang:** When the entity appears in an **action or recommendation table** — these MUST use clickable Defender XDR portal links instead (see Portal Links table above). Defanging a portal-linked entity breaks the link. The two treatments are mutually exclusive.
 
 #### Rules
 
@@ -378,6 +409,8 @@ DeviceFileEvents
 | Take Action query missing a required column | ❌ **PROHIBITED** |
 | Email Take Action query using `project` (strips columns needed by Submit to Microsoft / Initiate Automated Investigation) | ❌ **PROHIBITED** |
 | Action table with plain-text entities (UPNs, domains, URLs, IPs, hashes) instead of clickable Defender XDR portal links | ❌ **PROHIBITED** |
+| Defanging entities (`[.]`) in action/recommendation tables instead of wrapping in portal links | ❌ **PROHIBITED** |
+| Adding a separate "Portal" column instead of making the entity name itself the clickable link | ❌ **PROHIBITED** |
 | Displaying raw (non-defanged) malicious URLs/domains as plain text in results tables | ❌ **PROHIBITED** |
 | Take Action block with correct required columns + recommended action | ✅ **REQUIRED** |
 

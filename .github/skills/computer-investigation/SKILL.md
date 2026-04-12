@@ -32,6 +32,13 @@ This skill performs comprehensive security investigations on Windows, macOS, and
 11. **[Error Handling](#error-handling)** - Troubleshooting guide
 12. **[SVG Dashboard Generation](#svg-dashboard-generation)** - Visual dashboard from report data
 
+**Investigation shortcuts:**
+- **Device with behavioral drift** (TP Q6): **Q3** (suspicious processes) → **Q11** (logon events) → **Q7** (incidents) → **Q8** (device info)
+- **Internet-facing critical asset** (TP Q11): **Q8** (device info + internet-facing) → **Q4** (outbound connections) → **Q10** (vulnerabilities) → **Q11** (logon events)
+- **Device in active incident** (TP Q1): **Q2** (security alerts) → **Q3** (process execution) → **Q5** (file events) → **Q6** (registry persistence) → **Q7** (incidents)
+- **Brute-forced endpoint** (TP Q4): **Q11** (logon events) → **Q4** (outbound connections) → **Q12** (TI IP matches)
+- **Vulnerability assessment** (TP Q12): **Q9** (software inventory) → **Q10** (CVEs on device) → **Q8** (exposure score)
+
 ---
 
 ## ⚠️ CRITICAL WORKFLOW RULES - READ FIRST ⚠️
@@ -53,10 +60,11 @@ This skill performs comprehensive security investigations on Windows, macOS, and
 
 **This skill requires a Sentinel workspace to execute queries. Follow these rules STRICTLY:**
 
-### When invoked from incident-investigation skill:
+### When invoked from a parent skill (incident-investigation, threat-pulse, etc.):
 - Inherit the workspace selection from the parent investigation context
 - If no workspace was selected in parent context: **STOP and ask user to select**
 - Use the `SELECTED_WORKSPACE_IDS` passed from the parent skill
+- **Skip output mode prompts** — default to inline chat (the parent skill controls the final output format)
 
 ### When invoked standalone (direct user request):
 1. **ALWAYS call `list_sentinel_workspaces` MCP tool FIRST**
@@ -731,6 +739,9 @@ DeviceLogonEvents
 ```
 
 ### 12. Threat Intelligence IP Matches (Device Network Traffic)
+
+**Performance notes:** ThreatIntelIndicators can be large (100K+ rows). Filter `IsActive`/`ValidUntil` **before** string transformations per [KQL best practices](https://learn.microsoft.com/en-us/kusto/query/best-practices) — reduce data first, transform later. The triple `replace_string` was replaced with direct array indexing `split(...)[0]` which returns a clean string.
+
 ```kql
 let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
@@ -741,17 +752,15 @@ let device_ips = DeviceNetworkEvents
 | where RemoteIPType != "Private"
 | distinct RemoteIP;
 ThreatIntelIndicators
-| extend IndicatorType = replace_string(replace_string(replace_string(tostring(split(ObservableKey, ":", 0)), "[", ""), "]", ""), "\"", "")
-| where IndicatorType in ("ipv4-addr", "ipv6-addr", "network-traffic")
-| extend NetworkSourceIP = toupper(ObservableValue)
-| where NetworkSourceIP in (device_ips)
 | where IsActive and (ValidUntil > now() or isempty(ValidUntil))
+| where tostring(split(ObservableKey, ":")[0]) in ("ipv4-addr", "ipv6-addr", "network-traffic")
+| where ObservableValue in (device_ips)
 | extend Description = tostring(parse_json(Data).description)
 | where Description !contains_cs "State: inactive;" and Description !contains_cs "State: falsepos;"
-| summarize arg_max(TimeGenerated, *) by NetworkSourceIP
+| summarize arg_max(TimeGenerated, *) by ObservableValue
 | project 
     TimeGenerated,
-    IPAddress = NetworkSourceIP,
+    IPAddress = ObservableValue,
     ThreatDescription = Description,
     Confidence,
     ValidUntil,

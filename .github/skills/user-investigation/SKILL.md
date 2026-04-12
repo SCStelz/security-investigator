@@ -27,6 +27,13 @@ This skill performs comprehensive security investigations on Entra ID user accou
 10. **[Error Handling](#error-handling)** - Troubleshooting guide
 11. **[SVG Dashboard Generation](#svg-dashboard-generation)** - Visual dashboard from report data
 
+**Investigation shortcuts:**
+- **Risky user quick triage** (TP Q2): **Q6** (security incidents) → **Q2** (anomalies) → **Q3d** (sign-ins by IP) → Graph: MFA methods
+- **Compromised user forensics** (TP Q2+Q9): **Q3** (sign-in summary) → **Q5** (OfficeActivity) → **Q3d** (IP breakdown) → **Q1** (priority IPs for enrichment)
+- **Password spray target** (TP Q4): **Q3c** (sign-in failures) → **Q3d** (IPs hitting this user) → **Q6** (related incidents)
+- **Post-incident user timeline** (TP Q1, incident follow-up): **Q4** (audit logs) → **Q5** (O365 activity) → **Q10** (DLP events) → **Q6** (all incidents)
+- **IP enrichment for user** (TP Q2+Q4): **Q1** (priority IP extraction) → **Q11** (TI matches) → `enrich_ips.py`
+
 ---
 
 ## ⚠️ CRITICAL WORKFLOW RULES - READ FIRST ⚠️
@@ -47,10 +54,11 @@ This skill performs comprehensive security investigations on Entra ID user accou
 
 **This skill requires a Sentinel workspace to execute queries. Follow these rules STRICTLY:**
 
-### When invoked from incident-investigation skill:
+### When invoked from a parent skill (incident-investigation, threat-pulse, etc.):
 - Inherit the workspace selection from the parent investigation context
 - If no workspace was selected in parent context: **STOP and ask user to select**
 - Use the `SELECTED_WORKSPACE_IDS` passed from the parent skill
+- **Skip output mode prompts** — default to inline chat (the parent skill controls the final output format)
 
 ### When invoked standalone (direct user request):
 1. **ALWAYS call `list_sentinel_workspaces` MCP tool FIRST**
@@ -742,22 +750,23 @@ CloudAppEvents
 ```
 
 ### 11. Threat Intelligence IP Enrichment (Bulk IP Query)
+
+**Performance notes:** Filter `IsActive`/`ValidUntil` before transformations per [KQL best practices](https://learn.microsoft.com/en-us/kusto/query/best-practices). The triple `replace_string` was replaced with direct array indexing `split(...)[0]`.
+
 ```kql
 let target_ips = dynamic(["<IP_1>", "<IP_2>", "<IP_3>"]);
 ThreatIntelIndicators
-| extend IndicatorType = replace_string(replace_string(replace_string(tostring(split(ObservableKey, ":", 0)), "[", ""), "]", ""), "\"", "")
-| where IndicatorType in ("ipv4-addr", "ipv6-addr", "network-traffic")
-| extend NetworkSourceIP = toupper(ObservableValue)
-| where NetworkSourceIP in (target_ips)
 | where IsActive and (ValidUntil > now() or isempty(ValidUntil))
+| where tostring(split(ObservableKey, ":")[0]) in ("ipv4-addr", "ipv6-addr", "network-traffic")
+| where ObservableValue in (target_ips)
 | extend Description = tostring(parse_json(Data).description)
 | where Description !contains_cs "State: inactive;" and Description !contains_cs "State: falsepos;"
 | extend TrafficLightProtocolLevel = tostring(parse_json(AdditionalFields).TLPLevel)
 | extend ActivityGroupNames = extract(@"ActivityGroup:(\S+)", 1, tostring(parse_json(Data).labels))
-| summarize arg_max(TimeGenerated, *) by NetworkSourceIP
+| summarize arg_max(TimeGenerated, *) by ObservableValue
 | project 
     TimeGenerated,
-    IPAddress = NetworkSourceIP,
+    IPAddress = ObservableValue,
     ThreatDescription = Description,
     ActivityGroupNames,
     Confidence,

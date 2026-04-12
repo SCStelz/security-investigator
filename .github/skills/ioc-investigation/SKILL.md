@@ -30,6 +30,13 @@ The investigation correlates IoCs with Microsoft Defender Threat Intelligence, i
 7. **[JSON Export Structure](#json-export-structure)** - Required fields
 8. **[Error Handling](#error-handling)** - Troubleshooting guide
 
+**Investigation shortcuts:**
+- **Suspicious IP from spray/brute-force** (TP Q4): **Q2** (network connections) → **Q11** (sign-in analysis) → **Q8** (alert evidence) → **Q1** (TI match)
+- **IP from user risk event** (TP Q2): **Q11** (sign-in analysis) → **Q2** (device connections) → **Q9** (security alerts) → `enrich_ips.py`
+- **Phishing domain/URL** (TP Q8): **Q4** (DNS/HTTP connections) → **Q6** (email delivery) → **Q8** (alert evidence) → **Q1** (TI match)
+- **File hash from incident** (TP Q1): **Q7** (file events across all tables) → **Q9** (security alerts) → **Q10** (custom indicator check) → **Q12** (CVE extraction)
+- **IoC organizational exposure** (TP Q1+Q11): **Q2/Q4** (affected devices) → **Q9** (alert correlation) → **Q12** (CVEs from alerts)
+
 ---
 
 ## ⚠️ CRITICAL WORKFLOW RULES - READ FIRST ⚠️
@@ -50,10 +57,11 @@ The investigation correlates IoCs with Microsoft Defender Threat Intelligence, i
 
 **This skill requires a Sentinel workspace to execute queries. Follow these rules STRICTLY:**
 
-### When invoked from incident-investigation skill:
+### When invoked from a parent skill (incident-investigation, threat-pulse, etc.):
 - Inherit the workspace selection from the parent investigation context
 - If no workspace was selected in parent context: **STOP and ask user to select**
 - Use the `SELECTED_WORKSPACE_IDS` passed from the parent skill
+- **Skip output mode prompts** — default to inline chat (the parent skill controls the final output format)
 
 ### When invoked standalone (direct user request):
 1. **ALWAYS call `list_sentinel_workspaces` MCP tool FIRST**
