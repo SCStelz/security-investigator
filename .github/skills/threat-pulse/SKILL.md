@@ -284,6 +284,88 @@ When executing a `📄` prompt, use the queries **from the file verbatim** with 
 
 ---
 
+### 🎬 Take Action Queries — Portal-Ready Remediation Blocks
+
+After every non-✅ drill-down that surfaces actionable entities, append a **`🎬 Take Action`** section with a portal-ready KQL query or portal links. The user copies the query into [Advanced Hunting](https://security.microsoft.com/v2/advanced-hunting), selects rows, and clicks **Take actions**. Ref: [Take action on AH results](https://learn.microsoft.com/en-us/defender-xdr/advanced-hunting-take-action)
+
+**Skip when:** verdict is ✅/🔵, or the action was already taken (e.g., ZAP purged emails).
+
+#### Required Columns per Entity Type
+
+**Missing a required column silently disables the action menu.** Always include these:
+
+| Entity | Required Columns | Actions | Notes |
+|--------|-----------------|---------|-------|
+| **📧 Email** | `NetworkMessageId`, `RecipientEmailAddress` | Soft/hard delete, move to folder | Add `EmailDirection` + `SenderFromAddress` to also delete sender's copy |
+| **💻 Device** | `DeviceId` | Isolate, AV scan, collect package, restrict apps | Use `summarize arg_max(Timestamp, *) by DeviceId` for latest state |
+| **📁 File** | `SHA1` or `SHA256` + `DeviceId` | Quarantine file | Both hash and device required |
+| **🔐 Identity** | *(No AH Take Action)* | Portal: block, revoke, reset | Use Defender XDR Identity page links (see below) |
+
+#### Template Queries
+
+**📧 Email — Soft delete by NetworkMessageId:**
+```kql
+EmailEvents
+| where Timestamp > ago(7d)
+| where NetworkMessageId in ("<id1>", "<id2>")
+| project NetworkMessageId, RecipientEmailAddress, Subject,
+    SenderFromAddress, EmailDirection, LatestDeliveryAction
+```
+→ *Take actions → Delete email → Soft delete*
+
+**📧 Email — Bulk purge by compromised sender domain:**
+```kql
+EmailEvents
+| where Timestamp > ago(30d)
+| where SenderFromDomain =~ "<domain>" and ThreatTypes has "Phish" and DeliveryAction == "Delivered"
+| project NetworkMessageId, RecipientEmailAddress, Subject,
+    SenderFromAddress, EmailDirection, LatestDeliveryAction
+```
+
+**💻 Device — Isolate:**
+```kql
+DeviceInfo
+| where Timestamp > ago(1d)
+| where DeviceName in~ ("<device1>", "<device2>")
+| summarize arg_max(Timestamp, *) by DeviceId
+| project DeviceId, DeviceName, OSPlatform, MachineGroup
+```
+
+**📁 File — Quarantine by hash:**
+```kql
+DeviceFileEvents
+| where Timestamp > ago(7d)
+| where SHA1 == "<hash>" or SHA256 == "<hash>"
+| project DeviceId, DeviceName, SHA1, SHA256, FileName, FolderPath
+```
+
+**🔐 Identity — Portal links + bulk PowerShell:**
+
+Generate a clickable Defender XDR Identity link per user: `https://security.microsoft.com/user?aad=<ObjectId>&upn=<UPN>&tab=overview` (fallback: `?sid=<SID>&accountName=<Name>&accountDomain=<Domain>` for on-prem, `?upn=<UPN>` for external IdP). Present as a table:
+
+```markdown
+| User | Portal | Action |
+|------|--------|--------|
+| [User Name](https://security.microsoft.com/user?aad=<OID>&upn=<UPN>&tab=overview) | 🔗 Open | Block sign-in, Revoke sessions |
+```
+
+Bulk session revocation:
+```powershell
+@("<UPN1>", "<UPN2>") | ForEach-Object {
+    Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/users/$_/revokeSignInSessions"
+}
+```
+
+#### Rules
+
+| Rule | Status |
+|------|--------|
+| Non-✅ drill-down surfaces actionable entities but no Take Action block | ❌ **PROHIBITED** |
+| Take Action query missing a required column | ❌ **PROHIBITED** |
+| Take Action block with correct required columns + recommended action | ✅ **REQUIRED** |
+
+---
+
 ## Sample KQL Queries
 
 > **All queries below are verified against live Sentinel/Defender XDR schemas. Use them exactly as written. Lookback periods use `ago(Nd)` — substitute the user's preferred lookback where noted.**
@@ -1210,6 +1292,7 @@ Prioritize by risk level and actionability. Group by theme (e.g., Identity, Endp
 - [ ] ✅ verdicts cite table + "0 results"; 🔴/🟠 cite specific evidence
 - [ ] All incidents have clickable XDR portal URLs
 - [ ] Cross-query correlations checked
+- [ ] Every non-✅ drill-down has a `🎬 Take Action` block with portal-ready KQL (correct required columns per entity type)
 - [ ] `📂 Recommended Query Files` section present when any non-✅ verdict exists (clickable links, not tables)
 - [ ] No fabricated data
 
