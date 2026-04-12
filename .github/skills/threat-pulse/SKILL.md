@@ -299,8 +299,8 @@ After every non-✅ drill-down that surfaces actionable entities, append a **`�
 | **📧 Email** | `NetworkMessageId`, `RecipientEmailAddress` | Soft/hard delete, move to folder, submit to Microsoft, initiate investigation | **Do NOT use `project`** — *Submit to Microsoft* and *Initiate Automated Investigation* require undocumented columns that `project` strips, silently greying out those options. The portal's *Show empty columns* toggle only works when columns exist in the result schema. Return all columns; use `where` to scope results. |
 | **💻 Device** | `DeviceId` | Isolate, collect investigation package, AV scan, initiate investigation, restrict app execution | Use `summarize arg_max(Timestamp, *) by DeviceId` for latest state |
 | **📁 File** | `SHA1` or `SHA256` + `DeviceId` | Quarantine file | Both hash and device required |
-| **� Indicator** | IP, URL/domain, or SHA hash column | Add indicator: allow, warn, or block | No *Take actions* button needed — click the value directly in AH results → *Add indicator* to create a Defender for Endpoint custom indicator |
-| **�🔐 Identity** | *(No AH Take Action)* | Portal: block, revoke, reset | Use Defender XDR Identity page links (see below) |
+| **🔗 Indicator** | IP, URL/domain, or SHA hash column | Add indicator: allow, warn, or block | No *Take actions* button needed — click the value directly in AH results → *Add indicator* to create a Defender for Endpoint custom indicator |
+| **🔐 Identity** | *(No AH Take Action)* | Portal: confirm user compromised, require user to sign in again, suspend user in app, account settings in app | Use Defender XDR Identity page links (see portal links table below) |
 
 #### Template Queries
 
@@ -339,21 +339,19 @@ DeviceFileEvents
 ```
 → *Take actions →* Quarantine file
 
-**🔐 Identity — Portal links:**
+#### Defender XDR Portal Links — All Entity Types
 
-Generate a clickable Defender XDR Identity link per user: `https://security.microsoft.com/user?aad=<ObjectId>&upn=<UPN>&tab=overview` (fallback: `?sid=<SID>&accountName=<Name>&accountDomain=<Domain>` for on-prem, `?upn=<UPN>` for external IdP). Present as a table with the actual portal action names:
+**🔴 Every entity (user, domain, URL, IP, file hash) in action/recommendation tables MUST be a clickable Defender XDR portal link — never plain text.** VS Code renders bare UPNs as `mailto:` and bare URLs/IPs as broken links.
 
-```markdown
-| User | Portal | Recommended Action |
-|------|--------|--------|
-| [User Name](https://security.microsoft.com/user?aad=<OID>&upn=<UPN>&tab=overview) | 🔗 Open | Confirm user compromised, Require user to sign in again |
-```
+| Entity | URL Pattern | Example |
+|--------|------------|---------|
+| **User** | `https://security.microsoft.com/user?aad=<OID>&upn=<UPN>&tab=overview` | `[user@contoso.com](https://security.microsoft.com/user?aad=<OID>&upn=user@contoso.com&tab=overview)` |
+| **Domain** | `https://security.microsoft.com/domains/overview?urlDomain=<domain>` | `[alpineskihouse.co](https://security.microsoft.com/domains/overview?urlDomain=alpineskihouse.co)` |
+| **URL** | `https://security.microsoft.com/url/overview?url=<url-encoded-URL>` | `[example.com/path](https://security.microsoft.com/url/overview?url=http%3A%2F%2Fexample.com%2Fpath)` |
+| **IP** | `https://security.microsoft.com/ip/<IP>/overview` | `[203.0.113.42](https://security.microsoft.com/ip/203.0.113.42/overview)` |
+| **File Hash** | `https://security.microsoft.com/file/<SHA1-or-SHA256>/` | `[da5e459...b1bb1e](https://security.microsoft.com/file/da5e45915354850261cf0e87dc7af19597b1bb1e/)` |
 
-Portal actions available (under `⋯` menu on Identity page):
-- **Confirm user compromised** — flags the user as compromised in Identity Protection, triggers risk-based CA policies
-- **Require user to sign in again** — revokes all refresh tokens, forces re-authentication
-- **Suspend user in app** — suspends the user's access in the connected cloud app (MCAS-governed apps)
-- **Account settings in app** — opens the user's account settings in the connected app for manual changes
+**User fallbacks:** `?upn=<UPN>` when ObjectId is unavailable; `?sid=<SID>&accountName=<Name>&accountDomain=<Domain>` for on-prem AD.
 
 #### Rules
 
@@ -362,6 +360,7 @@ Portal actions available (under `⋯` menu on Identity page):
 | Non-✅ drill-down surfaces actionable entities but no Take Action block | ❌ **PROHIBITED** |
 | Take Action query missing a required column | ❌ **PROHIBITED** |
 | Email Take Action query using `project` (strips columns needed by Submit to Microsoft / Initiate Automated Investigation) | ❌ **PROHIBITED** |
+| Action table with plain-text entities (UPNs, domains, URLs, IPs, hashes) instead of clickable Defender XDR portal links | ❌ **PROHIBITED** |
 | Take Action block with correct required columns + recommended action | ✅ **REQUIRED** |
 
 ---
@@ -924,8 +923,8 @@ AuditLogs
 **Purpose:** Shows who's been performing privileged admin operations. Unexpected actors or unusual volume (e.g., 36 password resets from one user in a week) warrant investigation. System-initiated operations (empty Actor) are normal PIM lifecycle events.
 
 **Verdict logic:**
-- � Escalate: Credential/consent/CA policy changes from unexpected actors, or bulk password resets from a single user
-- �🟠 Investigate: Unexpected user appearing as Actor; high-volume single-user operations
+- 🔴 Escalate: Credential/consent/CA policy changes from unexpected actors, or bulk password resets from a single user
+- 🟠 Investigate: Unexpected user appearing as Actor; high-volume single-user operations
 - 🟡 Monitor: Normal PIM/system operations; expected admin activity
 - ✅ Clear: Only system-driven operations with expected volume
 
