@@ -2,7 +2,7 @@
 
 **Created:** 2026-04-12  
 **Platform:** Both  
-**Tables:** AzureDiagnostics, StorageBlobLogs, ExposureGraphNodes, ExposureGraphEdges  
+**Tables:** AzureDiagnostics, StorageBlobLogs, ExposureGraphNodes, ExposureGraphEdges, SecurityAlert, SecurityIncident  
 **Keywords:** Key Vault, Storage Account, secret access, credential theft, data exfiltration, lateral movement, service principal, managed identity, ExposureGraph, critical assets, MDC recommendations, permission sprawl  
 **MITRE:** T1552.001, T1528, T1530, T1078.004, T1098.001, T1021.007, TA0006, TA0009, TA0003  
 **Domains:** cloud, exposure  
@@ -15,10 +15,21 @@
 This file covers **three investigation surfaces** for Azure Key Vault and Storage Account security:
 
 | Section | Queries | Purpose |
-|---------|---------|---------|
+|---------|---------|---------- |
 | **Part A: Key Vault Data Plane** | Q1–Q6 | Secret/key/certificate access baseline, anomaly detection, sensitive write operations |
 | **Part B: Storage Account Data Plane** | Q7–Q9 | Blob access patterns, auth failures, SAS token usage |
 | **Part C: Exposure Graph — Critical Asset Correlation** | Q10–Q14 | Permission sprawl, MDC recommendations, critical asset access, identity-to-resource mapping |
+| **Part D: SecurityAlert — MDC Incident Correlation** | Q15–Q15b | KV/Storage alerts from MDC & Defender XDR with incident join — covers vaults/storage WITHOUT diagnostic logging |
+
+### ⚠️ Diagnostic Settings Coverage Gap — Critical
+
+> **AzureDiagnostics only covers resources with diagnostic settings explicitly configured to ship logs to THIS Log Analytics workspace.** Vaults and storage accounts without diagnostic settings are **invisible** to Q1–Q10 — queries return 0 results even when activity occurred. This is the #1 false-negative risk in KV/Storage investigations.
+>
+> **MDC/Defender for Cloud alerts fire independently** — they operate at the subscription level via the Defender connector, NOT per-resource diagnostic settings. A vault can have ZERO diagnostic logs in AzureDiagnostics but still generate TOR access, anomalous operation, and secret exfiltration alerts in SecurityAlert (Q15/Q15b).
+>
+> **Always run Q15/Q15b alongside Q1–Q6** when investigating specific identities or incidents. If AzureDiagnostics returns 0 for a vault that appears in SecurityAlert, the vault's diagnostic settings are the gap — not the absence of activity.
+>
+> **To check coverage:** `AzureDiagnostics | where ResourceType == "VAULTS" | summarize Vaults = make_set(Resource, 50) by SubscriptionId` — any vault NOT in this list is a blind spot for Q1–Q10.
 
 ### ⚠️ Table Access Notes
 
@@ -46,6 +57,13 @@ This file covers **three investigation surfaces** for Azure Key Vault and Storag
 
 ## Quick Reference — Query Index
 
+**Investigation shortcuts:**
+- **KV/Storage access by compromised identity** (TP Q3, Q9, incident follow-up): **Q15b** (entity-scoped MDC/XDR alerts — catches vaults without diagnostic settings) → **Q1** (data plane baseline for vaults WITH diagnostics) → **Q3** (auth failures) → **Q10** (critical vault access)
+- **Fleet-wide KV/Storage incident posture** (TP Q1, posture review): **Q15** (all KV/Storage incidents) → **Q13** (KV MDC recommendations) → **Q14** (Storage MDC recommendations) → **Q11** (permission sprawl)
+- **Storage account compromise** (TP Q11, incident follow-up): **Q15b** (entity-scoped) → **Q7** (blob ops summary) → **Q8** (auth failures) → **Q9** (SAS/anonymous) → **Q14** (recommendations)
+- **Key Vault secret exfiltration** (incident follow-up): **Q15b** (entity-scoped — TOR/anomaly alerts) → **Q1** (baseline — if diagnostics exist) → **Q2** (new caller detection) → **Q5** (volume anomaly)
+- **Diagnostic coverage audit**: `AzureDiagnostics | where ResourceType == "VAULTS" | summarize make_set(Resource, 50) by SubscriptionId` — compare against Q15 `CompromisedEntity` to find unmonitored vaults
+
 | # | Query | Use Case | Key Table |
 |---|-------|----------|-----------|
 | 1 | [Secret & Key Access Baseline — Per-Caller Per-Vault Summary](#query-1-secret--key-access-baseline--per-caller-per-vault-summary) | Dashboard | `AzureDiagnostics` |
@@ -62,6 +80,8 @@ This file covers **three investigation surfaces** for Azure Key Vault and Storag
 | 12 | [Key Vault Broad Permission Holders (3+ Vaults)](#query-12-key-vault-broad-permission-holders-3-vaults) | Investigation | `ExposureGraphEdges` + `ExposureGraphNodes` |
 | 13 | [Key Vault Security Recommendations (MDC via ExposureGraph)](#query-13-key-vault-security-recommendations-mdc-via-exposuregraph) | Investigation | `ExposureGraphEdges` + `ExposureGraphNodes` |
 | 14 | [Storage Account Security Recommendations (MDC via ExposureGraph)](#query-14-storage-account-security-recommendations-mdc-via-exposuregraph) | Investigation | `ExposureGraphEdges` + `ExposureGraphNodes` |
+| 15 | [KV & Storage — MDC/XDR Alerts with Incident Correlation (Fleet)](#query-15-kv--storage--mdcxdr-alerts-with-incident-correlation-fleet) | Detection | `AzureDiagnostics` + multi |
+| 15 | [b: KV & Storage — Entity-Scoped Alert Drill-Down](#query-15b-kv--storage--entity-scoped-alert-drill-down) | Detection | `ClientInfo` + `SecurityAlert` |
 
 
 ## Part A: Key Vault Data Plane Monitoring
@@ -698,6 +718,9 @@ When investigating potential data exfiltration via storage:
 
 | Pitfall | Impact | Mitigation |
 |---------|--------|------------|
+| **AzureDiagnostics only covers vaults WITH diagnostic settings** | Vaults without diagnostic settings configured to this workspace return 0 results in Q1–Q6 — silent false-negative | Always run Q15/Q15b alongside Q1–Q6; MDC alerts (SecurityAlert) fire independently of diagnostic settings |
+| **MDC KV alerts: `CallerUPN` is empty** | `ExtendedProperties["User Principal Name"]` is blank even for human callers on TOR/anomaly alerts | Filter by `Client Object ID` (ObjectId), NOT UPN. Resolve ObjectId→UPN via Graph if needed |
+| **Defender XDR KV alerts: no `ExtendedProperties` detail** | "Suspicious activities related to Azure Key Vault by a risky user" has NO ops/target/IP in ExtendedProperties — it's a behavioral alert based on user risk state + Azure ARM activity | Pair with MDC alerts (Q15 joins both); MDC "Access from TOR exit node" has the operational detail |
 | `AzureDiagnostics` not in Data Lake | Data Lake MCP returns `SemanticError` | Use `RunAdvancedHuntingQuery` (30d) or Azure MCP `workspace_log_query` (90d+) |
 | `Resource` column is UPPERCASE in AzureDiagnostics | Joins with ExposureGraph fail silently (case mismatch) | Always `tolower()` both sides when joining |
 | `identity_claim_appid_g` is application (client) ID, NOT object ID | Wrong Graph API lookups | Use `/applications?$filter=appId eq` NOT `/servicePrincipals/{id}` |
@@ -705,6 +728,166 @@ When investigating potential data exfiltration via storage:
 | `StorageBlobLogs` only exists if diagnostic logging is configured per-storage-account | Missing accounts in results ≠ no access | Check diagnostic settings — not all storage accounts may be logging |
 | ExposureGraph data is snapshot (no timestamp) | Can't trend permissions over time | Combine with `AuditLogs` role assignment events for historical context |
 | `AzurePolicyEvaulation` always returns 403 | Inflates auth failure queries | Exclude with `where OperationName != "AzurePolicyEvaulation"` |
+
+---
+
+---
+
+## Part D: SecurityAlert — MDC Incident Correlation
+
+> **Why this section exists:** Parts A–B rely on `AzureDiagnostics` and `StorageBlobLogs`, which only contain data for resources with diagnostic settings configured to ship to this Log Analytics workspace. MDC (Microsoft Defender for Cloud) alerts fire at the **subscription level** via the Defender connector — independent of per-resource diagnostic settings. A Key Vault or Storage Account can have **zero diagnostic logs** in this workspace but still generate TOR access, anomalous operation, and malicious upload alerts in SecurityAlert. These queries close that gap.
+
+### Query 15: KV & Storage — MDC/XDR Alerts with Incident Correlation (Fleet)
+
+**Purpose:** Fleet-wide summary of all Key Vault and Storage Account SecurityAlerts with incident correlation. Surfaces TOR access, anomalous callers, malicious uploads, and behavioral risk alerts — including resources that have NO diagnostic logging configured. Use as a first-pass scan to identify KV/Storage incidents across all subscriptions connected to Sentinel.
+
+**MITRE:** T1552.001 (Credentials In Files), T1530 (Data from Cloud Storage), T1078.004 (Cloud Accounts) | **Tactic:** Credential Access, Collection
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Fleet-wide summary with incident join. Not suitable for CD — use for investigation/posture review."
+-->
+```kql
+// Key Vault & Storage — SecurityAlert with Incident Correlation (Fleet)
+// Platform: AH (30d)
+// Covers MDC + Defender XDR alerts for KV/Storage data plane.
+// ⚠️ This catches resources WITHOUT diagnostic logging — AzureDiagnostics queries miss these.
+let KVStorageAlerts = SecurityAlert
+| where TimeGenerated > ago(30d)
+| summarize arg_max(TimeGenerated, *) by SystemAlertId
+| where ProductComponentName in ("KeyVault", "StorageAccounts", "Storage")
+    or AlertName has_any ("key vault", "storage account", "blob", "storage container")
+| extend Props = parse_json(ExtendedProperties)
+| extend
+    CallerObjectId = tostring(Props["Client Object ID"]),
+    CallerIP = tostring(Props["Client IP Address"]),
+    Target = tostring(Props["Target"]),
+    AllOps = tostring(Props["All vault operations in last 24 hours"]),
+    SuspiciousOps = tostring(Props["Suspicious Operations"]),
+    ResultSig = tostring(Props["Result Signature"]),
+    ClientInfo = tostring(Props["Client Information"]),
+    StartTimeUTC = tostring(Props["Start Time UTC"]),
+    EndTimeUTC = tostring(Props["End Time UTC"]),
+    AlertReasons = tostring(Props["Alert Reasons"])
+| project SystemAlertId, TimeGenerated, AlertName, AlertSeverity, CompromisedEntity,
+    ProductName, ProductComponentName, Tactics, Techniques,
+    CallerObjectId, CallerIP, Target, AllOps, SuspiciousOps,
+    ResultSig, ClientInfo, StartTimeUTC, EndTimeUTC, AlertReasons;
+SecurityIncident
+| where TimeGenerated > ago(30d)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber
+| where array_length(AlertIds) > 0
+| mv-expand AlertId = AlertIds | extend AlertId = tostring(AlertId)
+| join kind=inner KVStorageAlerts on $left.AlertId == $right.SystemAlertId
+| summarize
+    AlertNames = make_set(AlertName, 5),
+    AlertCount = dcount(SystemAlertId),
+    Components = make_set(ProductComponentName, 3),
+    Entities = make_set(CompromisedEntity, 5),
+    CallerObjectIds = make_set(CallerObjectId, 3),
+    CallerIPs = make_set(CallerIP, 5),
+    Targets = make_set(Target, 3),
+    AllOps = take_any(AllOps),
+    AlertReasons = take_any(AlertReasons)
+    by ProviderIncidentId, Title, Severity, Status, Classification, CreatedTime
+| extend Entities = set_difference(Entities, dynamic([""]))
+| extend CallerObjectIds = set_difference(CallerObjectIds, dynamic([""]))
+| extend CallerIPs = set_difference(CallerIPs, dynamic([""]))
+| extend PortalUrl = strcat("https://security.microsoft.com/incidents/", ProviderIncidentId)
+| order by CreatedTime desc
+```
+
+**Output columns:** `ProviderIncidentId` (linked via `PortalUrl`), `Title`, `Severity`, `Status`, `Classification`, `AlertNames`, `AlertCount`, `Components`, `Entities` (vault/storage names), `CallerObjectIds`, `CallerIPs`, `Targets` (full resource URI + secret path), `AllOps` (operation breakdown), `AlertReasons`.
+
+**Alert type detail map:**
+
+| Alert Source | Alert Name | ExtendedProperties Detail | Identity Field |
+|---|---|---|---|
+| MDC (Azure Security Center) | "Access from a TOR exit node to a key vault" | Rich: ops, target secret, IPs, client info, result, time window | `Client Object ID` (ObjectId — UPN is empty) |
+| MDC (Azure Security Center) | "Malicious blob uploaded to storage account" | Minimal: entity name only | — |
+| Defender XDR (M365D) | "Suspicious activities related to Azure Key Vault by a risky user" | Empty: behavioral alert based on user risk state + ARM activity | In `Entities` JSON blob |
+
+**What to look for:**
+- **TOR exit node alerts with `ResultSig: OK`:** Confirmed data plane access from anonymized source — secret exfiltration likely
+- **Same `CallerObjectId` across multiple incidents:** Persistent compromise — attacker retains access across remediation cycles
+- **Storage `Malicious blob uploaded` on critical assets:** Cross-reference `CompromisedEntity` with ExposureGraph criticality (Q10)
+- **Incident status `Closed/Undetermined`:** May indicate unresolved threats auto-closed without classification
+
+---
+
+### Query 15b: KV & Storage — Entity-Scoped Alert Drill-Down
+
+**Purpose:** Drill-down variant of Q15 scoped to a specific identity (ObjectId or UPN). Use during user/SPN investigations to find KV/Storage alerts that AzureDiagnostics queries missed due to absent diagnostic settings. Dual identity filter catches both MDC alerts (ObjectId in ExtendedProperties) and Defender XDR alerts (identity in Entities blob).
+
+**MITRE:** T1552.001, T1530, T1078.004 | **Tactic:** Credential Access, Collection
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Entity-scoped investigation query. Requires ObjectId or UPN substitution. Not suitable for CD."
+-->
+```kql
+// Key Vault & Storage — Entity-Scoped MDC/XDR Alert Drill-Down
+// Platform: AH (30d)
+// Substitute TargetObjectId AND/OR TargetUPN below.
+// Dual filter catches MDC alerts (ObjectId in ExtendedProperties)
+// AND Defender XDR behavioral alerts (identity in Entities JSON).
+let TargetObjectId = "<ObjectId>";
+let TargetUPN = "<UPN>";
+let EntityAlerts = SecurityAlert
+| where TimeGenerated > ago(30d)
+| summarize arg_max(TimeGenerated, *) by SystemAlertId
+| where ProductComponentName in ("KeyVault", "StorageAccounts", "Storage")
+    or AlertName has_any ("key vault", "storage account", "blob", "storage container")
+// Dual identity filter: ExtendedProperties (MDC) + Entities blob (XDR)
+| where tostring(parse_json(ExtendedProperties)["Client Object ID"]) == TargetObjectId
+    or Entities has TargetObjectId
+    or Entities has TargetUPN
+| extend Props = parse_json(ExtendedProperties)
+| extend
+    CallerObjectId = tostring(Props["Client Object ID"]),
+    CallerIP = tostring(Props["Client IP Address"]),
+    Target = tostring(Props["Target"]),
+    AllOps = tostring(Props["All vault operations in last 24 hours"]),
+    SuspiciousOps = tostring(Props["Suspicious Operations"]),
+    ResultSig = tostring(Props["Result Signature"]),
+    ClientInfo = tostring(Props["Client Information"]),
+    StartTimeUTC = tostring(Props["Start Time UTC"]),
+    EndTimeUTC = tostring(Props["End Time UTC"]),
+    AlertReasons = tostring(Props["Alert Reasons"])
+| project SystemAlertId, TimeGenerated, AlertName, AlertSeverity, CompromisedEntity,
+    ProductName, ProductComponentName, Tactics, Techniques,
+    CallerObjectId, CallerIP, Target, AllOps, SuspiciousOps,
+    ResultSig, ClientInfo, StartTimeUTC, EndTimeUTC, AlertReasons;
+// Join to SecurityIncident for status/classification
+SecurityIncident
+| where TimeGenerated > ago(30d)
+| summarize arg_max(TimeGenerated, *) by IncidentNumber
+| where array_length(AlertIds) > 0
+| mv-expand AlertId = AlertIds | extend AlertId = tostring(AlertId)
+| join kind=inner EntityAlerts on $left.AlertId == $right.SystemAlertId
+| project
+    ProviderIncidentId, IncidentTitle = Title, IncidentStatus = Status,
+    Classification, CreatedTime,
+    PortalUrl = strcat("https://security.microsoft.com/incidents/", ProviderIncidentId),
+    AlertName, AlertSeverity, CompromisedEntity, ProductComponentName,
+    CallerObjectId, CallerIP, Target, AllOps, SuspiciousOps,
+    ResultSig, ClientInfo, StartTimeUTC, EndTimeUTC, AlertReasons
+| order by CreatedTime desc
+```
+
+**Entity substitution notes:**
+- **From Threat Pulse Q3:** Use `AccountObjectId` from IdentityInfo results as `TargetObjectId`, `AccountUpn` as `TargetUPN`
+- **From user-investigation:** ObjectId from Graph API `GET /v1.0/users/<UPN>?$select=id`
+- **From incident-investigation:** Extract ObjectId from SecurityAlert Entities JSON: `parse_json(Entities) | mv-expand Entity | where Entity.Type == "account" | project tostring(Entity.AadUserId)`
+- **For SPN/managed identity:** Use the ServicePrincipalId as `TargetObjectId`, leave `TargetUPN` as empty string `""`
+
+**Why dual filter is required:**
+
+| Alert Type | Where Identity Lives | `ExtendedProperties` filter catches? | `Entities has` catches? |
+|---|---|---|---|
+| MDC "TOR exit node to KV" | `ExtendedProperties["Client Object ID"]` | ✅ | ❌ (ObjectId not always in Entities) |
+| XDR "Suspicious KV by risky user" | `Entities` JSON array → account entity | ❌ (ExtendedProperties empty) | ✅ |
+| MDC "Malicious blob uploaded" | Neither (no caller identity) | ❌ | ❌ — filter by `CompromisedEntity` instead |
 
 ---
 

@@ -56,7 +56,6 @@ Combines three tiers of internet exposure intelligence to identify, validate, an
 - **Critical asset exposure posture** (TP Q11): **Q1** (authoritative internet exposure list) + **Q4** (all inbound traffic — includes Azure infra, not just internet) + **Q5** (port breakdown — same caveat)
 - **Scanning/probing against exposed device** (TP Q11, Q4): **Q8** (failed connections) → **Q6** (top attackers) → **Q12** (specific port hunt)
 - **Full exposure validation for incident device** (TP Q1): **Q1** (MDE confirmed) + **Q2** (ExposureGraph topology) + **Q11** (cross-reference rules vs traffic)
-
 > **⚠️ Inbound traffic ≠ Internet exposure.** Q4–Q8 show connections from non-private IPs, which includes Azure management plane, VPN/hybrid-join clients, and backbone traffic — not just public internet. **Always start with Q1 (`DeviceInfo.IsInternetFacing`)** for the authoritative list of truly internet-exposed devices. Use Q4–Q8 for visibility into all allowed inbound traffic patterns, then cross-reference with Q1 to distinguish internet attacks from expected Azure infrastructure traffic.
 
 | # | Query | Use Case | Key Table |
