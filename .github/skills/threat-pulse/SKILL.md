@@ -76,7 +76,7 @@ Incidents: `XDR_INCIDENT_BASE` + `ProviderIncidentId`.
 
 8. **⛔ MANDATORY: Query File Recommendations (tiered)** — After assigning verdicts and BEFORE rendering the final report, execute the [Query File Recommendations](#query-file-recommendations) procedure. Skip only when ALL verdicts are ✅.
 
-9. **⛔ MANDATORY: Context-aware lookback expansion** — Before executing any Phase 4 drill-down, check whether the target entity has evidence (incidents, `adminConfirmedUserCompromised`, offline risk events) that predates the Threat Pulse lookback window. If so, expand the drill-down's lookback to `max(30d, incident_age)` for AH queries, or `max(90d, incident_age)` for Data Lake queries. See [Phase 4 Lookback Expansion](#-mandatory-context-aware-lookback-expansion) for the full decision table.
+9. **⛔ MANDATORY: 30d drill-down lookback** — ALL Phase 4 drill-down queries use **30d (AH)** or **90d (Data Lake)** lookback, regardless of the Threat Pulse scan window. Entity-scoped queries (filtered by UPN/IP/device) have negligible performance difference between 7d and 30d, and attacks routinely predate the pulse window. AH caps at 30d anyway. Substitute `ago(7d)` → `ago(30d)` in all query file and skill queries during drill-downs.
 
 | Highest Verdict | Query Files | Proactive Skills | Report Section |
 |----------------|-------------|-----------------|----------------|
@@ -180,15 +180,16 @@ Estimated time: ~2–4 minutes
 | CVE in Q12 | `exposure-investigation` | `Run vulnerability report for <CVE>` |
 | Incident in Q1 | `incident-investigation` | `Investigate incident <ProviderIncidentId>` |
 
-#### ⛔ MANDATORY: Context-Aware Lookback Expansion
+#### ⛔ MANDATORY: 30d Drill-Down Lookback
 
-Drill-downs must cover the **full attack timeline**, which may predate the 7d pulse window. Before executing any follow-up, expand lookback when the target entity has:
+ALL drill-down queries use **30d for AH** and **90d for Data Lake** — no conditional checks needed. Rationale:
 
-- `adminConfirmedUserCompromised` or closed TruePositive incident → **30d (AH) / 90d (DL)**
-- Incident `CreatedTime` > 7d ago → **match incident age** (up to 30d AH)
-- Offline risk detections or risk events spanning >3 days → **30d**
+- Entity-scoped queries (filtered by UPN, IP, or device) scan negligible data regardless of lookback window
+- AH Graph API caps at 30d anyway — requesting 30d costs nothing extra
+- Attacks routinely predate the pulse window (e.g., the Cameron V AiTM chain started 14 days before admin confirmation)
+- The previous context-aware conditional logic was error-prone — LLMs frequently defaulted to 7d and missed critical evidence
 
-For query file prompts, substitute `ago(7d)` with `ago(30d)`. Note expansions in output: *"⏱️ Lookback expanded to 30d — incident #XXXXX predates the 7d pulse window"*.
+For query file prompts, substitute `ago(7d)` with `ago(30d)`. For Data Lake queries, use `ago(90d)`.
 
 **Procedure:**
 1. Build the **initial prompt pool** by combining:
