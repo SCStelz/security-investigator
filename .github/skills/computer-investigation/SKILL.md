@@ -258,7 +258,7 @@ Use Advanced Hunting or Defender API to find the MDE device ID:
 DeviceInfo
 | where DeviceName startswith '<DEVICE_NAME>'  // Use startswith to match both hostname and FQDN
 | summarize arg_max(TimeGenerated, *) by DeviceName
-| project DeviceId, DeviceName, OSPlatform, OSVersion, MachineGroup, OnboardingStatus, ExposureLevel, SensorHealthState, MachineTags
+| project DeviceId, DeviceName, OSPlatform, OSVersion, MachineGroup, OnboardingStatus, ExposureLevel, SensorHealthState, DeviceManualTags, DeviceDynamicTags, RegistryDeviceTag
 ```
 **Note:** RiskScore is NOT in DeviceInfo - use `GetDefenderMachine` API to get riskScore and exposureLevel.
 
@@ -672,7 +672,9 @@ DeviceInfo
     IsInternetFacing,
     JoinType,
     PublicIP,
-    MachineTags
+    DeviceManualTags,
+    DeviceDynamicTags,
+    RegistryDeviceTag
 ```
 
 ### 9. Software Inventory on Device
@@ -812,7 +814,7 @@ mcp_microsoft_mcp_microsoft_graph_get("/v1.0/deviceManagement/managedDevices?$fi
 ```
 GetDefenderMachine(id="<DEFENDER_DEVICE_ID>")
 ```
-Returns: id, computerDnsName, osPlatform, osVersion, healthStatus, onboardingStatus, riskScore, exposureLevel, lastSeen, lastIpAddress, lastExternalIpAddress, rbacGroupName, machineTags
+Returns: id, computerDnsName, osPlatform, osVersion, healthStatus, onboardingStatus, riskScore, exposureLevel, lastSeen, lastIpAddress, lastExternalIpAddress, rbacGroupName, machineTags (API field — maps to DeviceManualTags in AH)
 
 ### Get Logged-On Users
 ```
@@ -898,7 +900,7 @@ When outputting to markdown file (Mode 2), use this template. Populate ALL secti
 | **Last Internal IP** | <ip_address> |
 | **Last External IP** | <ip_address> |
 | **Machine Group** | <group_name> |
-| **Device Tags** | <comma-separated list from machineTags, or "None"> |
+| **Device Tags** | <comma-separated list from DeviceManualTags + DeviceDynamicTags, or "None"> |
 
 ### Device Owners & Registered Users
 
