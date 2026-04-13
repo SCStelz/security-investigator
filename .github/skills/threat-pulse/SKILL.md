@@ -230,18 +230,23 @@ For query file prompts, substitute `ago(7d)` with `ago(30d)`. For Data Lake quer
    - Penultimate option: **Label:** `💾 Save full investigation report` / **Description:** `Save the complete Threat Pulse session (scan + all drill-downs) as a markdown file`
    - Final option: **Label:** `Skip` / **Description:** `No follow-up — investigation complete`
    - **multiSelect:** `true`
-3. If user selects **Skip** (alone) or pool is empty: end skill execution
-4. If user's selection includes **💾 Save full investigation report:**
+3. If user selects **Skip** (alone) or pool is empty: end skill execution. Ignore any freeform text if Skip is selected.
+4. **Freeform input routing** — If user types freeform text instead of (or alongside) selecting options, route by matching intent to validated sources. Do NOT write ad-hoc KQL — find the right skill or query file first. Classified actions feed into step 6 alongside any selected options.
+   1. **Skill match** — Check the request against copilot-instructions.md Available Skills trigger keywords. "Check vulnerabilities on that device" → `exposure-investigation` or `computer-investigation`. Route as 🔍 — the `read_file` gate in step 6b applies.
+   2. **Query file match** — `grep_search` the request's key terms (table names, operations, attack types) against `queries/**`. "Check forwarding rules" → `queries/email/email_threat_detection.md`. Route as 📄.
+   3. **Contextual question** — If answerable from data already in context (e.g., "is that IP in other alerts?"), answer directly. If a query is needed, loop back to sub-steps 1–2 to find the right source.
+   4. **No match** — If no skill or query file covers the request, follow the KQL Pre-Flight Checklist from copilot-instructions.md (schema validation, table pitfalls, existing query search) before writing any KQL. Never skip the pre-flight for freeform requests.
+5. If user's selection includes **💾 Save full investigation report:**
    a. If no drill-downs have been executed yet, the saved report contains only the Threat Pulse scan results (omit the `Drill-Down Investigation Results` and `Cross-Investigation Correlation` sections; note: "No drill-down investigations were performed in this session.")
    b. Otherwise, read `/memories/session/threat-pulse-drilldowns.md` to recover all accumulated drill-down findings (critical after context compaction)
    c. Compile the complete session — original Threat Pulse dashboard + all drill-down investigation results — into a single markdown file using the [Markdown File Report Template](#markdown-file-report-template)
    d. Save to `reports/threat-pulse/Threat_Pulse_YYYYMMDD_HHMMSS.md`
    e. **Weave drill-down insights into the main report** — do NOT simply append raw drill-down output. See the [Markdown File Report Template](#markdown-file-report-template) for the exact structure, including the `## Drill-Down Investigation Results` section format and the `## Cross-Investigation Correlation` section.
-   e. Remove the save option from the pool (report already saved). If no other actions were selected alongside it, **end the loop** — the investigation is complete. Otherwise continue to step 5 with the remaining selections.
-5. If user selects one or more actions:
+   f. Remove the save option from the pool (report already saved). If no other actions were selected alongside it, **end the loop** — the investigation is complete. Otherwise continue to step 6 with the remaining selections.
+6. If user selects one or more actions:
    a. Build a **todo list** with one item per selected action, all `not-started`
    b. Execute each action **sequentially** in selection order:
-      - **Skill prompt:** load the skill's SKILL.md, execute the investigation with the target entity
+      - **🔍 Skill prompt — ⛔ `read_file` the child SKILL.md BEFORE writing ANY query.** Load SKILL.md → find Investigation shortcuts → match TP Q# trigger → execute that chain with entity substitution. Writing KQL without a prior `read_file` on the child SKILL.md = schema hallucination. See [🔍 Skill Drill-Down Execution Rule](#-skill-drill-down-execution-rule).
       - **📄 Query file prompt:** read the query file, then **execute the queries from the file verbatim** with entity value substitution. See [📄 Query File Execution Rule](#-query-file-execution-rule) below.
       - **IOC prompt:** load `ioc-investigation` skill, execute with the target indicator
       - Mark each todo `completed` as it finishes
@@ -260,7 +265,7 @@ For query file prompts, substitute `ago(7d)` with `ago(30d)`. For Data Lake quer
         ```
         This ensures drill-down insights survive context compaction and are available when the user requests `💾 Save full investigation report`.
    c. Remove all completed prompts from the pool
-   d. Scan results for **new evidence** (entities, IOCs, TTPs not in original Threat Pulse results) — generate new prompts if found, prepend to pool with `🆕` tag
+   d. **⛔ MANDATORY: New Evidence Scan.** Before returning to step 2, review the drill-down results for entities (IPs, users, devices, domains, hashes, CVEs) or MITRE techniques that were **not present in any prior query result or drill-down**. For each new item, assess whether it warrants follow-up — not every new entity is actionable. Add `🆕`-tagged prompts only for items that represent a **meaningful investigative lead** (e.g., a new attacker IP with high abuse score, a critical CVE on an exposed device, a previously unknown compromised account). Prepend `🆕` prompts above existing pool items. If nothing warrants follow-up, proceed — but note: "No actionable new evidence from this drill-down."
    e. **Return to step 2 — call the interactive question tool again.** Every loop iteration MUST use `vscode_askQuestions` to present the updated pool as a selectable list. Do NOT render a markdown table/numbered list as a substitute.
 
 **Prompt pool rules:**
@@ -268,6 +273,7 @@ For query file prompts, substitute `ago(7d)` with `ago(30d)`. For Data Lake quer
 - New evidence prompts are prepended (freshest leads first), tagged `🆕`
 - Loop ends when user selects Skip or pool empties (`✅ All follow-up actions completed.`)
 - **🔴 PROHIBITED:** Rendering the prompt pool as a markdown table, numbered list, or plain text instead of calling `vscode_askQuestions`. Every iteration — including after the first follow-up completes — MUST use the interactive question tool so options are clickable. This is the #1 loop-breaking mistake.
+- **🔴 PROHIBITED:** Returning to step 2 after a drill-down without executing the New Evidence Scan (step 6d). Skipping this scan is the #1 reason drill-down leads go uninvestigated — new IPs, CVEs, and devices discovered during drill-downs silently disappear from the pool.
 - **🔴 ATOMIC OPTIONS — ONE action per selectable item.** Each option Label MUST contain exactly ONE icon (🔍, 📄, or 🎯) and map to exactly ONE executable action: one skill + one entity, OR one query file + one hunt prompt. When cross-query correlations link multiple findings (e.g., Q3+Q9 correlating a user with both risky identity and inbox rule manipulation), generate **separate options** for each distinct action — do NOT bundle them into a single option. Note the correlation in the **Description** field to preserve context, but keep the Label and action singular.
 
   **Self-check before presenting:** For each option, verify: (1) the Label has exactly ONE icon prefix, (2) there is NO comma separating a second action, (3) the Description has exactly ONE `→` pointing to ONE skill or query file. If any check fails, split the option.
@@ -1439,6 +1445,7 @@ Prioritize by risk level and actionability. Group by theme (e.g., Identity, Endp
 | Q6 drift scores | Computed in-query — do NOT recompute LLM-side |
 | Q9 drill-down: CloudAppEvents identity filtering | `AccountId` and `AccountObjectId` are **Entra ObjectId GUIDs**, NOT UPNs. Filtering by UPN returns 0 results silently. Use `AccountDisplayName` for display-name matching, or resolve UPN→ObjectId via Graph API first. NEVER use `tostring(RawEventData) has "UPN"` — it causes query cancellation on this high-volume table |
 | Q9: `RESTSystem` false positives | Exchange Online first-party backend services use `Client=RESTSystem` in `ClientInfoString` and appear as **AppId GUIDs** in `AccountDisplayName`. These are NOT user/app API access — they are system-level mail flow, compliance scanning, or connector ingestion. Q9 filters these out; if investigating Q9 results and see GUID actors with `RESTSystem`, they are benign Microsoft internal operations |
+| **🔍 Skill drill-down: ad-hoc KQL instead of loading SKILL.md** | **#1 drill-down failure mode.** Step 6b requires `read_file` of the child SKILL.md BEFORE writing any query. If no `read_file` call on a SKILL.md preceded your KQL in the current drill-down, you are hallucinating schema — stop and load the file |
 
 > **Schema pitfalls** (column names, dynamic fields, `parse_json` patterns) are covered in `copilot-instructions.md` Known Table Pitfalls. Refer there for `SecurityAlert.Status`, `ExposureGraphNodes.NodeProperties`, timestamp columns, and `AuditLogs.InitiatedBy`.
 
