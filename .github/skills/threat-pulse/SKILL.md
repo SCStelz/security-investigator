@@ -414,20 +414,33 @@ DeviceInfo
 
 **📁 File — by hash:**
 
-> **Starting table only.** SHA hashes appear across many tables (`DeviceProcessEvents`, `DeviceImageLoadEvents`, etc.). Use `DeviceFileEvents` as the default — it captures file writes and has the columns needed for Quarantine. If the file was only executed (no separate write event), substitute or union with the relevant table. The Quarantine action requires `DeviceId` + `SHA1`/`SHA256` regardless of source table.
+> **Source-aware table selection.** SHA hashes appear across many tables (`DeviceProcessEvents`, `DeviceImageLoadEvents`, `DeviceFileEvents`, `AlertEvidence`). Use `DeviceFileEvents` as the default — it captures file writes and has the columns needed for Quarantine. If the hash was only observed via process execution (no separate file write event), substitute or union with `DeviceProcessEvents`. The Quarantine action requires `DeviceId` + `SHA1`/`SHA256` regardless of source table.
 
+**File write events** (default — `DeviceFileEvents`):
 ```kql
 DeviceFileEvents
 | where Timestamp > ago(7d)
 | where SHA1 == "<hash>" or SHA256 == "<hash>"
 | project DeviceId, DeviceName, SHA1, SHA256, FileName, FolderPath
 ```
+
+**Process execution events** (when file write not captured — `DeviceProcessEvents`):
+```kql
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where SHA1 == "<hash>" or SHA256 == "<hash>"
+| project DeviceId, DeviceName, SHA1, SHA256, FileName, FolderPath, ProcessCommandLine
+```
+
 → *Take actions →* Quarantine file
 
 **🔗 Bulk Indicators (2+ IPs/domains/hashes) — AH query for Add Indicator:**
 
 When blocking multiple IPs, domains, or hashes, provide an AH query that surfaces the values as clickable columns. There is no *Take actions* dropdown — the analyst clicks each value directly in results → *Add indicator*.
 
+> **Source-aware table selection.** The table MUST match where the IPs were originally discovered. `DeviceNetworkEvents` is the default for network-layer IPs (endpoint connections, firewall events). However, IPs from authentication-layer sources (`AADUserRiskEvents`, `EntraIdSignInEvents`, `SigninLogs`, `AADServicePrincipalSignInLogs`) may never appear in endpoint network events — querying `DeviceNetworkEvents` for those returns 0 results. Use the originating table so the analyst sees the IPs in context and can click to add indicators.
+
+**Network-layer IPs** (from `DeviceNetworkEvents`, `DeviceLogonEvents`, firewall logs):
 ```kql
 // Surface attacker IPs as clickable values for Add Indicator
 DeviceNetworkEvents
@@ -436,7 +449,18 @@ DeviceNetworkEvents
 | summarize Connections = count(), Ports = make_set(LocalPort) by RemoteIP
 | order by Connections desc
 ```
-→ Click any `RemoteIP` value in results → *Add indicator* → Block and remediate
+
+**Auth-layer IPs** (from `AADUserRiskEvents`, `EntraIdSignInEvents`, `SigninLogs`):
+```kql
+// Surface attacker IPs from sign-in/risk events for Add Indicator
+EntraIdSignInEvents
+| where Timestamp > ago(30d)
+| where IPAddress in ("<ip1>", "<ip2>", "<ip3>")
+| summarize SignIns = count(), Users = dcount(AccountUpn), Countries = make_set(Country, 5) by IPAddress
+| order by SignIns desc
+```
+
+→ Click any IP value in results → *Add indicator* → Block and remediate
 
 **Variant — domains/URLs:**
 ```kql
