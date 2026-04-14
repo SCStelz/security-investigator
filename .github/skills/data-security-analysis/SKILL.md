@@ -40,6 +40,22 @@ This skill analyzes **DataSecurityEvents** (Microsoft Purview Insider Risk Manag
 10. **[Error Handling](#error-handling)** - Troubleshooting guide
 11. **[SVG Dashboard Generation](#svg-dashboard-generation)** - Visual dashboard from report data
 
+**Investigation shortcuts:**
+- **DLP/exfiltration incident entities** (TP Q1): **Q3** (top users by SIT volume) → **Q6** (DLP policy matches) → **Q9** (single-user SIT profile for each incident entity) → **Q10b** (file-based spikes)
+- **High-volume mailbox API access** (TP Q9): **Q9** (single-user SIT profile for API actors) → **Q4** (top files accessed) → **Q10b** (file-based spikes) → **Q6** (DLP policy matches)
+- **Risky identity with data access** (TP Q3): **Q9** (single-user SIT profile) → **Q4** (top files) → **Q13** (label downgrade/changes by user)
+- **Copilot sensitive data exposure** (TP Q1 Copilot incidents, or TP Q10 AppRegistration with AI keywords): **Q16a** (Copilot SIT landscape + agent/human split) → **Q16b** (top human users, high-priority SITs) → **Q16d** (prompt-only risk signal)
+- **Label compliance / downgrade alert** (TP Q1 label-related incidents): **Q13** (label changes) → **Q15** (label-only events) → **Q14** (Copilot label exposure)
+- **Tenant-wide data security posture** (standalone, no TP trigger): Full Phase 1–5 workflow
+
+> **⛔ Shortcut Default Rule:** When a matching shortcut exists for the investigation context, **use it** — don't run the full workflow. Only run the full Phase 1-5 sequence when the user explicitly requests "full analysis", "comprehensive", or "tenant-wide overview". Shortcuts render only the report sections relevant to their query chain (plus Executive Summary and Recommendations, always).
+
+### When invoked from a parent skill (threat-pulse, incident-investigation, user-investigation):
+- Inherit the workspace selection from the parent investigation context
+- **Skip output mode prompts** — default to inline chat (the parent skill controls the final output format)
+- Match the TP Q# trigger to the shortcuts above and execute that chain with entity substitution
+- Use **30d lookback** (AH default) unless the parent specifies otherwise
+
 ---
 
 ## ⚠️ CRITICAL WORKFLOW RULES - READ FIRST ⚠️
