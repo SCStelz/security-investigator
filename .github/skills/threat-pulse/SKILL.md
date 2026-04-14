@@ -175,24 +175,34 @@ Estimated time: ~2–4 minutes
 | Query | Trigger | Skill | Prompt |
 |:-----:|---------|-------|--------|
 | Q1 | Incident surfaced | `incident-investigation` | `Investigate incident <ProviderIncidentId>` |
+| Q1 | Incident with Exfiltration tactic or DLP/Insider Risk in AlertNames | `data-security-analysis` | `Analyze data security events for <entity>` |
+| Q2 | `TruePositive > 0` with non-empty `Techniques` array | `mitre-coverage-report` | `Run MITRE coverage report` |
 | Q3–Q4 | Username/UPN in findings | `user-investigation` | `Investigate <UPN>` |
 | Q3 | 3+ risky users, or any ConfirmedCompromised | `identity-posture` | `Run identity posture report` |
+| Q3 | User with `anonymizedIPAddress`, `impossibleTravel`, or `anomalousToken` in TopRiskEventTypes | `authentication-tracing` | `Trace authentication chain for <UPN>` |
+| Q3 | User with `unfamiliarFeatures` or `suspiciousAPITraffic` in TopRiskEventTypes | `scope-drift-detection/user` | `Analyze user behavioral drift for <UPN>` |
 | Q3+Q4 | 🟡-only identity verdicts (no 🔴/🟠) | `identity-posture` | `Run identity posture report` |
 | Q4 | Spray source IP | `ioc-investigation` | `Investigate IP <address>` |
 | Q4 | Spray targeting 5+ users | `identity-posture` | `Run identity posture report` |
 | Q5 | SPN with drift | `scope-drift-detection/spn` | `Analyze drift for <SPN>` |
+| Q6 | Device with DriftScore > 150 | `scope-drift-detection/device` | `Analyze device process drift for <hostname>` |
 | Q6–Q7 | Device in findings | `computer-investigation` | `Investigate device <hostname>` |
 | Q8 | Phishing delivered or malware detected | `email-threat-posture` | `Run email threat posture report` |
+| Q8+Q3 | Phishing recipient appears in Q3 risky users | `authentication-tracing` | `Trace authentication chain for <UPN>` |
 | Q9 | `Compromised Sign-In` user surfaced | `user-investigation` | `Investigate <UPN>` |
+| Q9 | `Compromised Sign-In` user surfaced | `authentication-tracing` | `Trace authentication chain for <UPN>` |
 | Q9 | `Mailbox Read (API)` or `Mail Send (API)` actors | `user-investigation` | `Investigate <UPN>` |
+| Q9 | `Mailbox Read (API)` with Count > 500 | `data-security-analysis` | `Analyze data security events for <actor>` |
 | Q9 | `Conditional Access Change` by human actor | `ca-policy-investigation` | `Investigate CA policy changes by <UPN>` |
 | Q9 | `Exchange Admin/Rule Change` actors | `user-investigation` | `Investigate <UPN>` |
 | Q10 | `MFA-Registration` — user registering/deleting security info | `user-investigation` | `Investigate <UPN>` |
 | Q10 | `AppRegistration` — app create/consent/secret operations | `app-registration-posture` | `Run app registration posture report` |
+| Q10 | `AppRegistration` targets containing AI/Agent/Copilot keywords | `ai-agent-posture` | `Run AI agent security audit` |
 | Q10 | `Ownership` — ownership grants on apps/groups/SPNs | `app-registration-posture` | `Run app registration posture report` |
 | Q10 | `RoleManagement` targeting Global/Security Admin roles | `identity-posture` | `Run identity posture report` |
 | Q10 | Bulk `Password` resets from single actor | `identity-posture` | `Run identity posture report` |
 | Q10 | 3+ categories with same actor in TopActors | `user-investigation` | `Investigate <UPN>` |
+| Q11 | Any `IsVerifiedExposed == true` asset | `exposure-investigation` | `Run exposure report for <hostname>` |
 | Q11–Q12 | Device in findings | `computer-investigation` | `Investigate device <hostname>` |
 | Q12 | CVE with fleet impact | `exposure-investigation` | `Run vulnerability report for <CVE>` |
 
@@ -1266,6 +1276,9 @@ After all queries complete, check these correlation patterns and escalate priori
 | App registration + SPN drift | Q10 `AppRegistration` ∩ Q5 SPN drift | New app + expanding SPN footprint = T1098.001 app-based persistence | Escalate to 🔴 |
 | CA policy change + spray/compromise activity | Q9 `Conditional Access Change` + Q4 or Q9 `Compromised Sign-In` | Defense weakened during active attack | Escalate to 🔴 |
 | Mailbox Read (API) user has inbox rule changes | Q9 `Mailbox Read (API)` ∩ Q9 `Exchange Admin/Rule Change` | Programmatic read + forwarding rule = full exfiltration chain (T1114.003) | Escalate to 🔴 |
+| Phishing recipient is risky user | Q8 delivered phishing ∩ Q3 `AccountUpn` | Credential harvesting targeting already-compromised or at-risk user — AiTM chain indicator | Escalate to 🔴 |
+| DLP/exfiltration incident + API mailbox access | Q1 Exfiltration tactic ∩ Q9 `Mailbox Read (API)` | Incident-level exfiltration alert + active API data access — data loss in progress | Escalate to 🔴 |
+| Role management + SPN drift by same actor | Q10 `RoleManagement` same actor ∩ Q5 SPN drift | Role escalation + expanding app footprint = app-based persistence (T1098) | Escalate to 🔴 |
 
 ---
 
