@@ -332,13 +332,14 @@ When executing a skill drill-down, **load the child skill's SKILL.md** and use i
 
 1. Load the child skill's SKILL.md
 2. Match the trigger context (TP Q number) against the skill's **Investigation shortcuts** section to identify the relevant query chain
-3. Execute the shortcut query chain with entity substitution (workspace and output mode are inherited — the child skill handles this via its "When invoked from a parent skill" section)
+3. Execute the shortcut query chain — substitute **only** entity placeholders and date ranges. Do NOT add columns, change `project`/`summarize by`, or restructure. Column names vary across Device* tables; the SKILL.md queries already use the correct ones.
 4. For quick triage: run only the shortcut chain. For deep investigation: run the full skill workflow
 
 | Action | Status |
 |--------|--------|
-| Writing ad-hoc KQL queries without loading the child skill's SKILL.md | ❌ **PROHIBITED** |
-| Loading SKILL.md and using its Investigation shortcuts for the matching TP trigger | ✅ **REQUIRED** |
+| Writing ad-hoc KQL without loading the child SKILL.md | ❌ **PROHIBITED** |
+| Loading SKILL.md then modifying its queries (adding/changing columns, restructuring) | ❌ **PROHIBITED** |
+| Using SKILL.md queries verbatim with entity substitution | ✅ **REQUIRED** |
 
 ---
 
@@ -1520,6 +1521,8 @@ Prioritize by risk level and actionability. Group by theme (e.g., Identity, Endp
 | Q9 drill-down: CloudAppEvents identity filtering | `AccountId` and `AccountObjectId` are **Entra ObjectId GUIDs**, NOT UPNs. Filtering by UPN returns 0 results silently. Use `AccountDisplayName` for display-name matching, or resolve UPN→ObjectId via Graph API first. NEVER use `tostring(RawEventData) has "UPN"` — it causes query cancellation on this high-volume table |
 | Q9: `RESTSystem` false positives | Exchange Online first-party backend services use `Client=RESTSystem` in `ClientInfoString` and appear as **AppId GUIDs** in `AccountDisplayName`. These are NOT user/app API access — they are system-level mail flow, compliance scanning, or connector ingestion. Q9 filters these out; if investigating Q9 results and see GUID actors with `RESTSystem`, they are benign Microsoft internal operations |
 | **🔍 Skill drill-down: ad-hoc KQL instead of loading SKILL.md** | **#1 drill-down failure mode.** Step 7 requires `read_file` of the child SKILL.md BEFORE writing any query. If no `read_file` call on a SKILL.md preceded your KQL in the current drill-down, you are hallucinating schema — stop and load the file |
+| **🔍 Skill drill-down: loaded SKILL.md but rewrote queries** | **#2 failure mode.** Use SKILL.md queries **verbatim** (entity substitution only). Adding/changing columns or restructuring = schema hallucination with extra steps |
+| **Drill-down query error → silent skip** | **⛔ NEVER skip.** On `SemanticError`/`Failed to resolve`: diagnose → fix → re-execute → present corrected results. Partial results with silently omitted failures are **PROHIBITED** |
 
 > **Schema pitfalls** (column names, dynamic fields, `parse_json` patterns) are covered in `copilot-instructions.md` Known Table Pitfalls. Refer there for `SecurityAlert.Status`, `ExposureGraphNodes.NodeProperties`, timestamp columns, and `AuditLogs.InitiatedBy`.
 
