@@ -76,7 +76,7 @@ Incidents: `XDR_INCIDENT_BASE` + `ProviderIncidentId`.
 
 7. **SecurityIncident output rule** — Every incident MUST include a clickable Defender XDR portal URL: `https://security.microsoft.com/incidents/{ProviderIncidentId}`.
 
-8. **⛔ MANDATORY: Query File Recommendations (tiered)** — After assigning verdicts and BEFORE rendering the final report, execute the [Query File Recommendations](#query-file-recommendations) procedure. Skip only when ALL verdicts are ✅.
+8. **⛔ MANDATORY: Query File Recommendations (tiered)** — After rendering the main report body (Dashboard Summary through Recommended Actions), append the [Query File Recommendations](#query-file-recommendations) section. This runs AFTER the report is visible to the user — not as a blocking gate. Skip only when ALL verdicts are ✅.
 
 9. **⛔ MANDATORY: 30d drill-down lookback** — ALL Phase 4 drill-down queries use **30d (AH)** or **90d (Data Lake)** lookback, regardless of the Threat Pulse scan window. Entity-scoped queries (filtered by UPN/IP/device) have negligible performance difference between 7d and 30d, and attacks routinely predate the pulse window. AH caps at 30d anyway. Substitute `ago(7d)` → `ago(30d)` in all query file and skill queries during drill-downs.
 
@@ -151,8 +151,10 @@ Estimated time: ~2–4 minutes
 2. Run cross-query correlation checks (see rule 6 above)
 3. Assign verdicts to each domain (🔴 Escalate / 🟠 Investigate / 🟡 Monitor / ✅ Clear)
 4. Generate prioritized recommendations with drill-down skill references
-5. **⛔ STOP — Recommendation Gate:** Before proceeding to step 6, run the [Query File Recommendations](#query-file-recommendations) procedure matching the highest verdict tier (see Rule 8 table). Skip only when all verdicts are ✅. **Do NOT proceed to step 6 until this gate is resolved.**
-6. Render output in requested mode (report MUST include the recommendations section if step 5 triggered it)
+5. **Render the report immediately** — output the Dashboard Summary, Detailed Findings, Cross-Query Correlations, and 🎯 Recommended Actions. Do NOT block on the manifest or prompt pool building.
+6. **After the report is rendered**, run the [Query File Recommendations](#query-file-recommendations) procedure and append the `📂 Recommended Query Files` section. This happens while the user is already reading the report — no perceived delay. Skip entirely when all verdicts are ✅.
+
+> **Performance note:** The Recommendation Gate was previously a blocking step (Phase 3.5) that loaded the ~500-line manifest YAML and ranked entries before the report could render. By moving it after the report output, the user sees findings immediately while recommendations load in the background. The Phase 4 prompt pool building also benefits — it reuses the recommendations already computed in step 6 rather than re-scanning all 12 query results independently.
 
 ### Phase 4: Interactive Follow-Up Loop
 
@@ -551,10 +553,12 @@ DeviceNetworkEvents
 | Rendering a `🎬 Take Action` section without the AI-generated content warning immediately below the heading | ❌ **PROHIBITED** |
 | Bulk indicator (2+ IPs/domains/hashes) Take Action block includes AH query that surfaces values as clickable columns | ✅ **REQUIRED** |
 | Describing "Add indicator" action without providing the AH query that surfaces the values in results | ❌ **PROHIBITED** |
+| AH query in Take Action without a copyable KQL code block (` ```kql `) | ❌ **PROHIBITED** |
 | AH query in Take Action without a `Run in Advanced Hunting` deep link | ❌ **PROHIBITED** |
-| Every AH query in Take Action includes a clickable deep link | ✅ **REQUIRED** |
+| Every AH query in Take Action includes BOTH a ` ```kql ` code block AND a clickable deep link | ✅ **REQUIRED** |
 | Manually base64-encoding KQL to build an AH deep link URL (breaks portal — wrong encoding) | ❌ **PROHIBITED** |
-| Using `python scripts/kql_to_ah_url.py --md --file temp/q.kql` for EVERY AH deep link | ✅ **REQUIRED** |
+| Using double-quoted here-strings (`@"..."@`) when writing KQL to temp files (corrupts `$` in KQL) | ❌ **PROHIBITED** |
+| Using `python scripts/kql_to_ah_url.py --md --file temp/q.kql` with single-quoted here-strings for EVERY AH deep link | ✅ **REQUIRED** |
 
 ---
 
