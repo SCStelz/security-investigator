@@ -412,7 +412,7 @@ EmailEvents
 → *Take actions →* Move to mailbox folder, Delete email (soft/hard), Submit to Microsoft, Initiate automated investigation
 
 **💻 Single Device — direct portal link:**
-When acting on a **single device**, link directly to its Defender XDR machine page. The `DeviceId` comes from the `DeviceInfo` table or `GetDefenderMachine` API (already retrieved during `computer-investigation` drill-down).
+When acting on a **single device**, link directly to its Defender XDR machine page. The `DeviceId` comes from the `DeviceInfo` table or `GetDefenderMachine` API (already retrieved during `computer-investigation` drill-down). **If `DeviceId` is not already in context** (e.g., after an `exposure-investigation` or `ioc-investigation` drill-down), query `DeviceInfo | where DeviceName startswith '<name>' | summarize arg_max(Timestamp, *) by DeviceId | project DeviceId` before generating the link. **NEVER fabricate a device URL** — `?DeviceName=` query parameters, `/machines?` search URLs, and bare hostnames in the path are all invalid.
 
 `[<DeviceName>](https://security.microsoft.com/machines/v2/<MDE_DeviceId>?tid=<tenant_id>)`
 
