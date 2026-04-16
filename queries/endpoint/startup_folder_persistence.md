@@ -28,7 +28,7 @@ The **TeamPCP supply chain campaign** (March 2026 — Trivy, LiteLLM, Checkmarx)
 3. Decoded payload written to `%AppData%\Microsoft\Windows\Start Menu\Programs\Startup\msbuild.exe`
 4. Persistence achieved — payload executes on every user login
 
-See also: [python_supply_chain_attack.md](python_supply_chain_attack.md) for the full LiteLLM/TeamPCP hunting campaign.
+See also: [python_supply_chain_attack.md](../threat-intelligence/2026-03/python_supply_chain_attack.md) for the full LiteLLM/TeamPCP hunting campaign.
 
 ### MITRE ATT&CK Coverage
 
@@ -626,7 +626,7 @@ If you find `msbuild.exe` in a Startup folder:
 1. **Check the file path** — real MSBuild is in `C:\Windows\Microsoft.NET\Framework[64]\<version>\MSBuild.exe` or `C:\Program Files\MSBuild\`, NEVER in a Startup folder
 2. **Check version info** — real MSBuild has `ProcessVersionInfoCompanyName == "Microsoft Corporation"`
 3. **Check for WAV files** — the TeamPCP payload was hidden in WAV audio files; search for `.wav` files on the same device near the same timestamp
-4. **Correlate with pip activity** — run the supply chain queries from [python_supply_chain_attack.md](python_supply_chain_attack.md) Queries 1–4 on the same device
+4. **Correlate with pip activity** — run the supply chain queries from [python_supply_chain_attack.md](../threat-intelligence/2026-03/python_supply_chain_attack.md) Queries 1–4 on the same device
 5. **Check C2 communication** — search for network connections to `models.litellm[.]cloud`, `checkmarx[.]zone`, and `scan.aquasecurtiy[.]org`
 
 ### Baseline Maintenance

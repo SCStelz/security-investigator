@@ -28,7 +28,7 @@
 | `axios/1.7.9` | User-Agent | HTTP client used for token replay |
 | `50199` | Error Code | Sign-in interrupt preceding AiTM token capture |
 
-**Reference:** See [aitm_threat_detection.md](aitm_threat_detection.md) for comprehensive AiTM defensive program, posture hardening, and general-purpose AiTM detection queries (OfficeHome multi-country sessions, anomalous token correlation, MFA re-registration).
+**Reference:** See [aitm_threat_detection.md](../../identity/aitm_threat_detection.md) for comprehensive AiTM defensive program, posture hardening, and general-purpose AiTM detection queries (OfficeHome multi-country sessions, anomalous token correlation, MFA re-registration).
 
 ---
 

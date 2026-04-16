@@ -72,7 +72,7 @@ This campaign uses social engineering rather than software vulnerabilities: the 
 | `Trojan:MacOS/FlowOffset.D!dha` | Credential harvester |
 | `Trojan:MacOS/FlowOffset.E!dha` | Decoy app |
 
-**Reference:** See [npm_supply_chain_attack.md](npm_supply_chain_attack.md) for the related Sapphire Sleet axios npm supply chain compromise campaign (attributed to the same actor).
+**Reference:** See [npm_supply_chain_attack.md](../2026-03/npm_supply_chain_attack.md) for the related Sapphire Sleet axios npm supply chain compromise campaign (attributed to the same actor).
 
 ---
 
