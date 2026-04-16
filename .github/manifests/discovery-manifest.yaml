@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-04-16T17:58:56Z'
+generated: '2026-04-16T19:44:19Z'
 valid_domains:
 - admin
 - cloud
@@ -449,6 +449,44 @@ queries:
   - T1110.003
   - T1133
   - TA0008
+- title: Sapphire Sleet macOS Intrusion — From Lure to Compromise
+  path: queries/endpoint/sapphire_sleet_macos_intrusion.md
+  domains:
+  - endpoint
+  mitre:
+  - T1566.003
+  - T1204.002
+  - T1059.002
+  - T1059.004
+  - T1105
+  - T1056.002
+  - T1539
+  - T1555.001
+  - T1555
+  - T1547.011
+  - T1543.004
+  - T1548
+  - T1553.001
+  - T1562
+  - T1620
+  - T1005
+  - T1560.001
+  - T1567
+  - T1041
+  - T1071.001
+  - T1132
+  - T1082
+  - T1057
+  - TA0001
+  - TA0002
+  - TA0003
+  - TA0004
+  - TA0005
+  - TA0006
+  - TA0007
+  - TA0009
+  - TA0010
+  - TA0011
 - title: SMB/NTLM Threat Detection — Brute-Force, Lateral Movement & External Access
   path: queries/endpoint/smb_threat_detection.md
   domains:
