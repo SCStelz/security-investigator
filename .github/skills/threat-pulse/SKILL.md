@@ -172,8 +172,6 @@ The Threat Pulse skill is a rapid, broad-spectrum security scan designed for the
 | Q8 | Phishing delivered or malware detected | `email-threat-posture` | `Run email threat posture report` |
 | Q8+Q3 | Phishing recipient appears in Q3 risky users | `authentication-tracing` | `Trace authentication chain for <UPN>` |
 | Q9 | `Compromised Sign-In` user surfaced | `user-investigation` + `authentication-tracing` | `Investigate <UPN>` / `Trace authentication chain for <UPN>` |
-| Q9 | `Mailbox Read (API)` or `Mail Send (API)` actors | `user-investigation` | `Investigate <UPN>` |
-| Q9 | `Mailbox Read (API)` with Count > 500 | `data-security-analysis` | `Analyze data security events for <actor>` |
 | Q9 | `Conditional Access Change` by human actor | `ca-policy-investigation` | `Investigate CA policy changes by <UPN>` |
 | Q9 | `Exchange Admin/Rule Change` actors | `user-investigation` | `Investigate <UPN>` |
 | Q10 | `MFA-Registration` user | `user-investigation` | `Investigate <UPN>` |
@@ -1006,7 +1004,7 @@ EmailEvents
 
 ### Query 9: Cloud App Suspicious Activity
 
-🔑 **Cloud ops monitoring** — Detects mailbox rule manipulation, transport rule changes, mailbox delegation, programmatic mailbox access (API), MCAS-flagged compromised sign-ins, and human-initiated Conditional Access policy changes via CloudAppEvents.
+🔑 **Cloud ops monitoring** — Detects mailbox rule manipulation, transport rule changes, mailbox delegation, MCAS-flagged compromised sign-ins, and human-initiated Conditional Access policy changes via CloudAppEvents. **Focuses on rule/permission/CA mutations** — the lower-confidence signals not duplicated by Q1's incident roll-up.
 
 **Tool:** `RunAdvancedHuntingQuery`
 
@@ -1017,9 +1015,8 @@ CloudAppEvents
     // Exchange — Mail flow manipulation
     "New-InboxRule", "Set-InboxRule", "Set-Mailbox",
     "Add-MailboxPermission", "New-TransportRule", "Set-TransportRule", "New-Mailbox",
-    // Exchange — Anti-forensic & Data Access
+    // Exchange — Anti-forensic
     "Remove-MailboxPermission", "Remove-InboxRule",
-    "MailItemsAccessed", "Send",
     // Conditional Access manipulation (human-initiated only)
     "Set-ConditionalAccessPolicy", "New-ConditionalAccessPolicy",
     // Compromise signals
@@ -1028,17 +1025,7 @@ CloudAppEvents
 // Filter out system/automation-driven CA changes (CA agent, backup policies)
 | where not(ActionType in ("Set-ConditionalAccessPolicy", "New-ConditionalAccessPolicy") 
             and isempty(AccountDisplayName))
-// Extract client context for Exchange data access events
-| extend ParsedData = parse_json(RawEventData)
-| extend ClientInfo = tostring(ParsedData.ClientInfoString)
-// Filter out Exchange Online system-level REST operations (first-party backend mail flow/compliance)
-// RESTSystem = Microsoft internal service identity; Client=REST without System = user/app API access
-| where not(ActionType in ("MailItemsAccessed", "Send") and ClientInfo has "RESTSystem")
 | extend Category = case(
-    ActionType == "MailItemsAccessed" and ClientInfo has "Client=REST", "Mailbox Read (API)",
-    ActionType == "Send" and ClientInfo has "Client=REST", "Mail Send (API)",
-    ActionType == "MailItemsAccessed", "Mailbox Read (Client)",
-    ActionType == "Send", "Mail Send (Client)",
     ActionType in ("New-InboxRule", "Set-InboxRule", "Remove-InboxRule",
                    "Set-Mailbox", "Add-MailboxPermission", "Remove-MailboxPermission",
                    "New-TransportRule", "Set-TransportRule", "New-Mailbox"),
@@ -1058,15 +1045,15 @@ CloudAppEvents
 | order by Count desc
 ```
 
-**Purpose:** Five-category view of cloud app activity invisible to Q10 (AuditLogs). Key non-obvious details: `ClientInfoString` in `RawEventData` distinguishes API access (`Client=REST` = Graph API programmatic) from interactive clients (MAPI-RPC, OWA) — API-driven mailbox reads by human accounts = potential BEC. `CompromisedSignIn` is an MCAS signal independent from Q3's Identity Protection risk events — dual-source corroboration when both fire. CA changes with empty `AccountDisplayName` are system/agent-driven and filtered out.
+**Purpose:** Three-category view of cloud app activity invisible to Q10 (AuditLogs). `CompromisedSignIn` is an MCAS signal independent from Q3's Identity Protection risk events — dual-source corroboration when both fire. CA changes with empty `AccountDisplayName` are system/agent-driven and filtered out. Inbox rule, transport rule, and mailbox permission changes are the primary BEC persistence/exfil mechanisms — even when no rule has a forwarding payload, rule creation by a previously-flagged user is a strong follow-up signal.
 
 **Verdict logic:**
-- 🔴 Escalate: `Compromised Sign-In` with 5+ users, OR `Mailbox Read (API)` from non-service-accounts, OR `Conditional Access Change` by any human actor, OR `Exchange Admin/Rule Change` with forwarding-related rules (`New-InboxRule`, `Set-InboxRule`, `New-TransportRule`)
-- 🟠 Investigate: `Compromised Sign-In` (any count), OR `Mail Send (API)` from unexpected actors, OR `Remove-InboxRule` / `Remove-MailboxPermission` (anti-forensic cleanup signals)
-- 🟡 Monitor: Only `Mailbox Read (Client)` or `Mail Send (Client)` activity, OR low-count `Set-Mailbox` from system actors
+- 🔴 Escalate: `Compromised Sign-In` with 5+ users, OR `Conditional Access Change` by any human actor, OR `Exchange Admin/Rule Change` with forwarding-related rules (`New-InboxRule`, `Set-InboxRule`, `New-TransportRule`)
+- 🟠 Investigate: `Compromised Sign-In` (any count), OR `Remove-InboxRule` / `Remove-MailboxPermission` (anti-forensic cleanup signals)
+- 🟡 Monitor: Low-count `Set-Mailbox` from system actors
 - ✅ Clear: 0 results across all categories
 
-**Drill-down:** Use `user-investigation` for actors in `Compromised Sign-In`, `Mailbox Read (API)`, or `Mail Send (API)` categories. Use `ca-policy-investigation` for `Conditional Access Change`. **For any Exchange-related Q9 finding, also query `OfficeActivity | where OfficeWorkload == "Exchange"`** — CloudAppEvents only surfaces ActionType summaries; OfficeActivity carries the full `Parameters` JSON (`ForwardTo` / `RedirectTo` / `ForwardingSmtpAddress`), per-operation `ClientIP`, and ops like `MoveToDeletedItems` / `SoftDelete` / `HardDelete` / `MailboxLogin` that reveal post-compromise forensics. See `queries/email/email_threat_detection.md` and the CloudAppEvents / OfficeActivity entries in `copilot-instructions.md` Known Table Pitfalls.
+**Drill-down:** Use `user-investigation` for actors in `Compromised Sign-In` category. Use `ca-policy-investigation` for `Conditional Access Change`. **For any Exchange-related Q9 finding, also query `OfficeActivity | where OfficeWorkload == "Exchange"`** — CloudAppEvents only surfaces ActionType summaries; OfficeActivity carries the full `Parameters` JSON (`ForwardTo` / `RedirectTo` / `ForwardingSmtpAddress`), per-operation `ClientIP`, and ops like `MoveToDeletedItems` / `SoftDelete` / `HardDelete` / `MailboxLogin` that reveal post-compromise forensics. See `queries/email/email_threat_detection.md` and the CloudAppEvents / OfficeActivity entries in `copilot-instructions.md` Known Table Pitfalls.
 
 ---
 
