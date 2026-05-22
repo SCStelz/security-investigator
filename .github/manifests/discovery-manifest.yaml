@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-05-12T21:19:57Z'
+generated: '2026-05-22T18:15:09Z'
 valid_domains:
 - admin
 - cloud
@@ -127,6 +127,20 @@ skills:
   - identity
   prompt: Investigate user {entity} — sign-in anomalies, MFA, audit trail, Identity Protection risk
 queries:
+- title: Agent 365 Observability — AI Agent Telemetry Hunting
+  path: queries/cloud/agent365_observability.md
+  domains:
+  - cloud
+  - identity
+  mitre:
+  - T1078.004
+  - T1059
+  - T1087
+  - T1530
+  - T1071.001
+  - TA0001
+  - TA0007
+  - TA0009
 - title: Anomaly & Behavior Threat Detection — Sentinel UEBA + MCAS Hunting
   path: queries/cloud/anomaly_threat_detection.md
   domains:
