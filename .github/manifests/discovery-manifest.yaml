@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-05-22T18:15:09Z'
+generated: '2026-05-26T15:23:01Z'
 valid_domains:
 - admin
 - cloud
@@ -757,6 +757,27 @@ queries:
   - T1556.006
   - TA0001
   - TA0006
+- title: Kazuar / Secret Blizzard (Turla) — Threat Hunts
+  path: queries/threat-intelligence/2026-05/kazuar_secret_blizzard.md
+  domains:
+  - endpoint
+  mitre:
+  - T1027.002
+  - T1546.003
+  - T1071.001
+  - T1071.003
+  - T1071.005
+  - T1059.005
+  - T1218.010
+  - T1218.011
+  - T1546.015
+  - T1562.001
+  - T1562.006
+  - T1546
+  - T1129
+  - T1055
+  - T1029
+  - T1573
 - title: Trusted Third-Party Intrusion (HPE OA / HPOM Abuse) — TTPs & Hunting
   path: queries/threat-intelligence/2026-05/trusted_third_party_intrusion.md
   domains:

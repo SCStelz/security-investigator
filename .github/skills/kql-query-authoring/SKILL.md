@@ -41,19 +41,21 @@ Generate validated, production-ready KQL queries by combining schema validation 
 
 3. **Check local query library FIRST** — Use the discovery manifest (`.github/manifests/discovery-manifest.yaml`) for domain/MITRE lookups and `grep_search` for table-name/keyword lookups. See the **KQL Pre-Flight Checklist** in `copilot-instructions.md` for the full priority order.
 
-4. **Use multiple sources** — Schema (authoritative column names) + Microsoft Learn (official patterns) + community queries (real-world examples).
+4. **Query file structure: NO placeholder TOC** — When creating a new query file, do NOT add a `## Quick Reference — Query Index` heading or placeholder. `scripts/generate_tocs.py` creates the heading and table itself. Pre-creating it confuses the strip-and-reinsert logic and produces duplicated content. See `## Creating Query Files` below for full file structure rules.
 
-5. **Test using the correct execution tool** — Follow the **Tool Selection Rule** in `copilot-instructions.md`:
+5. **Use multiple sources** — Schema (authoritative column names) + Microsoft Learn (official patterns) + community queries (real-world examples).
+
+6. **Test using the correct execution tool** — Follow the **Tool Selection Rule** in `copilot-instructions.md`:
    - Sentinel-native tables → Data Lake or AH
    - XDR tables ≤ 30d → Advanced Hunting (free); > 30d → Data Lake
    - XDR-only tables (DeviceTvm*, Exposure*) → Advanced Hunting only
    - Adapt timestamp column when switching tools
 
-6. **Test queries before presenting to user** — Run with `| take 5` via live execution. Use `mcp_kql-search_validate_kql_query` as fallback if live testing unavailable.
+7. **Test queries before presenting to user** — Run with `| take 5` via live execution. Use `mcp_kql-search_validate_kql_query` as fallback if live testing unavailable.
 
-7. **Provide context** — Explain what the query does, expected results, and any limitations.
+8. **Provide context** — Explain what the query does, expected results, and any limitations.
 
-8. **Read the complete workflow below** before starting.
+9. **Read the complete workflow below** before starting.
 
 > **📋 Inherited rules:** This skill inherits the **KQL Pre-Flight Checklist**, **Tool Selection Rule (Data Lake vs Advanced Hunting)**, and **Known Table Pitfalls** from `copilot-instructions.md`. Those rules are authoritative — do not contradict them here.
 
@@ -188,10 +190,11 @@ Combine insights: schema for column names, Learn for patterns, community for tec
 Include per-query documentation with Purpose, Thresholds, Expected Results, and Tuning guidance.
 
 **Heading format for TOC compatibility:** The `generate_tocs.py` script auto-generates a Quick Reference TOC by scanning `### ` and `## Query` headings that have a KQL code block within 40 lines. To ensure clean TOC output:
-- **Query headings:** Use `### Query N: <Title>` or `## Query N: <Title>` — the number prefix ensures proper TOC ordering
-- **Non-query sections** (context, deployment, tuning, references): Use heading text that starts with a non-query keyword (e.g., `### Deployment`, `### Tuning`, `### References`). These are automatically filtered out by the TOC generator
-- **Avoid** using `### ` headings for non-query content that contains a KQL code block within 40 lines — the TOC generator uses KQL proximity to detect query headings and will incorrectly include them
-- **🔴 `## ` heading required before first query:** If the file has preamble content (Overview, Table Selection, etc.) between the metadata `---` and the first `### Query N:` heading, there MUST be a `## ` heading (e.g., `## Queries`) immediately before the first query. The TOC generator uses a `---` → `## ` heading pair as its insertion anchor. Without a `## ` heading, the script misidentifies query `---` separators as metadata delimiters and inserts the TOC at the bottom of the file. Files without any preamble (queries start right after `---`) are unaffected.
+- ✅ **DO** use `### Query N: <Title>` or `## Query N: <Title>` for query headings — the number prefix ensures proper TOC ordering
+- ✅ **DO** add a `## ` heading (e.g., `## Queries`, `## Part A:`, `## Hunts`) immediately before the first `### Query N:` if the file has preamble content (Overview, Table Selection, etc.). The TOC generator uses a `---` → `## ` heading pair as its insertion anchor — without it, the script inserts the TOC at the bottom of the file.
+- ✅ **DO** start non-query section headings with a non-query keyword (e.g., `### Deployment`, `### Tuning`, `### References`) — these are automatically filtered out by the TOC generator
+- ❌ **DO NOT** add a `## Quick Reference — Query Index` heading or placeholder yourself — the script creates the heading and table. Pre-existing placeholders cause duplicated content and a broken file structure. (This is also enforced as Critical Rule #4 above.)
+- ❌ **DO NOT** use `### ` headings for non-query content that contains a KQL code block within 40 lines — the TOC generator uses KQL proximity to detect query headings and will incorrectly include them
 
 **Investigation shortcuts (optional):** Query files can include an `**Investigation shortcuts:**` bulleted list between the `## Quick Reference` heading and the TOC table. These document recommended query combos for common investigation scenarios (e.g., "Delivered phishing drill-down: Q2.4 + Q7.6 + Q3.3"). Shortcuts are preserved by `generate_tocs.py` across re-runs. Don't add them to new files — they're a refinement added after real investigations reveal which query combos work best together.
 
