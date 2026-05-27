@@ -87,9 +87,9 @@ The built-in SAP analytic rules use **legacy function-based table names** (`SAPA
 | 12 | [Non-Encrypted SAPGUI Communication](#query-12-non-encrypted-sapgui-communication) | Investigation | `ABAPAuditLog` |
 | 13 | [OS Command Execution via SM49/SM69](#query-13-os-command-execution-via-sm49sm69) | Investigation | `ABAPAuditLog` |
 | 14 | [SAP User Master Data Hygiene](#query-14-sap-user-master-data-hygiene) | Posture | — |
-| 15 | [BTP Privileged Role Collection Assignments](#query-15-btp-privileged-role-collection-assignments) | Investigation | — |
-| 16 | [BTP Malware Detection in Dev Spaces](#query-16-btp-malware-detection-in-dev-spaces) | Detection | — |
-| 17 | [BTP Security Event Overview](#query-17-btp-security-event-overview) | Dashboard | `SampleEvents` |
+| 15 | [BTP Privileged Role Collection Assignments](#query-15-btp-privileged-role-collection-assignments) | Investigation | `SAPBTPAuditLog_CL` |
+| 16 | [BTP Malware Detection in Dev Spaces](#query-16-btp-malware-detection-in-dev-spaces) | Detection | `SAPBTPAuditLog_CL` |
+| 17 | [BTP Security Event Overview](#query-17-btp-security-event-overview) | Dashboard | `SAPBTPAuditLog_CL` + `SampleEvents` |
 | 18 | [SAP Alerts Correlation — Sentinel Integration](#query-18-sap-alerts-correlation--sentinel-integration) | Detection | `SecurityAlert` + `SecurityIncident` |
 
 

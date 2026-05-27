@@ -20,26 +20,26 @@ Microsoft Defender EASM continuously discovers internet-exposed assets attribute
 
 | # | Query | Use Case | Key Table |
 |---|-------|----------|-----------|
-| 1 | [Asset inventory by type](#query-1-asset-inventory-by-type) | Posture | — |
-| 2 | [Newly discovered assets (30/60/90d)](#query-2-newly-discovered-assets-306090d) | Investigation | — |
-| 3 | [Snapshot cadence](#query-3-snapshot-cadence) | Investigation | — |
-| 4 | [Risks by category and metric](#query-4-risks-by-category-and-metric) | Investigation | — |
-| 5 | [Risks by asset type and severity](#query-5-risks-by-asset-type-and-severity) | Investigation | — |
-| 6 | [Top affected assets](#query-6-top-affected-assets) | Triage | — |
-| 7 | [Web components with known CVEs](#query-7-web-components-with-known-cves) | Investigation | — |
-| 8 | [Top web components by prevalence](#query-8-top-web-components-by-prevalence) | Triage | — |
-| 9 | [Critical CVE expansion (CVSS ≥ 9.0)](#query-9-critical-cve-expansion-cvss--90) | Investigation | — |
-| 10 | [SSL certificate expiry buckets](#query-10-ssl-certificate-expiry-buckets) | Investigation | — |
-| 11 | [SSL issuers and signature algorithms](#query-11-ssl-issuers-and-signature-algorithms) | Investigation | — |
-| 12 | [Domain WHOIS inventory](#query-12-domain-whois-inventory) | Posture | — |
-| 13 | [Host assets — ports, IPs, components](#query-13-host-assets--ports-ips-components) | Investigation | — |
-| 14 | [IP addresses by ASN and location](#query-14-ip-addresses-by-asn-and-location) | Investigation | — |
-| 15 | [Open ports / banner exposure](#query-15-open-ports--banner-exposure) | Investigation | — |
-| 16 | [Page inventory and HTTP status](#query-16-page-inventory-and-http-status) | Posture | — |
-| 17 | [Pages missing security headers](#query-17-pages-missing-security-headers) | Investigation | — |
-| 18 | [Contact inventory](#query-18-contact-inventory) | Posture | — |
-| 19 | [Asset state via Labels](#query-19-asset-state-via-labels) | Investigation | — |
-| 20 | [Asset discovery timeline](#query-20-asset-discovery-timeline) | Investigation | — |
+| 1 | [Asset inventory by type](#query-1-asset-inventory-by-type) | Posture | `EasmAsset_CL` |
+| 2 | [Newly discovered assets (30/60/90d)](#query-2-newly-discovered-assets-306090d) | Investigation | `EasmAsset_CL` |
+| 3 | [Snapshot cadence](#query-3-snapshot-cadence) | Investigation | `EasmAsset_CL` |
+| 4 | [Risks by category and metric](#query-4-risks-by-category-and-metric) | Investigation | `EasmRisk_CL` |
+| 5 | [Risks by asset type and severity](#query-5-risks-by-asset-type-and-severity) | Investigation | `EasmRisk_CL` |
+| 6 | [Top affected assets](#query-6-top-affected-assets) | Triage | `EasmRisk_CL` |
+| 7 | [Web components with known CVEs](#query-7-web-components-with-known-cves) | Investigation | `EasmAssetWebComponent_CL` |
+| 8 | [Top web components by prevalence](#query-8-top-web-components-by-prevalence) | Triage | `EasmAssetWebComponent_CL` |
+| 9 | [Critical CVE expansion (CVSS ≥ 9.0)](#query-9-critical-cve-expansion-cvss--90) | Investigation | `EasmAssetWebComponent_CL` |
+| 10 | [SSL certificate expiry buckets](#query-10-ssl-certificate-expiry-buckets) | Investigation | `EasmSslCertAsset_CL` |
+| 11 | [SSL issuers and signature algorithms](#query-11-ssl-issuers-and-signature-algorithms) | Investigation | `EasmSslCertAsset_CL` |
+| 12 | [Domain WHOIS inventory](#query-12-domain-whois-inventory) | Posture | `EasmDomainAsset_CL` |
+| 13 | [Host assets — ports, IPs, components](#query-13-host-assets--ports-ips-components) | Investigation | `EasmHostAsset_CL` |
+| 14 | [IP addresses by ASN and location](#query-14-ip-addresses-by-asn-and-location) | Investigation | `EasmIpAddressAsset_CL` |
+| 15 | [Open ports / banner exposure](#query-15-open-ports--banner-exposure) | Investigation | `EasmAssetBanner_CL` |
+| 16 | [Page inventory and HTTP status](#query-16-page-inventory-and-http-status) | Posture | `EasmPageAsset_CL` |
+| 17 | [Pages missing security headers](#query-17-pages-missing-security-headers) | Investigation | `EasmPageAsset_CL` |
+| 18 | [Contact inventory](#query-18-contact-inventory) | Posture | `EasmContactAsset_CL` |
+| 19 | [Asset state via Labels](#query-19-asset-state-via-labels) | Investigation | `EasmAsset_CL` |
+| 20 | [Asset discovery timeline](#query-20-asset-discovery-timeline) | Investigation | `EasmAsset_CL` |
 
 
 ## Query 1: Asset inventory by type
