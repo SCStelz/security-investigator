@@ -6,7 +6,7 @@ A lightweight, read-only probe that calls **every MCP server** this project depe
 
 ## Why this exists (and its limits)
 
-The OAuth-based servers (Sentinel Data Lake, Triage, Microsoft Graph, Sentinel Graph) use **refresh tokens**. Regularly *using* them mitigates the ~90-day **inactivity** expiry — so a daily probe genuinely keeps them warm. But a probe **cannot** prevent policy-driven re-auth: Conditional Access re-prompts, MFA refresh, password changes, or admin token revocation all force an **interactive browser sign-in** that an unattended run can't perform. `kql-search` uses a **static GitHub PAT** (no refresh — it simply expires), and Azure MCP rides on `az login`'s cached credentials.
+The OAuth-based servers (Sentinel Data Lake, Sentinel Triage) use **refresh tokens**. Regularly *using* them mitigates the ~90-day **inactivity** expiry — so a daily probe genuinely keeps them warm. But a probe **cannot** prevent policy-driven re-auth: Conditional Access re-prompts, MFA refresh, password changes, or admin token revocation all force an **interactive browser sign-in** that an unattended run can't perform. `kql-search` uses a **static GitHub PAT** (no refresh — it simply expires), Azure MCP rides on `az login`'s cached credentials, and Microsoft Learn needs no auth.
 
 So this automation's real value is **fast detection + a clear report**. Schedule it **early** (before your other automations) so a failure is visible in time to fix it.
 
@@ -35,7 +35,7 @@ Replace these placeholders with your environment values before saving (pull them
 | `YOUR_LOG_ANALYTICS_RESOURCE_GROUP` | `azure_mcp.resource_group` |
 | `YOUR_LOG_ANALYTICS_WORKSPACE_NAME` | `azure_mcp.workspace_name` |
 
-**Prerequisites:** the MCP servers you want probed must be configured at user scope (`~/.copilot/mcp-config.json`). Drop any probe in STEP 2 for servers you don't use; mark preview servers (e.g. Sentinel Graph) as SKIP rather than FAIL.
+**Prerequisites:** the MCP servers you want probed must be configured at user scope (`~/.copilot/mcp-config.json`). Add or drop probes in STEP 2 to match the servers you actually have configured; mark any server whose tools aren't present as SKIP rather than FAIL.
 
 ## Prompt
 
@@ -58,11 +58,9 @@ STEP 2 — Probe each MCP server with ONE cheap read-only call. If a call hangs 
 
   1. Sentinel Data Lake (sentinel-data-mcp): call list_sentinel_workspaces. PASS if it returns one or more workspaces.
   2. Sentinel Triage (sentinel-triage-mcp): call ListIncidents with top=1. PASS if it returns without an auth/permission error (an empty list is still PASS).
-  3. Microsoft Graph: use the Graph MCP to run a trivial read — suggest_queries for "get current organization" then GET /v1.0/organization?$select=id,displayName (or GET /v1.0/me if simpler). PASS if it returns an object.
-  4. Azure MCP Server: call subscription_list (pass tenant + subscription from config.json). PASS if it returns one or more subscriptions.
-  5. KQL Search (kql-search): call a schema lookup such as get_table_schema for "SigninLogs" (or search_tables for "sign-in"). PASS if it returns schema/results. This validates the GitHub PAT.
-  6. Microsoft Learn (microsoft-learn): call microsoft_docs_search for "advanced hunting". PASS if it returns results. (No auth — pure connectivity check.)
-  7. Sentinel Graph (PREVIEW, OPTIONAL): call get_graph_context with GraphName "SystemScenarioEKGGraph". PASS if it returns the schema. If the server/tools are not present, mark SKIP (not configured) — do NOT count this as a failure.
+  3. Microsoft Learn (microsoft-learn): call microsoft_docs_search for "advanced hunting". PASS if it returns results. (No auth — pure connectivity check.)
+  4. KQL Search (kql-search): call a schema lookup such as get_table_schema for "SigninLogs" (or search_tables for "sign-in"). PASS if it returns schema/results. This validates the GitHub PAT.
+  5. Azure MCP Server (azure-mcp-server): call subscription_list (pass tenant + subscription from config.json). PASS if it returns one or more subscriptions.
 
 STEP 3 — Classify each server into exactly one of:
   - PASS — call returned valid data (auth healthy).
@@ -75,7 +73,7 @@ STEP 4 — Report (this is the whole point of the run). Print:
   a. A header line with the run date/time and an overall verdict: "ALL HEALTHY" or "N server(s) need attention".
   b. A table: | # | MCP Server | Probe call | Result | Detail / error |
   c. For every FAIL (AUTH), a short remediation note:
-     - Sentinel Data Lake / Triage / Microsoft Graph / Sentinel Graph → re-run the interactive sign-in for that MCP server in the GitHub Copilot app (browser OAuth); tokens are user-scope at ~/.copilot.
+     - Sentinel Data Lake / Triage → re-run the interactive sign-in for that MCP server in the GitHub Copilot app (browser OAuth); tokens are user-scope at ~/.copilot.
      - Azure MCP → run `az login --tenant YOUR_TENANT_ID_HERE` then `az account set --subscription YOUR_SUBSCRIPTION_ID_HERE`.
      - KQL Search → the GitHub PAT in ~/.copilot/mcp-config.json is invalid or expired; generate a new token (public_repo scope) and update GITHUB_TOKEN.
   d. A one-line reminder if anything failed: "Re-authenticate before your other scheduled automations run."
