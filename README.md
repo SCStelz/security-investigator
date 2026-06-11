@@ -6,6 +6,8 @@
 
 An investigation automation framework that combines **GitHub Copilot**, **VS Code Agent Skills**, and **Model Context Protocol (MCP) servers** to enable natural language security investigations. Ask questions like *"Investigate this user for the last 7 days"* or *"Is this IP malicious?"* and get comprehensive analysis with KQL queries, threat intelligence correlation, and professional reports.
 
+> 🖥️ **Also runs in the [GitHub Copilot app](https://github.com/features/ai/github-app) (desktop)** — ideal for **scheduled automations** (unattended Threat Pulse / Threat Intel Campaign runs). It uses a worktree-per-session model with a few setup differences from VS Code — see [Running in the GitHub Copilot App](#️-running-in-the-github-copilot-app-desktop).
+
 ### Quick Start (TL;DR)
 
 ```powershell
@@ -446,6 +448,51 @@ cd mcp-apps/sentinel-incident-comment && npm install && npm run build && cd ../.
 ```
 
 The `sentinel-incident-comment` MCP App requires an Azure Logic App backend. See [mcp-apps/sentinel-incident-comment/README.md](mcp-apps/sentinel-incident-comment/README.md) for setup. Based on [stefanpems/mcp-add-comment-to-sentinel-incident](https://github.com/stefanpems/mcp-add-comment-to-sentinel-incident).
+
+---
+
+## 🖥️ Running in the GitHub Copilot App (Desktop)
+
+This project also runs great in the **[GitHub Copilot app](https://github.com/features/ai/github-app)** (desktop), not just VS Code. The app is especially useful for **scheduled automations**: its built-in **Workflows** system runs skills unattended on a schedule — for example the [Daily Threat Pulse](automations/daily-threat-pulse.workflow.md) and [Weekly Threat Intel Campaign](automations/weekly-threat-intel-campaign.workflow.md) definitions in [`automations/`](automations/). It also runs each task in an isolated git worktree, so you can run multiple investigations in parallel without them colliding.
+
+> 📥 **Download:** [github.com/features/ai/github-app](https://github.com/features/ai/github-app)
+
+### Why use the app
+
+- **Scheduled automations (Workflows)** — run the Threat Pulse scan every morning, or the Threat Intel Campaign weekly, fully unattended. See [`automations/`](automations/) for ready-to-import, PII-free workflow definitions.
+- **Parallel, isolated sessions** — each session is its own git worktree + branch, so concurrent investigations don't step on each other.
+- **Background agents** — long-running hunts and report generation can run in the background while you keep working.
+
+### ⚠️ Caveats & differences vs VS Code
+
+The app behaves slightly differently from VS Code. The most important difference: **each session is a fresh git worktree**, and gitignored local files (`config.json`, `.env`, MCP config) do **not** exist in a newly created worktree — they live only in your main checkout. You need a small **post-checkout step** to copy them into each session, otherwise the first query fails with a missing-config error.
+
+| Concern | VS Code | GitHub Copilot app |
+|---|---|---|
+| **MCP config** | `.vscode/mcp.json` (per workspace) | **User scope:** `~/.copilot/mcp-config.json`. The platform servers and the `kql-search` `GITHUB_TOKEN` go here, not in `.vscode/mcp.json`. Authenticate once interactively so OAuth tokens cache and refresh silently in scheduled runs. |
+| **`config.json` / `.env`** | One copy in your workspace folder | Gitignored, so **absent in each new worktree** — must be copied in per session (see below). |
+| **Memory / tenant context** | VS Code AppData memory store (auto-loads ~200 lines) | `~/.copilot/memories/` (user) and `~/.copilot/memories/repo/` (repo). **Scheduled runs are non-interactive, so repo memory does NOT auto-load** — automation prompts must read the context file explicitly by path (the `automations/` definitions do this in STEP 1.5). |
+| **Sessions / workspace** | Single workspace folder, one branch | One git **worktree + branch per session**, created under your worktrees root (e.g. `~/copilot-worktrees/<repo>/<branch>`). Operate only inside the session worktree — never the main checkout. |
+
+#### Post-checkout workflow (persist config into each session)
+
+Because `config.json`, `.env`, and `.vscode/mcp.json` are gitignored, a freshly created worktree won't contain them. Set up a **`post-checkout` git hook** that copies them from your main checkout into the new worktree. Example (`.git/hooks/post-checkout`, marked executable):
+
+```bash
+#!/usr/bin/env bash
+# Copy gitignored local config from the main checkout into a fresh worktree/session.
+MAIN="/path/to/your/main/checkout"     # adjust to your primary clone
+for f in config.json .env .vscode/mcp.json; do
+  if [ ! -f "$f" ] && [ -f "$MAIN/$f" ]; then
+    mkdir -p "$(dirname "$f")"
+    cp "$MAIN/$f" "$f"
+  fi
+done
+```
+
+> Alternatively, define the same copy logic as a **per-session setup command** in the app. Either way the goal is identical: every session ends up with a valid `config.json`, `.env`, and MCP config before the first query runs.
+
+For **scheduled automations**, the workflow prompts in [`automations/`](automations/) also include a **STEP 1 bootstrap** that recreates `config.json` from known values if it's missing — a belt-and-suspenders guarantee for non-interactive runs (it never commits `config.json`, which stays gitignored).
 
 ---
 
