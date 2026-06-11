@@ -35,5 +35,10 @@ These definitions are committed to git and **must never contain** real workspace
 
 | File | Purpose | Interval | Mode |
 |------|---------|----------|------|
+| `daily-mcp-auth-health-check.workflow.md` | Lightweight read-only probe that checks each MCP server's auth/connectivity, prints a PASS/FAIL status table, and raises a desktop toast — run it ahead of the other automations so broken auth gets caught and fixed first | Daily | Autopilot |
 | `daily-threat-pulse.workflow.md` | Autonomous daily SOC scan (Threat Pulse) with adaptive, self-directed drill-downs and a local Markdown report | Daily | Autopilot |
 | `weekly-threat-intel-campaign.workflow.md` | Autonomous weekly hunt-authoring run (Threat Intel Campaign) — triages a TI RSS feed and opens a PR with tested, tuned KQL hunting queries per qualifying article | Weekly | Autopilot |
+
+## Desktop toast notifications (optional)
+
+All three definitions end with a best-effort **Windows toast notification** that surfaces the run's verdict on the desktop, via the dependency-free helper `scripts/Send-ToastNotification.ps1` (native WinRT; self-detects PowerShell 7 vs 5.1). Toasts render only in an **interactive, logged-on Windows desktop session** and can be suppressed by Focus Assist / Do Not Disturb; the sender shows as "Windows PowerShell". A toast failure never fails the run. On non-Windows hosts, or if you don't want desktop alerts, simply delete the toast STEP from the prompt — the rest of the automation is unaffected.

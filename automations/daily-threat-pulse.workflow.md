@@ -33,10 +33,12 @@ Replace these placeholders with your environment values before saving (pull them
 
 **Prerequisites:** the 3 user-scope MCP servers authenticated (`sentinel-data-mcp`, `sentinel-triage-mcp`, `microsoft-learn`), a populated `config.json`, and (recommended) tenant-context memory. Scheduled runs are non-interactive, so STEP 1.5 explicitly reads the memory file rather than relying on auto-load.
 
+**Toast notification (STEP 7):** the run ends with a best-effort desktop toast summarizing the scan, via `scripts/Send-ToastNotification.ps1` (shipped in this repo — a dependency-free native Windows toast helper that self-detects PowerShell 7 vs 5.1). Toasts render only in an **interactive, logged-on Windows desktop session** and can be suppressed by Focus Assist / Do Not Disturb. On non-Windows hosts, or if you don't want desktop alerts, delete STEP 7 — the scan and report are unaffected. The toast sender shows as "Windows PowerShell".
+
 ## Prompt
 
 ```text
-Daily Threat Pulse — autonomous scheduled SOC scan. You are running UNATTENDED. Do NOT use vscode_askQuestions, interactive quick-pick menus, or memory-backed selection loops, and never wait for user input. This is read-only investigation only — no state-changing commands (per the Remediation Output Policy).
+Daily Threat Pulse — autonomous scheduled SOC scan. You are running UNATTENDED. Do NOT use vscode_askQuestions, interactive quick-pick menus, or memory-backed selection loops, and never wait for user input. This is read-only investigation only — no state-changing commands (per the Remediation Output Policy). The ONLY shell command permitted is the toast-notification script in STEP 7 (a benign, non-state-changing local desktop notification).
 
 STEP 1 — Bootstrap config.json (if missing):
 Check for config.json at the repo root. If it does not exist, create it (it is gitignored — NEVER commit it) with exactly these values:
@@ -80,5 +82,15 @@ Save the complete report (scan + all drill-downs) as markdown to BOTH (include t
 STEP 6 — Executive summary:
 End your response with a concise summary: scan date, whether tenant context was applied, # open/unresolved incidents, highest-risk identity, top exposure finding, how many drill-downs ran (out of 5) and why the loop stopped, and the list of drill-downs run with their verdicts and the pivot chain.
 
-Failure handling: If the Sentinel MCP servers are not authenticated (auth/login error), stop and report that re-authentication is needed. enrich_ips.py may lack API tokens (.env absent) — if so, skip IP enrichment gracefully and note it. Use only data returned by tools; never fabricate entities or counts.
+STEP 7 — Raise a Windows toast notification (this is the one permitted shell command):
+After the report is saved, run the reusable toast script from the repo root so the operator gets a desktop ping with the scan outcome. Invoke it with PowerShell (it self-detects PowerShell 7 vs 5.1 and handles the WinRT call internally):
+  .\scripts\Send-ToastNotification.ps1 -Title <title> -Body <body> -Severity <Info|Warning|Error>
+Choose the arguments from the overall result:
+  - Any high-risk (red) finding or confirmed/likely compromise -> -Title "Threat Pulse" -Body "<N> high-risk finding(s) — review report. <short top finding>." -Severity Error
+  - Only orange/yellow items needing review (no red) -> -Title "Threat Pulse" -Body "<N> item(s) to review. Highest: <short note>." -Severity Warning
+  - All clear -> -Title "Threat Pulse" -Body "Scan clean — no high-risk findings (<N> incidents reviewed)." -Severity Info
+  - MCP auth failed / scan could not complete -> -Title "Threat Pulse" -Body "Run incomplete — MCP re-auth needed." -Severity Error
+Keep the body under ~120 characters. The script prints TOAST_SENT_OK on success or TOAST_FAILED: <reason>; if it fails (no interactive desktop session, Focus Assist, script missing), note that one line in your output but do NOT treat it as a scan failure — the toast is best-effort. Do NOT run any other shell command.
+
+Failure handling: If the Sentinel MCP servers are not authenticated (auth/login error), stop and report that re-authentication is needed (and raise the STEP 7 Error toast). enrich_ips.py may lack API tokens (.env absent) — if so, skip IP enrichment gracefully and note it. Use only data returned by tools; never fabricate entities or counts.
 ```
