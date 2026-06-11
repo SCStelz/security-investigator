@@ -29,6 +29,7 @@ Replace these placeholders with your environment values before saving (pull them
 | `YOUR_TENANT_CONTEXT_MEMORY_PATH` | Absolute path to your tenant-context memory file (e.g. `<userprofile>\.copilot\memories\repo\<your-tenant>.md`). Omit STEP 1.5 if you don't use context memory. |
 | `YOUR_INVESTIGATION_PATTERNS_MEMORY_PATH` | Optional absolute path to a supplementary investigation-patterns memory file. |
 | `YOUR_DURABLE_REPORTS_PATH` | Absolute path to a durable reports folder visible outside the worktree (e.g. your synced/main checkout `reports\threat-pulse`). |
+| `YOUR_TENANT_LABEL` | Short tenant label included in the report filename (e.g. `Zava`) so reports from different tenants are easy to tell apart. |
 
 **Prerequisites:** the 3 user-scope MCP servers authenticated (`sentinel-data-mcp`, `sentinel-triage-mcp`, `microsoft-learn`), a populated `config.json`, and (recommended) tenant-context memory. Scheduled runs are non-interactive, so STEP 1.5 explicitly reads the memory file rather than relying on auto-load.
 
@@ -72,9 +73,9 @@ STEP 4 — Assemble the combined report:
 Under a "## Automated Drill-Down Investigations" heading, append each drill-down (in the order executed) as its own subsection containing: the lead/prompt investigated, WHY it was selected (and, for pivots, which prior finding triggered it), the skill/query file used, key findings, supporting evidence, and a short risk verdict. After the subsections, add a brief "Investigation path" note summarizing how the loop pivoted (e.g., "Q3 risky sign-in -> IP a.b.c.d -> linked device DESKTOP-X -> lateral-movement check"). Note in a one-line header whether tenant context was successfully loaded and applied, and how many drill-downs ran (out of a max of 5) with the reason for stopping.
 
 STEP 5 — Persist (LOCAL ONLY — reports contain live tenant PII; the reports/ folder is gitignored; NEVER commit or open a PR):
-Save the complete report (scan + all drill-downs) as markdown to BOTH:
-- reports/threat-pulse/ThreatPulse_<YYYY-MM-DD>.md  (in the current worktree)
-- YOUR_DURABLE_REPORTS_PATH\ThreatPulse_<YYYY-MM-DD>.md  (durable location visible outside the worktree; create the folder if needed)
+Save the complete report (scan + all drill-downs) as markdown to BOTH (include the YOUR_TENANT_LABEL tenant label in the filename so reports from different tenants are easy to tell apart):
+- reports/threat-pulse/ThreatPulse_YOUR_TENANT_LABEL_<YYYY-MM-DD>.md  (in the current worktree)
+- YOUR_DURABLE_REPORTS_PATH\ThreatPulse_YOUR_TENANT_LABEL_<YYYY-MM-DD>.md  (durable location visible outside the worktree; create the folder if needed)
 
 STEP 6 — Executive summary:
 End your response with a concise summary: scan date, whether tenant context was applied, # open/unresolved incidents, highest-risk identity, top exposure finding, how many drill-downs ran (out of 5) and why the loop stopped, and the list of drill-downs run with their verdicts and the pivot chain.
