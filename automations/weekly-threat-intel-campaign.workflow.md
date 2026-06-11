@@ -39,10 +39,12 @@ Replace these placeholders with your environment values before saving (pull them
 
 **Note on the dedup / fresh-build behaviour:** the skill dedups against existing `queries/threat-intelligence/**` files (it skips an article already published). If you want to re-test the full end-to-end path, ensure the relevant campaign file is not already on the default branch.
 
+**Toast notification (STEP 7):** the run ends with a best-effort desktop toast summarizing the campaign outcome, via `scripts/Send-ToastNotification.ps1` (shipped in this repo — a dependency-free native Windows toast helper that self-detects PowerShell 7 vs 5.1). Toasts render only in an **interactive, logged-on Windows desktop session** and can be suppressed by Focus Assist / Do Not Disturb. On non-Windows hosts, or if you don't want desktop alerts, delete STEP 7 — the campaign authoring and PRs are unaffected. The toast sender shows as "Windows PowerShell".
+
 ## Prompt
 
 ```text
-Weekly Threat Intel Campaign — autonomous scheduled hunt-authoring automation. You are running UNATTENDED in autopilot. Do NOT use interactive prompts, quick-pick menus, or wait for user input. Query execution against the tenant is READ-ONLY (testing/tuning hunts) — no state-changing tenant commands (per the Remediation Output Policy). Git/PR operations on THIS repo are expected and allowed (see STEP 5).
+Weekly Threat Intel Campaign — autonomous scheduled hunt-authoring automation. You are running UNATTENDED in autopilot. Do NOT use interactive prompts, quick-pick menus, or wait for user input. Query execution against the tenant is READ-ONLY (testing/tuning hunts) — no state-changing tenant commands (per the Remediation Output Policy). Git/PR operations on THIS repo are expected and allowed (see STEP 5). Running the toast-notification script in STEP 7 is also permitted (a benign local desktop notification).
 
 GOAL: Check a threat-intelligence RSS feed, triage articles published in the last 7 days, and for each article that genuinely warrants it, write + test + tune threat-hunting queries and open a PR with a new campaign file. This automation does the PUBLISHING (branches/PRs); the skill does the authoring.
 
@@ -79,5 +81,16 @@ One branch + one PR per qualifying article. Never commit campaign files or PRs t
 STEP 6 — Report:
 End your response with a concise summary: feed checked + window, number of articles in-window, and a per-article table of decision (campaign/skipped) + reason + PR link (or branch name) for built campaigns. If nothing qualified, say so plainly and confirm no PRs were opened.
 
-Failure handling: If the Sentinel/kql-search MCP servers are not authenticated, STOP and report that re-authentication is needed (do not author untested queries). If a single article fails mid-build, discard its working-tree changes, note the failure, and continue with the remaining candidates — one bad article must not abort the whole run. Use only data returned by tools; never fabricate IOCs, TTPs, or test results.
+STEP 7 — Raise a Windows toast notification (permitted shell command):
+After the report, run the reusable toast script from the repo root so the operator gets a desktop ping with the campaign outcome. Invoke it with PowerShell (it self-detects PowerShell 7 vs 5.1 and handles the WinRT call internally):
+  .\scripts\Send-ToastNotification.ps1 -Title <title> -Body <body> -Severity <Info|Warning|Error>
+Choose the arguments from the STEP 6 outcome:
+  - One or more campaigns PR'd -> -Title "Threat Intel Campaign" -Body "<N> campaign PR(s) opened from <M> article(s)." -Severity Info
+  - Articles reviewed but none qualified -> -Title "Threat Intel Campaign" -Body "<M> article(s) reviewed — none qualified, no PRs." -Severity Info
+  - No recent articles (quiet week) -> -Title "Threat Intel Campaign" -Body "No new TI articles in the last 7 days." -Severity Info
+  - Run stopped early due to MCP auth failure -> -Title "Threat Intel Campaign" -Body "Run halted — MCP re-auth needed." -Severity Warning
+  - A PR could not be opened (gh auth/permission) -> -Title "Threat Intel Campaign" -Body "<N> branch(es) pushed but PR open failed — open manually." -Severity Warning
+Keep the body under ~120 characters. The script prints TOAST_SENT_OK on success or TOAST_FAILED: <reason>; if it fails (no interactive desktop session, Focus Assist, script missing), note that one line in your output but do NOT treat it as a run failure — the toast is best-effort. Do NOT use the toast script for anything other than this end-of-run notification.
+
+Failure handling: If the Sentinel/kql-search MCP servers are not authenticated, STOP and report that re-authentication is needed (raise the STEP 7 Warning toast) — do not author untested queries. If a single article fails mid-build, discard its working-tree changes, note the failure, and continue with the remaining candidates — one bad article must not abort the whole run. Use only data returned by tools; never fabricate IOCs, TTPs, or test results.
 ```
