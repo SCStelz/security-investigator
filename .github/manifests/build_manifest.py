@@ -212,6 +212,7 @@ def validate(queries: list[dict], skills: list[dict], verbose: bool = False) -> 
             "detection-authoring", "kql-query-authoring",
             "geomap-visualization", "heatmap-visualization",
             "svg-dashboard", "threat-pulse", "sentinel-ingestion-report",
+            "threat-intel-campaign",
         }
     ]
 

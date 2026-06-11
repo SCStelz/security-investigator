@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-06-10T19:38:08Z'
+generated: '2026-06-11T20:48:10Z'
 valid_domains:
 - admin
 - cloud
@@ -119,6 +119,8 @@ skills:
   path: .github/skills/sentinel-ingestion-report/SKILL.md
 - name: svg-dashboard
   path: .github/skills/svg-dashboard/SKILL.md
+- name: threat-intel-campaign
+  path: .github/skills/threat-intel-campaign/SKILL.md
 - name: threat-pulse
   path: .github/skills/threat-pulse/SKILL.md
 - name: user-investigation

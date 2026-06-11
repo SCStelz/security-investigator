@@ -36,3 +36,4 @@ These definitions are committed to git and **must never contain** real workspace
 | File | Purpose | Interval | Mode |
 |------|---------|----------|------|
 | `daily-threat-pulse.workflow.md` | Autonomous daily SOC scan (Threat Pulse) with adaptive, self-directed drill-downs and a local Markdown report | Daily | Autopilot |
+| `weekly-threat-intel-campaign.workflow.md` | Autonomous weekly hunt-authoring run (Threat Intel Campaign) — triages a TI RSS feed and opens a PR with tested, tuned KQL hunting queries per qualifying article | Weekly | Autopilot |
