@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-06-12T13:40:55Z'
+generated: '2026-06-12T16:24:03Z'
 valid_domains:
 - admin
 - cloud
@@ -42,6 +42,8 @@ skills:
   domains:
   - endpoint
   prompt: Investigate device {entity} — Defender alerts, process activity, vulnerabilities, compliance
+- name: context-memory-review
+  path: .github/skills/context-memory-review/SKILL.md
 - name: data-security-analysis
   path: .github/skills/data-security-analysis/SKILL.md
   domains:
