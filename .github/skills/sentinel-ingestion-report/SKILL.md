@@ -55,6 +55,8 @@ This skill spans **4 files**. Load only the file(s) needed for the current phase
 | [SKILL-report.md](SKILL-report.md) | Report templates (§1-§8), section-to-scratchpad mapping, formatting rules | Phase 6 rendering only |
 | [SKILL-drilldown.md](SKILL-drilldown.md) | **Post-report drill-down** — rule cross-referencing (AR + CD via Graph API), ASIM parser verification, known pitfalls, error handling | After report is generated, when user asks follow-up questions (see [§13 summary](#post-report-drill-down-reference)) |
 | [Invoke-IngestionScan.ps1](Invoke-IngestionScan.ps1) | PowerShell data-gathering pipeline (Phases 1-5) | Execution only — no need to read unless debugging |
+| [slice_scratch.py](slice_scratch.py) | Read-only verbatim block slicer — extracts `## PRERENDERED` tables/skeleton byte-for-byte so they aren't mangled by hand-copy | Phase 6 rendering (optional but recommended) |
+| [render_dashboard.py](render_dashboard.py) | Deterministic SVG dashboard renderer — parses scratchpad + report + `svg-widgets.yaml` into the 7-row dashboard (no hardcoded run data) | SVG Dashboard Generation (**default** — run this when asked to visualize) |
 
 ---
 
@@ -119,6 +121,15 @@ Step 3:  Render full report (§1-§8) → create_file
 Render the **complete report (§1-§8)** in a single `create_file` call. Apply SKILL-report.md templates to scratchpad data, following Rules A-G. Render all 8 sections (Executive Summary, Ingestion Overview, Deep Dives, Anomaly Detection, Detection Coverage, License Benefit Analysis, Optimization Recommendations, Appendix) and write to the report file.
 
 **⛔ Single-write requirement:** The entire report MUST be rendered in one `create_file` call. Do NOT split rendering across multiple tool calls — splitting causes the LLM to lose template context for later sections (§5-§8), resulting in heading drift, column mutations, and invented content. The complete SKILL-report.md template must be active throughout the entire generation.
+
+**🔴 Verbatim table/skeleton blocks — use the deterministic slicer, never hand-copy.** The PS1 pre-renders every table, the ASCII cost-waterfall, and the §-heading skeleton under `## PRERENDERED` in the scratchpad (`Headings`, `CostWaterfall`, `DailyChart`, `TopTables`, `DetectionPosture`, `AnomalyTable`, `CrossReference`, `SE_Computer`, `SE_EventID`, `SyslogHost/Facility/FacSev/Process`, `CSL_Vendor/Activity`, `Migration`, `HealthAlerts`, `BenefitSummary`, `DfSP2Detail`, `E5Tables`, `QueryTable`, `Footer`). Copy them with the read-only helper instead of transcribing by hand:
+
+```powershell
+python .github/skills/sentinel-ingestion-report/slice_scratch.py --scratch temp/ingest_scratch_<ts>.md --list
+python .github/skills/sentinel-ingestion-report/slice_scratch.py --scratch temp/ingest_scratch_<ts>.md --section AnomalyTable
+```
+
+The slicer prefers the `## PRERENDERED` copy when a section name also exists as a raw data block, folds the nested `### ` lines of the `Headings` skeleton into one block (so `--section Headings` returns the full §-heading lock list), strips pipeline scaffolding (`<!-- … -->` comments, `SectionTitle:` markers), preserves `#### ` sub-headings, and collapses blank runs — so the output drops straight into the report as a valid markdown table or fenced block. **Do NOT paste the raw `Key | Value | …` data blocks** (the early raw sections with a `<!-- header -->` comment and no `|---|` separator row) — they render as plain text, not tables, and dumping the whole scratchpad tail into one section corrupts the report.
 
 ---
 
@@ -770,17 +781,32 @@ Use these when the user asks follow-up questions after a report is generated (e.
 
 ## SVG Dashboard Generation
 
-> 📊 **Optional post-report step.** After a report is generated, the user can request a visual SVG dashboard.
+After a report is generated, the user can request a visual SVG dashboard.
 
 **Trigger phrases:** "generate SVG dashboard", "create a visual dashboard", "visualize this report", "SVG from the report"
 
-### How to Request a Dashboard
+### ✅ DEFAULT: run the deterministic renderer (`render_dashboard.py`)
 
-- **Same chat:** "Generate an SVG dashboard from the report" — data is already in context.
-- **New chat:** Attach or reference the report file, e.g. `#file:reports/sentinel/sentinel_ingestion_report_<workspace>_<date>.md`
-- **Customization:** Edit [svg-widgets.yaml](svg-widgets.yaml) before requesting — the renderer reads it at generation time.
+**Do this first — do NOT hand-author the SVG.** `render_dashboard.py` produces the manifest-driven 7-row dashboard non-interactively, parsing every value from the scratchpad + report + [`svg-widgets.yaml`](svg-widgets.yaml) (no hardcoded run data). It is faster, deterministic, and produces a known-good layout. Run it:
 
-### Execution
+```
+python .github/skills/sentinel-ingestion-report/render_dashboard.py \
+  --scratch temp/ingest_scratch_<ts>.md \
+  --manifest .github/skills/sentinel-ingestion-report/svg-widgets.yaml \
+  --report reports/sentinel/sentinel_ingestion_report_<label>_<ts>.md \
+  --out reports/sentinel/sentinel_ingestion_report_<label>_<ts>_dashboard.svg
+```
+
+It reads the posture gauge, ingestion KPI cards, daily-volume line chart, cost waterfall, tier donut, top-tables / detection-coverage tables, and WoW anomaly + alert-producing-rule tables from the scratchpad, and the header metadata + Overall Assessment + `### 🎯 Top 3 Recommendations` cards from the report (`--report` is optional — the assessment banner and recommendation cards degrade gracefully if absent). The alert-rule subheader lookback suffix (`(7d)`/`(30d)`) is matched by prefix, so any reporting window parses. Output is self-contained SVG with explicit `fill` on every `<text>`.
+
+| Action | Status |
+|--------|--------|
+| Running `render_dashboard.py` when the user asks to visualize/generate a dashboard | ✅ **REQUIRED (default path)** |
+| Hand-authoring the SVG via the `svg-dashboard` skill instead of running the script | ❌ **PROHIBITED** unless the user explicitly asks for a bespoke/custom layout the renderer can't produce |
+
+### Fallback — bespoke/interactive dashboards (`svg-dashboard` skill)
+
+Only use this path when the user explicitly wants a custom layout, different widgets, or styling the deterministic renderer doesn't support. Edit [svg-widgets.yaml](svg-widgets.yaml) first if the change is layout/field-level — the renderer reads it at generation time, so many "customizations" don't require hand-authoring. The YAML manifest is the single source of truth for layout, widgets, field mappings, colors, and data source documentation.
 
 ```
 Step 1:  Read svg-widgets.yaml (this skill's widget manifest)
@@ -788,5 +814,3 @@ Step 2:  Read .github/skills/svg-dashboard/SKILL.md (rendering rules — Manifes
 Step 3:  Read the completed report file (data source)
 Step 4:  Render SVG → save to reports/sentinel/{report_name}_dashboard.svg
 ```
-
-The YAML manifest is the single source of truth for layout, widgets, field mappings, colors, and data source documentation. All customization happens there.

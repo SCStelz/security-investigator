@@ -128,6 +128,15 @@ Render the report across **multiple tool calls** — one section per call — to
 
 Apply SKILL-report.md templates to scratchpad data, following Rules A–D. See [SKILL-report.md](SKILL-report.md) for full section templates and the anchor pattern for each append.
 
+**🔴 Verbatim table sections — use the deterministic slicer, never hand-copy.** Several report tables (§3 TechniqueTables, §5.1 CombinedTacticCoverage, §5.2 AlertFiring, §5.3 ActiveVsTagged, §5.4 IncidentsByTactic, §5.5 DataReadiness, §5.6 ConnectorHealth) are **pre-rendered** by the PS1 under `## PRERENDERED` in the scratchpad. Copy them with the read-only helper instead of transcribing by hand:
+
+```
+python .github/skills/mitre-coverage-report/slice_scratch.py --scratch temp/mitre_scratch_<ts>.md --list
+python .github/skills/mitre-coverage-report/slice_scratch.py --scratch temp/mitre_scratch_<ts>.md --section AlertFiring
+```
+
+The slicer prefers the `## PRERENDERED` copy when a section name also exists as a raw data block, strips pipeline scaffolding (`<!-- … -->` comments, `SectionTitle:` markers) wherever it appears, preserves `#### ` sub-headings, and collapses blank runs — so the output drops straight into the report as a valid markdown table. **Do NOT paste the raw `Key | Value | …` data blocks** (the ones with a `<!-- header -->` comment and no `|---|` separator row) — they render as plain text, not tables, and pasting the whole scratchpad tail into one section corrupts the report.
+
 **⛔ Do NOT render §1–§6 in a single `create_file` call.** The output will truncate silently. The scratchpad is ~60 KB; the rendered report exceeds the single-call output budget.
 
 **🔴 ALL 6 APPENDS ARE MANDATORY.** Do NOT stop after §5 — §6 (Recommendations) and the Appendix (Score Methodology, Limitations) are critical and must be appended. After the 6th append, run `grep_search` for `## 6. Recommendations` and `## Appendix` on the report file to verify both exist. If either is missing, append the missing content immediately.
@@ -480,11 +489,33 @@ After the report is generated, the user may request an SVG dashboard visualizati
 
 **Trigger:** "generate SVG dashboard", "visualize this report", "SVG from the MITRE report"
 
-**Workflow:**
+### ✅ DEFAULT: run the deterministic renderer (`render_dashboard.py`)
+
+**Do this first — do NOT hand-author the SVG.** `render_dashboard.py` produces the manifest-driven 5-row dashboard non-interactively, parsing every value from the scratchpad + report + [`svg-widgets.yaml`](svg-widgets.yaml) (no hardcoded run data). It is faster, deterministic, and produces a known-good layout. Run it:
+
+```
+python .github/skills/mitre-coverage-report/render_dashboard.py \
+  --scratch temp/mitre_scratch_<ts>.md \
+  --manifest .github/skills/mitre-coverage-report/svg-widgets.yaml \
+  --report reports/sentinel/mitre_coverage_report_<label>_<ts>.md \
+  --out reports/sentinel/mitre_coverage_report_<label>_<ts>_dashboard.svg
+```
+
+It reads the donut center, score dimensions, tactic bars, threat-scenario table, and KPI values from the scratchpad, and the Top-3 recommendation cards from the report's `### 🎯 Top 3 Recommendations` table (falling back to top threat-scenario gaps if absent). Output is self-contained SVG with explicit `fill` on every `<text>`.
+
+| Action | Status |
+|--------|--------|
+| Running `render_dashboard.py` when the user asks to visualize/generate a dashboard | ✅ **REQUIRED (default path)** |
+| Hand-authoring the SVG via the `svg-dashboard` skill instead of running the script | ❌ **PROHIBITED** unless the user explicitly asks for a bespoke/custom layout the renderer can't produce |
+
+### Fallback — bespoke/interactive dashboards (`svg-dashboard` skill)
+
+Only use this path when the user explicitly wants a custom layout, different widgets, or styling the deterministic renderer doesn't support. Edit [svg-widgets.yaml](svg-widgets.yaml) first if the change is layout/field-level — the renderer reads it at generation time, so many "customizations" don't require hand-authoring.
+
 1. Load the `svg-dashboard` skill
 2. Use the rendered report + scratchpad data to build visualization widgets
 3. Recommended widget types for MITRE coverage:
-   - **Score card** — MITRE Coverage Score (40.1/100) with 5 dimension breakdown
+   - **Score card** — MITRE Coverage Score with 5 dimension breakdown
    - **Bar chart** — Per-tactic coverage percentages (14 bars)
    - **Donut chart** — Rule inventory breakdown (AR enabled/disabled, CD enabled/disabled, untagged)
    - **Table** — Top 5 coverage gaps (tactic + gap %)
