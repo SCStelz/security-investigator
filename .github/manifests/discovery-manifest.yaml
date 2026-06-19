@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-06-17T18:04:02Z'
+generated: '2026-06-19T00:47:30Z'
 valid_domains:
 - admin
 - cloud
@@ -803,6 +803,26 @@ queries:
   - T1556.006
   - TA0001
   - TA0006
+- title: The Gentlemen Ransomware (Storm-2697) — Threat Hunts
+  path: queries/threat-intelligence/2026-05/gentlemen_ransomware_go_encryptor.md
+  domains:
+  - endpoint
+  mitre:
+  - T1486
+  - T1490
+  - T1489
+  - T1562.001
+  - T1070.001
+  - T1547.001
+  - T1053.005
+  - T1021.002
+  - T1570
+  - T1569.002
+  - T1047
+  - T1059.001
+  - T1219
+  - T1222.001
+  - T1078
 - title: Kazuar / Secret Blizzard (Turla) — Threat Hunts
   path: queries/threat-intelligence/2026-05/kazuar_secret_blizzard.md
   domains:
