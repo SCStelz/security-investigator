@@ -10,9 +10,11 @@ venv/
 ENV/
 
 # Sensitive configuration
+# Ignore config.json and all environment-specific variants (config.json.*)
+# but keep the safe-to-publish template.
 config.json
-config.json.stelznet
-config.json.zava
+config.json.*
+!config.json.template
 
 # Copilot CLI workspace MCP config (environment-specific, contains secret input refs)
 .mcp.json

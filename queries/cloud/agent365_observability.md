@@ -3,7 +3,7 @@
 **Created:** 2026-05-22  
 **Platform:** Microsoft Sentinel (Data Lake + Analytics tier for promoted tables)  
 **Tables:** UnifiedAgentObservability, CloudAppEvents, A365_JailbreakIncidents_KQL_CL, A365_QueryLakeAudit_KQL_CL, A365_AgentToolDaily_KQL_CL, A365_AgentToolFailuresDaily_KQL_CL  
-**Keywords:** Agent 365, A365, AI agent, Copilot Studio, prompt injection, jailbreak, Prompt Shield, XPIA, MCP tool, Power Platform Connector, agent telemetry, conversation, tool call, prompt forensics, agent observability, CloudAppEvents CopilotInteraction  
+**Keywords:** Agent 365, A365, AI agent, Copilot Studio, Work IQ, prompt injection, jailbreak, Prompt Shield, XPIA, MCP tool, gateway tool, ExecuteToolByGateway, ExecuteToolBySDK, InvokeAgent, InferenceCall, token usage, ToolName, Power Platform Connector, agent telemetry, conversation, tool call, prompt forensics, agent observability, CloudAppEvents CopilotInteraction  
 **MITRE:** T1078.004, T1059, T1087, T1530, T1071.001, TA0001, TA0007, TA0009  
 **Domains:** cloud, identity  
 **Timeframe:** Last 7 days to 12 years (Data Lake retention; KQL Jobs support up to 12-year lookback)
@@ -23,30 +23,39 @@ This table lives in the **Sentinel Data Lake system scope**, not a specific work
 - ❌ Not indexed by `mcp_sentinel-data_search_tables`
 - ✅ Data Lake only, via `workspaceId: "default"`
 
-### Event Shapes — Two Distinct Telemetry Types
+### Event Shapes — Four Telemetry Types
 
-Telemetry splits sharply by `EventOriginalType`:
+> **`EventType` is blank** on every row from this connector — discriminate **only** on `EventOriginalType`.
 
-| `EventOriginalType` | What It Captures | Key Populated Fields | Key Empty Fields (Preview) |
+Telemetry splits across four `EventOriginalType` values. The mix is environment-dependent; in a validated lab the recent split was roughly `InvokeAgent` ~47% / `InferenceCall` ~33% / `ExecuteToolByGateway` ~16% / `ExecuteToolBySDK` ~4%.
+
+| `EventOriginalType` | What It Captures | Key Populated Fields | Notes |
 |---|---|---|---|
-| **`InvokeAgent`** | User-to-agent conversation turn (the user's side) | `EventOriginalRequestDetails` = full plaintext user prompt; `ActorUsername`; `EventSessionId`; `AdditionalFields.ChannelName` / `ConversationId` | `EventOriginalResultDetails` (agent response), `EventThoughtProcessDetails`, `ModelName`, `InputTokensUsed`, `OutputTokensUsed`, `EventFinishReasons` — typically empty in current preview |
-| **`ExecuteToolBySDK`** | Agent-to-tool MCP / connector call (full request + response) | `EventOriginalRequestDetails` = JSON-RPC payload (`method`, `params.name`, `params.arguments`); `EventOriginalResultDetails` = full tool response; `ToolName`, `ToolId`, `ToolOriginalType`; `EventRequestId` / `EventResponseId` | `ActorUsername` = `"N/A"` (connector runs under agent identity, not user) |
+| **`InvokeAgent`** | A conversation turn — **either a user prompt or an agent reply** | `parse_json(EventOriginalRequestDetails).text` = the message text; `ActorUsername`; `EventSessionId`; `SrcAgentBlueprintId`; `TargetAgentName` (M365 Copilot agents); `AdditionalFields.ChannelName` / `ConversationId` | **Discriminate prompt vs reply on `SrcAgentBlueprintId`:** zero-GUID (`00000000-…`) = **user prompt**; real blueprint GUID = **agent reply** (replies are emitted only by custom Agent365 agents). The message text is in `.text`, not the raw string. |
+| **`InferenceCall`** | One LLM model inference / token-usage event | `SrcAgentName`; `ModelName` / `ModelProviderName`; `InputTokensUsed` / `OutputTokensUsed`; `ActorUsername`; `AdditionalFields.ChannelName` / `ConversationId` | Best source for an **agent-name + token-usage inventory**, especially for M365 Copilot built-in agents (which have no SPN). `SrcAgentBlueprintId` is zero-GUID for built-ins; `ModelName`/`ModelProviderName` = `"Internal"`. |
+| **`ExecuteToolByGateway`** | Agent-to-tool call through the Agent365 / Work IQ **gateway** (the dominant tool type) | **`ToolName` (top-level column)** e.g. `GetUserDetails`; `EventOriginalRequestDetails` = **plain JSON args object** (`{"userId":"me","select":"…"}`); `EventOriginalResultDetails` = `{"result":"…"}`; `SrcAgentName`; `SrcAgentId` (real SPN GUID); `ActorUsername` = the agentic-user UPN | **No JSON-RPC envelope.** Read the tool name from the `ToolName` column directly. |
+| **`ExecuteToolBySDK`** | Agent-to-tool call from an M365 Copilot **built-in** agent (e.g. Researcher) | **`ToolName` (top-level column)** e.g. `enterprise_search.search_enterprise_meetings`; `EventOriginalRequestDetails` = **`key="value"` param string** (not JSON); `EventOriginalResultDetails` = `{"messageText":"…"}`; `SrcAgentName`; `ActorUsername` = the human UPN | **No JSON-RPC envelope.** `SrcAgentId` is zero-GUID (built-ins have no SPN). |
 
-Both event types share `EventSessionId`, which is the join key for reconstructing a conversation turn together with the tool calls it triggered.
+All four share `EventSessionId` (1:1 with `AdditionalFields.ConversationId`), the join key for reconstructing a conversation together with the inference and tool-call events it triggered.
 
 ### ⚠️ Table Pitfalls
 
 | Pitfall | Detail |
 |---------|--------|
 | **`workspaceId: "default"` required** | See above — workspace GUID returns table-not-found. |
-| `AdditionalFields` is **dynamic** | Always `parse_json(tostring(AdditionalFields))` before dot-access. Common keys: `ChannelName`, `ConversationId`, `ConversationLink`, `OpId`, `ParentId`. |
-| `EventFinishReasons` is **dynamic** | Same parse requirement. Often empty in preview. |
-| `EventOriginalRequestDetails` / `EventOriginalResultDetails` are **strings**, not dynamic | Use `parse_json()` to extract structured fields. Raw payloads can be large (KB–MB per row); avoid `tostring(col) has "x"` patterns — extract specific JSON fields instead. |
-| `ActorUsername == "N/A"` on tool-call rows | Tool calls execute under the agent's identity. To attribute tool calls to the originating user, join on `EventSessionId` to a sibling `InvokeAgent` row. |
-| **Agent identity is blank on `InvokeAgent` rows** | `SrcAgentId`, `SrcAgentName`, and `SrcAgentOriginalType` are populated only on `ExecuteToolBySDK` rows. User prompt rows arrive with `SrcAgentId == "00000000-0000-0000-0000-000000000000"` and empty `SrcAgentName`. To attribute a prompt to an agent, join on `EventSessionId` to a sibling `ExecuteToolBySDK` row in the same session and pull `SrcAgentName` from there. Queries that group prompts by `SrcAgentName` will produce a single empty-agent bucket if this enrichment is skipped. |
+| **`EventType` is blank; use `EventOriginalType`** | The normalized `EventType` column is empty on every row. All event discrimination is on `EventOriginalType` (`InvokeAgent`, `InferenceCall`, `ExecuteToolByGateway`, `ExecuteToolBySDK`). |
+| **Tool name is the top-level `ToolName` column — NOT JSON-RPC** | This connector does **not** emit a JSON-RPC envelope. There is no `EventOriginalRequestDetails.method == "tools/call"` and no `.params.name`. Read `ToolName` directly — it is populated on both `ExecuteToolByGateway` and `ExecuteToolBySDK` rows. Filter tool calls with `EventOriginalType in ("ExecuteToolByGateway","ExecuteToolBySDK")`. |
+| **Tool request payload format differs by tool type** | `ExecuteToolByGateway` → `EventOriginalRequestDetails` is a **plain JSON args object** (`parse_json()` it). `ExecuteToolBySDK` → it is a **`key="value"` string** (parse with `extract_all` / `split`, not `parse_json`). |
+| **`ActorUsername` is a real UPN on tool rows (not `"N/A"`)** | On `ExecuteToolByGateway` it is the agentic-user UPN; on `ExecuteToolBySDK` it is the human UPN. On `InvokeAgent` it can also be a Teams MRI (`8:orgid:<guid>`) or `system`. `ActorUsernameType` is empty. (Older schema versions emitted `"N/A"` on tool rows — stay null-safe both ways with `ActorUsername != "N/A" and isnotempty(ActorUsername)`.) |
+| **Agent-name attribution** | `SrcAgentName` is populated on `InferenceCall`, `ExecuteToolByGateway`, `ExecuteToolBySDK` but **blank on `InvokeAgent`**. For `InvokeAgent` rows, `TargetAgentName` carries the agent name for **M365 Copilot** agents (empty for custom Agent365 agents). Recommended: `iif(isnotempty(SrcAgentName), SrcAgentName, tostring(TargetAgentName))`. For custom-agent `InvokeAgent` rows where neither is set, session-join to a sibling tool/inference row's `SrcAgentName`. |
+| **`SrcAgentId` is the agent SPN GUID — real only for custom Agent365 agents** | Custom Agent365 agents carry a real `SrcAgentId` (SPN) and real `SrcAgentBlueprintId` (blueprint). M365 Copilot built-in agents (Researcher, etc.) have **zero-GUID** `SrcAgentId` and `SrcAgentBlueprintId`. The CAE cross-source join ([Query 9](#query-9-cross-source-correlation-with-cloudappevents)) keys on `SrcAgentId`, so it correlates **custom** agents only. |
+| **Tool errors via `EventErrorDetails` / `EventOriginalErrorType`** | A failed tool call has non-empty `EventErrorDetails`, `EventOriginalErrorType == "Error"`, and an **empty** `EventOriginalResultDetails`. Do **not** rely on `"error"` / `"isError":true` substring checks in the result string — they don't match this schema. |
+| **Token usage lives on `InferenceCall`** | `InputTokensUsed` / `OutputTokensUsed` are populated on `InferenceCall` rows. They are empty on `InvokeAgent` / tool rows. |
+| `AdditionalFields` is **dynamic** | Always `parse_json(tostring(AdditionalFields))` before dot-access. Common keys: `ChannelName`, `ConversationId`, `ConversationLink`, `OpId`, `ParentId`, `CorrelationIdentity`. |
+| `EventOriginalRequestDetails` / `EventOriginalResultDetails` are **strings**, not dynamic | Use `parse_json()` (Gateway/JSON) or string parsing (SDK/`key=value`) to extract fields. Payloads can be large; extract specific fields rather than `tostring(col) has "x"`. |
 | `EventEndTime` may be `0001-01-01T00:00:00Z` | Treat as null — use `EventStartTime` / `TimeGenerated` for time analysis. |
-| Agent response not captured | Current preview ingests user prompts only — the agent's reply is not in `EventOriginalResultDetails` for `InvokeAgent` events. For agent reasoning, inspect downstream `ExecuteToolBySDK` rows in the same session. |
-| No content-safety verdict | No Prompt Shield outcome, XPIA flag, or groundedness score lives in this table. Pair with `AgentsInfo` (AH-only) for agent posture and Defender for AI alerts for safety signals. |
+| **Channels** | `InvokeAgent` → `msteams`, `M365Copilot`, `agents`. `InferenceCall` → `M365Copilot`. `ExecuteToolByGateway` → channel often empty. `ExecuteToolBySDK` → `M365Copilot`. |
+| No content-safety verdict | No Prompt Shield outcome, XPIA flag, or groundedness score lives in this table. Pair with `CloudAppEvents` `CopilotInteraction` ([Query 9](#query-9-cross-source-correlation-with-cloudappevents)) for safety verdicts and `AgentsInfo` (AH-only) for agent posture. |
 
 ### Related Tables
 
@@ -67,7 +76,7 @@ Both event types share `EventSessionId`, which is the join key for reconstructin
 | 2 | [Prompt Injection / Jailbreak Detection](#query-2-prompt-injection--jailbreak-detection) | Detection | `UnifiedAgentObservability` |
 | 3 | [Session Reconstruction — Prompts + Tool Calls](#query-3-session-reconstruction--prompts--tool-calls) | Investigation | `UnifiedAgentObservability` |
 | 4 | [Tool Invocation Inventory per Agent](#query-4-tool-invocation-inventory-per-agent) | Posture | `UnifiedAgentObservability` |
-| 5 | [MCP `query_lake` Argument Audit](#query-5-mcp-querylake-argument-audit) | Investigation | `UnifiedAgentObservability` |
+| 5 | [Tool Argument Audit (data-access tools)](#query-5-tool-argument-audit-data-access-tools) | Investigation | `UnifiedAgentObservability` |
 | 6 | [Tool Call Failures & Errors](#query-6-tool-call-failures--errors) | Investigation | `UnifiedAgentObservability` |
 | 7 | [New Tool First-Seen — Baseline Deviation](#query-7-new-tool-first-seen--baseline-deviation) | Dashboard | `UnifiedAgentObservability` |
 | 8 | [Channel & User Activity Distribution](#query-8-channel--user-activity-distribution) | Investigation | `UnifiedAgentObservability` |
@@ -93,37 +102,43 @@ Both event types share `EventSessionId`, which is the join key for reconstructin
 **MITRE:** —  
 
 ```kql
-// Pull agent identity from ExecuteToolBySDK rows (where it's populated) and use
-// EventSessionId to enrich the InvokeAgent rows (where SrcAgent* is blank).
+// Agent name lives on SrcAgentName (tool/inference rows) or TargetAgentName (M365 Copilot
+// InvokeAgent rows). For custom-agent InvokeAgent rows where both are blank, enrich from a
+// sibling tool/inference row in the same session via EventSessionId.
+let zero = "00000000-0000-0000-0000-000000000000";
 let SessionAgent = UnifiedAgentObservability
     | where TimeGenerated > ago(30d)
-    | where EventOriginalType == "ExecuteToolBySDK" and isnotempty(SrcAgentName)
-    | summarize arg_max(TimeGenerated, SrcAgentId, SrcAgentName, SrcAgentOriginalType) by EventSessionId;
+    | where isnotempty(SrcAgentName)
+    | summarize arg_max(TimeGenerated, SrcAgentName, SrcAgentOriginalType) by EventSessionId;
 UnifiedAgentObservability
 | where TimeGenerated > ago(30d)
-| extend Channel = tostring(parse_json(tostring(AdditionalFields)).ChannelName)
+| extend AF = parse_json(tostring(AdditionalFields))
+| extend Channel = tostring(AF.ChannelName)
+| extend RowAgentName = iif(isnotempty(SrcAgentName), SrcAgentName, tostring(TargetAgentName))
 | join kind=leftouter SessionAgent on EventSessionId
-| extend
-    AgentId   = iff(isnotempty(SrcAgentName), SrcAgentId, SrcAgentId1),
-    AgentName = iff(isnotempty(SrcAgentName), SrcAgentName, SrcAgentName1),
-    AgentType = iff(isnotempty(SrcAgentOriginalType), SrcAgentOriginalType, SrcAgentOriginalType1)
+| extend AgentName = iif(isnotempty(RowAgentName), RowAgentName, SrcAgentName1)
+| extend AgentName = iif(isnotempty(AgentName), AgentName, "(unattributed)")
 | summarize
-    Events           = count(),
-    UserPrompts      = countif(EventOriginalType == "InvokeAgent"),
-    ToolCalls        = countif(EventOriginalType == "ExecuteToolBySDK"),
-    Sessions         = dcount(EventSessionId),
-    Conversations    = dcount(tostring(parse_json(tostring(AdditionalFields)).ConversationId)),
-    DistinctUsers    = dcountif(ActorUsername, ActorUsername != "N/A" and isnotempty(ActorUsername)),
-    Channels         = make_set(Channel, 10),
-    FirstSeen        = min(TimeGenerated),
-    LastSeen         = max(TimeGenerated)
-    by AgentId, AgentName, AgentType, EventProduct
+    Events         = count(),
+    UserPrompts    = countif(EventOriginalType == "InvokeAgent" and SrcAgentBlueprintId == zero),
+    AgentReplies   = countif(EventOriginalType == "InvokeAgent" and isnotempty(SrcAgentBlueprintId) and SrcAgentBlueprintId != zero),
+    InferenceCalls = countif(EventOriginalType == "InferenceCall"),
+    ToolCalls      = countif(EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")),
+    InTokens       = sum(toint(InputTokensUsed)),
+    OutTokens      = sum(toint(OutputTokensUsed)),
+    Sessions       = dcount(EventSessionId),
+    Conversations  = dcount(tostring(AF.ConversationId)),
+    DistinctUsers  = dcountif(ActorUsername, ActorUsername != "N/A" and isnotempty(ActorUsername)),
+    Channels       = make_set(Channel, 10),
+    FirstSeen      = min(TimeGenerated),
+    LastSeen       = max(TimeGenerated)
+    by AgentName, EventProduct
 | order by Events desc
 ```
 
-**Expected results:** One row per agent. `UserPrompts` and `ToolCalls` should both be non-zero for actively-used agents. Agents with `ToolCalls > 0` but `UserPrompts == 0` may be invoked headlessly (automation, scheduled triggers). The session-level join is required because `SrcAgent*` columns are blank on `InvokeAgent` rows — without it, all user prompts collapse into a single empty-agent bucket. Prompts in sessions that never invoked a tool will still appear under a blank `AgentName` row.
+**Expected results:** One row per agent. `UserPrompts` (InvokeAgent with zero-GUID blueprint) and `ToolCalls` (both `ExecuteTool*` types) should be non-zero for actively-used agents. `InferenceCalls` plus `InTokens`/`OutTokens` give a token-usage view (populated for M365 Copilot agents). The session-level join is required because `SrcAgentName` is blank on `InvokeAgent` rows — without it, user prompts collapse into an `(unattributed)` bucket. For M365 Copilot agents the name comes from `TargetAgentName` (InvokeAgent) or `SrcAgentName` (InferenceCall/tool rows).
 
-**Tuning:** Filter to a single `SrcAgentName` for drill-down. Replace `ago(30d)` with `ago(7d)` for recent activity only.
+**Tuning:** Filter to a single `AgentName` for drill-down. Replace `ago(30d)` with `ago(7d)` for recent activity only.
 
 ---
 
@@ -135,26 +150,30 @@ UnifiedAgentObservability
 
 ```kql
 let JailbreakPatterns = @"(?i)\b(ignore\s+(all\s+)?(your\s+|previous\s+)?(prior\s+)?instructions|disregard\s+(your\s+|all\s+)?(prior\s+|previous\s+)?(safety|guidelines|instructions|rules)|system\s+(override|prompt|instructions)|reveal\s+(your\s+|the\s+)?(system\s+prompt|metaprompt|initial\s+prompt|instructions)|jailbreak|DAN\s+mode|developer\s+mode|unregulated\s+(AI|model|mode)|act\s+as\s+if\s+you\s+have\s+no\s+(restrictions|filters|guidelines)|from\s+now\s+on\s+you\s+are)\b";
+let zero = "00000000-0000-0000-0000-000000000000";
 let SessionAgent = UnifiedAgentObservability
     | where TimeGenerated > ago(7d)
-    | where EventOriginalType == "ExecuteToolBySDK" and isnotempty(SrcAgentName)
+    | where isnotempty(SrcAgentName)
     | summarize arg_max(TimeGenerated, SrcAgentName) by EventSessionId;
 UnifiedAgentObservability
 | where TimeGenerated > ago(7d)
 | where EventOriginalType == "InvokeAgent"
-| where isnotempty(EventOriginalRequestDetails)
-| where EventOriginalRequestDetails matches regex JailbreakPatterns
+| where SrcAgentBlueprintId == zero                       // user prompts only (agent replies carry a real blueprint GUID)
+| extend PromptText = tostring(parse_json(EventOriginalRequestDetails).text)
+| where isnotempty(PromptText)
+| where PromptText matches regex JailbreakPatterns
 | extend
-    Channel        = tostring(parse_json(tostring(AdditionalFields)).ChannelName),
-    ConversationId = tostring(parse_json(tostring(AdditionalFields)).ConversationId),
-    PromptPreview  = substring(EventOriginalRequestDetails, 0, 500)
+    AF             = parse_json(tostring(AdditionalFields)),
+    PromptPreview  = substring(PromptText, 0, 500)
+| extend Channel = tostring(AF.ChannelName), ConversationId = tostring(AF.ConversationId)
 | join kind=leftouter SessionAgent on EventSessionId
-| extend AgentName = coalesce(SrcAgentName1, "(prompt-only session — no tool calls)")
+| extend AgentName = iif(isnotempty(tostring(TargetAgentName)), tostring(TargetAgentName), SrcAgentName1)
+| extend AgentName = iif(isnotempty(AgentName), AgentName, "(prompt-only session — no tool/inference calls)")
 | project TimeGenerated, ActorUsername, AgentName, Channel, ConversationId, EventSessionId, PromptPreview, EventUid
 | order by TimeGenerated desc
 ```
 
-**Expected results:** Each row is one suspect prompt with the user, agent, channel, and session for pivot. `PromptPreview` truncates to 500 chars for readability — pull the full payload from `EventOriginalRequestDetails` via `EventUid` for forensic review.
+**Expected results:** Each row is one suspect prompt with the user, agent, channel, and session for pivot. The prompt text is extracted from `EventOriginalRequestDetails.text` (the raw column is a JSON object, not bare text). `PromptPreview` truncates to 500 chars — pull the full `.text` via `EventUid` for forensic review.
 
 **Pivot:** Use `EventSessionId` to feed [Query 3](#query-3-session-reconstruction--prompts--tool-calls) and see whether the agent actioned the malicious prompt by calling tools.
 
@@ -173,24 +192,23 @@ let TargetSession = "<SESSION_ID_FROM_QUERY_2>";
 UnifiedAgentObservability
 | where TimeGenerated > ago(7d)
 | where EventSessionId == TargetSession
+| extend AF = parse_json(tostring(AdditionalFields))
 | extend
-    Channel       = tostring(parse_json(tostring(AdditionalFields)).ChannelName),
-    Req           = parse_json(EventOriginalRequestDetails),
-    ToolMethod    = tostring(parse_json(EventOriginalRequestDetails).method),
-    ToolName_Call = tostring(parse_json(EventOriginalRequestDetails).params.name)
+    Channel     = tostring(AF.ChannelName),
+    MessageText = iif(EventOriginalType == "InvokeAgent", tostring(parse_json(EventOriginalRequestDetails).text), "")
 | project
     TimeGenerated,
     EventOriginalType,
-    Actor          = iff(ActorUsername == "N/A" or isempty(ActorUsername), SrcAgentName, ActorUsername),
+    Actor     = iif(ActorUsername == "N/A" or isempty(ActorUsername), SrcAgentName, ActorUsername),
+    AgentName = iif(isnotempty(SrcAgentName), SrcAgentName, tostring(TargetAgentName)),
     Channel,
-    ToolMethod,
-    ToolName_Call,
-    PromptOrPayload = substring(EventOriginalRequestDetails, 0, 500),
+    ToolName,                                            // top-level column (tool rows only)
+    PromptOrPayload = iif(EventOriginalType == "InvokeAgent", substring(MessageText, 0, 500), substring(tostring(EventOriginalRequestDetails), 0, 500)),
     EventUid
 | order by TimeGenerated asc
 ```
 
-**Expected results:** Chronological event stream. `InvokeAgent` rows show the user prompt; `ExecuteToolBySDK` rows show JSON-RPC method (`initialize`, `tools/list`, `tools/call`) and the called tool name. A jailbreak that the agent ignored will have `InvokeAgent` rows with no downstream `tools/call` activity touching sensitive tools.
+**Expected results:** Chronological event stream. `InvokeAgent` rows show the message text (user prompt or agent reply); `InferenceCall` rows show the LLM turn; `ExecuteToolByGateway` / `ExecuteToolBySDK` rows show the called `ToolName` plus its request payload. A jailbreak the agent ignored will have `InvokeAgent` rows with no downstream tool calls touching sensitive surfaces.
 
 **Tuning:** Replace `TargetSession` with the session ID from Query 2 or 6. Pull full payloads from `EventOriginalRequestDetails` / `EventOriginalResultDetails` via `EventUid`.
 
@@ -205,50 +223,47 @@ UnifiedAgentObservability
 ```kql
 UnifiedAgentObservability
 | where TimeGenerated > ago(30d)
-| where EventOriginalType == "ExecuteToolBySDK"
-| extend
-    Method      = tostring(parse_json(EventOriginalRequestDetails).method),
-    ToolCalled  = tostring(parse_json(EventOriginalRequestDetails).params.name)
-| where Method == "tools/call"
+| where EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")
+| where isnotempty(ToolName)
 | summarize
     Calls       = count(),
     Sessions    = dcount(EventSessionId),
     FirstCall   = min(TimeGenerated),
     LastCall    = max(TimeGenerated)
-    by SrcAgentName, ToolName, ToolCalled, ToolOriginalType
+    by SrcAgentName, ToolName, ToolOriginalType, ToolType = EventOriginalType
 | order by SrcAgentName asc, Calls desc
 ```
 
-**Expected results:** One row per (agent, tool, called-method). `ToolName` is the connector/MCP server identifier; `ToolCalled` is the specific tool/function inside it (e.g., `query_lake`, `Pulse_OpenIncidents_Top10`).
+**Expected results:** One row per (agent, tool). `ToolName` is the specific tool/function the agent invoked — e.g. `GetUserDetails`, `GetManagerDetails` (Agent365 / Work IQ gateway tools), or `enterprise_search.search_enterprise_meetings` (M365 Copilot SDK tools). `ToolType` distinguishes gateway vs SDK delivery.
 
 **Tuning:** Filter to `where SrcAgentName == "<AgentName>"` for per-agent drill-down.
 
 ---
 
-### Query 5: MCP `query_lake` Argument Audit
+### Query 5: Tool Argument Audit (data-access tools)
 
-**Purpose:** Inspect every KQL `query_lake` invocation the agent made, including the actual KQL text and target workspace. Critical for spotting data-egress patterns or queries that touch sensitive tables.  
+**Purpose:** Inspect the arguments an agent passed to its tools — critical for spotting data-egress patterns, queries against sensitive surfaces, or unexpected parameters. For `ExecuteToolByGateway` rows the arguments are a plain JSON object in `EventOriginalRequestDetails`; for `ExecuteToolBySDK` rows they are a `key="value"` string.  
 **Severity:** Low  
 **MITRE:** T1530, TA0009  
 
 ```kql
+// Gateway tools carry their arguments as a plain JSON object in EventOriginalRequestDetails.
+// Scope to data-access tools by name; adjust the ToolName filter to your environment.
 UnifiedAgentObservability
 | where TimeGenerated > ago(7d)
-| where EventOriginalType == "ExecuteToolBySDK"
-| extend Req = parse_json(EventOriginalRequestDetails)
-| where tostring(Req.method) == "tools/call"
-| where tostring(Req.params.name) == "query_lake"
-| extend
-    Args             = parse_json(tostring(Req.params.arguments)),
-    KqlText          = tostring(parse_json(tostring(Req.params.arguments)).query),
-    TargetWorkspace  = tostring(parse_json(tostring(Req.params.arguments)).workspaceId)
-| project TimeGenerated, SrcAgentName, EventSessionId, TargetWorkspace, KqlText, EventUid
+| where EventOriginalType == "ExecuteToolByGateway"
+| where ToolName has_any ("query", "search", "list", "get", "read")   // data-access tools
+| extend Args = parse_json(EventOriginalRequestDetails)
+| project TimeGenerated, SrcAgentName, ActorUsername, EventSessionId, ToolName,
+          Args, ArgsRaw = substring(tostring(EventOriginalRequestDetails), 0, 1000), EventUid
 | order by TimeGenerated desc
 ```
 
-**Expected results:** Each row exposes the full KQL the agent submitted plus the target workspace. Look for: queries against unexpected workspaces, queries that read PII-heavy tables (`IdentityInfo`, `EmailEvents`), or queries with very large `take` / `limit` values.
+**Expected results:** Each row exposes the full argument object the agent submitted to a data-access tool. Look for: arguments targeting unexpected users/mailboxes/resources, broad `select` projections pulling PII fields, or large result requests.
 
-**Tuning:** Replace `query_lake` with `RunAdvancedHuntingQuery` or any tool you want to audit. Use `where TargetWorkspace !in ("<expected-ws-1>", "<expected-ws-2>")` to spot cross-workspace queries.
+**Tuning:**
+- For **MCP-shim agents** that expose a `query_lake` / `RunAdvancedHuntingQuery` tool, filter `ToolName == "query_lake"` and read the KQL from `Args.query` (and target workspace from `Args.workspaceId`). The older JSON-RPC `params.arguments.query` shape does **not** apply to this connector — arguments are the top-level JSON object directly.
+- For `ExecuteToolBySDK` rows the request is a `key="value"` **string**, not JSON — parse with `extract_all(@'(\w+)="([^"]*)"', EventOriginalRequestDetails)` instead of `parse_json`.
 
 ---
 
@@ -261,25 +276,20 @@ UnifiedAgentObservability
 ```kql
 UnifiedAgentObservability
 | where TimeGenerated > ago(7d)
-| where EventOriginalType == "ExecuteToolBySDK"
-| extend
-    Method     = tostring(parse_json(EventOriginalRequestDetails).method),
-    ToolCalled = tostring(parse_json(EventOriginalRequestDetails).params.name),
-    HasError   = isnotempty(EventErrorDetails)
-        or tostring(EventOriginalResultDetails) contains "\"error\""
-        or tostring(EventOriginalResultDetails) contains "\"isError\":true"
-| where Method == "tools/call"
-| where HasError
-| project TimeGenerated, SrcAgentName, EventSessionId, ToolCalled,
+| where EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")
+| where isnotempty(EventErrorDetails) or EventOriginalErrorType == "Error"
+| project TimeGenerated, SrcAgentName, ActorUsername, EventSessionId, ToolName,
+          ToolType  = EventOriginalType,
+          ErrorType = EventOriginalErrorType,
           ErrorSnippet = substring(coalesce(EventErrorDetails, tostring(EventOriginalResultDetails)), 0, 400),
           EventUid
 | order by TimeGenerated desc
 | take 100
 ```
 
-**Expected results:** Rows where the agent's tool call failed. A spike in failures from a previously-stable agent may indicate permission revocation, broken MCP server, or the agent exploring tools it shouldn't.
+**Expected results:** Rows where the agent's tool call failed — a failed call has non-empty `EventErrorDetails` and/or `EventOriginalErrorType == "Error"` (with an empty `EventOriginalResultDetails`). A spike in failures from a previously-stable agent may indicate permission revocation, a broken MCP server / gateway tool, or the agent probing tools it shouldn't.
 
-**Tuning:** Adjust the `contains` patterns to match the error shape your MCP servers return. Group by `ToolCalled` to find consistently-failing tools.
+**Tuning:** Group by `ToolName` to find consistently-failing tools. The `"error"` / `"isError":true` result-string checks used by some MCP shims do **not** apply here — this connector signals errors via `EventErrorDetails` / `EventOriginalErrorType`.
 
 ---
 
@@ -292,21 +302,21 @@ UnifiedAgentObservability
 ```kql
 let Baseline = UnifiedAgentObservability
     | where TimeGenerated between (ago(30d) .. ago(1d))
-    | where EventOriginalType == "ExecuteToolBySDK"
-    | extend ToolCalled = tostring(parse_json(EventOriginalRequestDetails).params.name)
-    | where isnotempty(ToolCalled)
-    | distinct SrcAgentId, ToolCalled;
+    | where EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")
+    | where isnotempty(ToolName)
+    | distinct SrcAgentName, ToolName;
 UnifiedAgentObservability
 | where TimeGenerated > ago(1d)
-| where EventOriginalType == "ExecuteToolBySDK"
-| extend ToolCalled = tostring(parse_json(EventOriginalRequestDetails).params.name)
-| where isnotempty(ToolCalled)
-| summarize FirstSeenRecent = min(TimeGenerated), Calls = count() by SrcAgentId, SrcAgentName, ToolCalled
-| join kind=leftanti Baseline on SrcAgentId, ToolCalled
+| where EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")
+| where isnotempty(ToolName)
+| summarize FirstSeenRecent = min(TimeGenerated), Calls = count() by SrcAgentName, ToolName
+| join kind=leftanti Baseline on SrcAgentName, ToolName
 | order by FirstSeenRecent desc
 ```
 
 **Expected results:** One row per (agent, tool) combination that is new in the last 24 hours vs the prior 30-day baseline. Each row should be triaged: is the tool sanctioned? Was it added intentionally?
+
+> **Why `SrcAgentName`, not `SrcAgentId`?** M365 Copilot built-in agents have a zero-GUID `SrcAgentId`, so keying on `SrcAgentId` would collapse all built-ins into one bucket. `SrcAgentName` is populated on every tool row and is the reliable per-agent key here.
 
 **Tuning:** Adjust the baseline window (`30d`) and recent window (`1d`) for your environment. Add `where Calls > <N>` to suppress one-off invocations.
 
@@ -319,28 +329,32 @@ UnifiedAgentObservability
 **MITRE:** —  
 
 ```kql
+let zero = "00000000-0000-0000-0000-000000000000";
 let SessionAgent = UnifiedAgentObservability
     | where TimeGenerated > ago(30d)
-    | where EventOriginalType == "ExecuteToolBySDK" and isnotempty(SrcAgentName)
+    | where isnotempty(SrcAgentName)
     | summarize arg_max(TimeGenerated, SrcAgentName) by EventSessionId;
 UnifiedAgentObservability
 | where TimeGenerated > ago(30d)
 | where EventOriginalType == "InvokeAgent"
+| where SrcAgentBlueprintId == zero                          // user prompts only
 | where isnotempty(ActorUsername) and ActorUsername != "N/A"
-| extend Channel = tostring(parse_json(tostring(AdditionalFields)).ChannelName)
+| extend AF = parse_json(tostring(AdditionalFields))
+| extend Channel = tostring(AF.ChannelName), RowAgentName = tostring(TargetAgentName)
 | join kind=leftouter SessionAgent on EventSessionId
+| extend AgentName = iif(isnotempty(RowAgentName), RowAgentName, SrcAgentName1)
 | summarize
     Prompts       = count(),
     Sessions      = dcount(EventSessionId),
-    Conversations = dcount(tostring(parse_json(tostring(AdditionalFields)).ConversationId)),
-    Agents        = make_set(SrcAgentName1, 10),
+    Conversations = dcount(tostring(AF.ConversationId)),
+    Agents        = make_set(AgentName, 10),
     FirstPrompt   = min(TimeGenerated),
     LastPrompt    = max(TimeGenerated)
     by ActorUsername, Channel
 | order by Prompts desc
 ```
 
-**Expected results:** One row per (user, channel) combination, ranked by prompt volume. Useful for capacity planning and for spotting users invoking agents from unexpected channels (e.g., Teams when policy restricts to M365 Copilot only).
+**Expected results:** One row per (user, channel) combination, ranked by prompt volume. Useful for capacity planning and for spotting users invoking agents from unexpected channels (e.g., Teams when policy restricts to M365 Copilot only). Note `ActorUsername` on `InvokeAgent` rows may be a Teams MRI (`8:orgid:<guid>`) for some channels rather than a UPN.
 
 **Tuning:** Pivot to `by Channel, bin(TimeGenerated, 1d)` for a time-series view of channel adoption.
 
@@ -362,9 +376,9 @@ Each table answers half of the AI-agent-abuse question. Together they answer the
 | What did the user type, verbatim? | ✅ | ❌ | ✅ |
 | Did Prompt Shield / XPIA / jailbreak detection fire? | ✅ | ❌ | ✅ |
 | Which agent answered the prompt? | partial (`AgentId`) | ✅ (`SrcAgentId` + `SrcAgentName`) | ✅ |
-| Which tools did the agent invoke in response? | ❌ | ✅ (`ExecuteToolBySDK`) | ✅ |
-| What arguments were passed to those tools? | ❌ | ✅ (`AdditionalFields`) | ✅ |
-| Which user triggered the tool call? | ✅ (`UserId` UPN) | ❌ (`ActorUsername = "N/A"` on tool rows) | ✅ |
+| Which tools did the agent invoke in response? | ❌ | ✅ (`ExecuteToolByGateway` / `ExecuteToolBySDK`) | ✅ |
+| What arguments were passed to those tools? | ❌ | ✅ (`EventOriginalRequestDetails`) | ✅ |
+| Which user triggered the tool call? | ✅ (`UserId` UPN) | partial (`ActorUsername` is the agentic-user UPN on Gateway rows, human UPN on SDK rows) | ✅ |
 | Did the verdict-flagged prompt actually touch sensitive data? | ❌ | ❌ | ✅ |
 
 **Operational benefits:**
@@ -372,7 +386,7 @@ Each table answers half of the AI-agent-abuse question. Together they answer the
 - **Content-safety overlay on agent telemetry.** UAO has no Prompt Shield / XPIA / jailbreak verdict; the join attaches one to every tool-call chain.
 - **High-signal detection composition.** A Prompt Shield hit alone is noisy. A Prompt Shield hit **+ a UAO tool call against sensitive surfaces in the same session** is a near-certain incident — see [Query 9b](#query-9b-cross-source-high-signal--prompt-injection--downstream-tool-calls).
 - **Forensic chain-of-events per turn.** Reconstruct end-to-end: prompt text → verdict → agent → every tool call recorded by UAO, in one row set.
-- **Recovers user identity that UAO loses.** CAE has authoritative `UserId` (UPN) + `AccountObjectId` (Entra GUID) for the same turn UAO marks `N/A`.
+- **Authoritative human identity from CAE.** CAE's `UserId` (UPN) + `AccountObjectId` (Entra GUID) give the human originator. UAO `ActorUsername` is the agentic-user UPN on Gateway tool rows (the agent's delegated identity), so CAE is the better source for the human who started the turn.
 - **Foundation for cross-source Custom Detections.** Both sides can be promoted through KQL Jobs and joined in an Analytics-tier CD — not yet built; would extend the D1–D3 set in this file.
 
 #### Cross-scope mechanics (read before running)
@@ -386,16 +400,18 @@ Each table answers half of the AI-agent-abuse question. Together they answer the
 | CloudAppEvents (CopilotInteraction) | UnifiedAgentObservability | Notes |
 |---|---|---|
 | `tostring(split(parse_json(tostring(RawEventData)).AgentId, ".")[1])` (agent SPN GUID) | `SrcAgentId` | ✅ **Primary join key.** AgentId is formatted `T_<TargetPlatformAgentId>.<servicePrincipalId>`; the second segment is the SPN GUID that matches UAO. |
-| `tostring(parse_json(tostring(RawEventData)).UserId)` (UPN) | `ActorUsername` | ⚠️ UAO sets `ActorUsername = "N/A"` on `ExecuteToolBySDK` rows. Only `InvokeAgent` rows carry the real user UPN. **Do not add as a join-equality filter** when correlating to tool calls. |
+| `tostring(parse_json(tostring(RawEventData)).UserId)` (UPN) | `ActorUsername` | ⚠️ On UAO tool rows `ActorUsername` is the **agentic-user UPN** (Gateway) or human UPN (SDK), not necessarily the CAE human originator. Prefer CAE `UserId` for the human identity; **do not add `ActorUsername` as a join-equality filter** when correlating to tool calls. |
 | `Timestamp` | `TimeGenerated` | ✅ Tie-breaker — use a `±5–10 min` window per (agent, user) tuple. Lab observation: CAE timestamps trail UAO tool calls by ~10s–10min (CAE writes at prompt completion; UAO writes per tool call mid-flight). Use `abs(datetime_diff(...))` — sign of the delta varies. |
 | `parse_json(tostring(RawEventData)).CopilotEventData.ThreadId` (Teams `19:…@thread.v2`) | `AdditionalFields.ConversationId` (GUID) | ❌ Different namespaces — not joinable. |
 
 #### Field-name pitfalls (validated in tested tenants)
 
 - **`UnifiedAgentObservability.ToolName` is a top-level column**, NOT inside `AdditionalFields`. `AF.ToolName` returns null silently — every `ToolsUsed` aggregate looks empty. Also top-level: `ToolId`, `ToolDescription`, `ToolOriginalType`.
-- **`AdditionalFields` on `ExecuteToolBySDK` rows** contains: `ConversationId`, `ConversationLink`, `ChannelName`, `ChannelLink`, `OpId`, `ParentId`, `AdministratorUserKey`, `CorrelationIdentity`, `ThreadId`, `ExecutionType`, `InvokeSource`, `UserType`. **No tool name, no tool arguments** — tool args are not currently exposed in this schema version.
+- **Tool calls span TWO event types**: `ExecuteToolByGateway` (Agent365 / Work IQ gateway — the dominant type for custom agents) and `ExecuteToolBySDK` (M365 Copilot built-ins). Filtering only `ExecuteToolBySDK` misses most custom-agent tool activity — use `EventOriginalType in ("ExecuteToolByGateway","ExecuteToolBySDK")`.
+- **Tool arguments ARE exposed** in `EventOriginalRequestDetails`: a plain JSON args object for `ExecuteToolByGateway` (`parse_json()` it), or a `key="value"` string for `ExecuteToolBySDK`. (`AdditionalFields` does **not** carry tool name/args — those are the `ToolName` column and `EventOriginalRequestDetails` respectively.)
+- **`AdditionalFields` on tool rows** contains: `ConversationId`, `ConversationLink`, `ChannelName`, `ChannelLink`, `OpId`, `ParentId`, `CorrelationIdentity`, `ThreadId`, plus delivery metadata. No tool name, no tool arguments — read those from `ToolName` / `EventOriginalRequestDetails`.
 - **`CloudAppEvents` `CopilotEventData.Messages[]` schema is minimal in current tenants.** Observed keys: `Id`, `JailbreakDetected` (**PascalCase**, NOT `jailbreakDetected`), `isPrompt`. Documented fields `xpiaDetected`, `indirectPromptInjectionDetected`, `classifications`, `promptShieldDetections`, `text` were **not present** in tested tenants — `tobool(Msg.xpiaDetected)` silently returns `null` (→ `false`). Use `coalesce(Msg.JailbreakDetected, Msg.jailbreakDetected, …)` for forward compat, but rely on `JailbreakDetected` today.
-- **`InvokeAgent` rows have `SrcAgentId = "00000000-0000-0000-0000-000000000000"`.** Any filter that excludes the zero-GUID drops all `InvokeAgent` rows — `countif(EventOriginalType == "InvokeAgent")` will be 0 after that filter. To keep both event types in a per-session rollup, summarize by `EventSessionId` first and look up the agent name from the `ExecuteToolBySDK` rows.
+- **`InvokeAgent` and built-in-agent rows carry `SrcAgentId = "00000000-0000-0000-0000-000000000000"`.** The zero-GUID appears on (a) `InvokeAgent` **user-prompt** rows and (b) **all** M365 Copilot built-in agent rows (which have no SPN). The CAE join keys on `SrcAgentId`, so it only correlates **custom Agent365 agents** (which have a real SPN). To discriminate user prompt vs agent reply on `InvokeAgent`, use `SrcAgentBlueprintId` (zero = prompt, real = reply), not `SrcAgentId`.
 
 ### Query 9a: Cross-Source Base Correlation — prompts ↔ tool calls
 
@@ -409,7 +425,7 @@ let WindowSec = 600;
 let UAO =
     workspace("default").UnifiedAgentObservability
     | where TimeGenerated > ago(7d)
-    | where EventOriginalType in ("InvokeAgent", "ExecuteToolBySDK")
+    | where EventOriginalType in ("InvokeAgent", "ExecuteToolByGateway", "ExecuteToolBySDK")
     | where isnotempty(SrcAgentId) and SrcAgentId != "00000000-0000-0000-0000-000000000000"
     | extend AF = parse_json(tostring(AdditionalFields))
     | project UAO_Time = TimeGenerated,
@@ -439,7 +455,7 @@ CloudAppEvents
 | order by CAE_Time desc
 ```
 
-**Expected results:** For each user prompt, every `InvokeAgent` + `ExecuteToolBySDK` event for the same agent SPN within ±10 minutes. *(Note: in current schema, `InvokeAgent` rows get filtered out by the zero-GUID `SrcAgentId` exclusion — practical output is prompts ↔ `ExecuteToolBySDK` only. Remove that filter if you want both.)*
+**Expected results:** For each user prompt, every `InvokeAgent` (agent-reply) + `ExecuteToolByGateway` / `ExecuteToolBySDK` event for the same agent SPN within ±10 minutes. *(Note: the zero-GUID `SrcAgentId` exclusion keeps only **custom Agent365** rows with a real SPN — it drops `InvokeAgent` user-prompt rows and all M365 Copilot built-in rows. This is intentional for the CAE join, which can only key on a real SPN.)*
 
 **Tuning:**
 - `WindowSec = 600` (10 min) is the practical default. Observed `DeltaSec` can range several minutes in either direction — the sign varies because UAO writes per tool call mid-flight while CAE finalizes at prompt completion. Always use `abs(datetime_diff(...))` for the window check. Do **not** tighten below ~120s without verifying your tenant's lag distribution; for autonomous-agent loops the same agent may produce tool calls 8–10 min before its companion CAE prompt finalizes.
@@ -457,10 +473,10 @@ Restricts 9a to (1) prompts that tripped Prompt Shield / jailbreak detection in 
 ```kql
 let WindowSec = 600;
 // Optional sensitive-surface allowlist — tool names vary by environment.
-// Common shapes seen: `<customermcp>:<method>`, `crd90-5f<hex-encoded-mcp-name>…:InvokeServer`
+// Common shapes seen: `<customermcp>:<method>`, `<envprefix>-5f<hex-encoded-mcp-name>…:InvokeServer`
 // (Copilot Studio MCP shim), `<publicmcp>:<method>`.
 // ⚠️ KQL TOKENIZER PITFALL: `has` / `has_any` are term-based and split on `-` `_` `:`.
-//    `has_any (["sentinel-2dmcp"])` does NOT match `crd90-5fsentinel-2dmcp-2dtools-...`
+//    `has_any (["sentinel-2dmcp"])` does NOT match `<envprefix>-5fsentinel-2dmcp-2dtools-...`
 //    because the surrounding `5f` / `2dtools` prefixes break term adjacency.
 //    Use `matches regex` instead so we get true substring matching across encoded names.
 //    Set SensitiveToolPattern = "" (or comment out the regex filter) to surface EVERY
@@ -469,7 +485,7 @@ let SensitiveToolPattern = @"(?i)(query_lake|runadvancedhuntingquery|sentinel-?2
 let UAOSensitive =
     workspace("default").UnifiedAgentObservability
     | where TimeGenerated > ago(30d)
-    | where EventOriginalType == "ExecuteToolBySDK"
+    | where EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")
     | where isnotempty(SrcAgentId) and SrcAgentId != "00000000-0000-0000-0000-000000000000"
     | where isempty(SensitiveToolPattern) or ToolName matches regex SensitiveToolPattern
     | extend AF = parse_json(tostring(AdditionalFields))
@@ -517,7 +533,7 @@ CAEFlagged
 `DeltaSec` is `UAO_Time - CAE_Time`. Negative values mean UAO recorded the tool call *before* CAE finalized the prompt — expected for autonomous-agent loops (UAO writes per tool call mid-flight; CAE writes at completion). Positive values are the more intuitive "prompt then tool" order.
 
 **⚠️ Lessons learned during validation:**
-1. **Hex-encoded `crd90-…:InvokeServer` tool names are invisible to `has` / `has_any`.** KQL `has` is term-tokenized and `-` / `_` boundaries break the match — `has_any (["sentinel-2dmcp"])` silently drops them. Use `matches regex` (as above). If you change the pattern list, sanity-check with `where ToolName matches regex <pattern> | distinct ToolName | take 50`.
+1. **Hex-encoded `<envprefix>-…:InvokeServer` tool names are invisible to `has` / `has_any`.** KQL `has` is term-tokenized and `-` / `_` boundaries break the match — `has_any (["sentinel-2dmcp"])` silently drops them. Use `matches regex` (as above). If you change the pattern list, sanity-check with `where ToolName matches regex <pattern> | distinct ToolName | take 50`.
 2. **Per-message fan-out overstates analyst workload** — a single autonomous-agent session can produce many `InvokeServer` rows. For triage use **Query 9c** which collapses to one row per (user × agent × session) and is the right grain for a Custom Detection candidate.
 3. **A flagged prompt that produces zero Q9b rows is meaningful too** — it implies Prompt Shield blocked and the agent didn't execute a sensitive tool within the window. To audit blocked-but-not-acted-on prompts as a separate signal, query `CloudAppEvents | where ActionType == "CopilotInteraction"` for `JailbreakDetected=true` and `anti-join` to Q9b on `(AgentSpnId, CAE_Time)`.
 
@@ -525,7 +541,7 @@ CAEFlagged
 - Extend `SensitiveToolPattern` with internal MCP tool names specific to your environment (regex alternation, lowercase — the `(?i)` flag handles case). Avoid using `has` / `has_any` on hex-encoded MCP shim names — use regex.
 - Set `SensitiveToolPattern = ""` (empty string) to surface every tool call after a flagged prompt — useful when first mapping which MCP tools are sensitive.
 - Drop the `CAEFlagged` arm entirely to surface "abnormal tool-call pattern without a safety hit" — catches jailbreaks the safety layer missed.
-- **`ToolArgs` is not in current `AdditionalFields` schema** — the tool input/output is not currently exposed. For tool argument inspection, fall back to vendor-specific telemetry (e.g., Defender MCP audit logs if the agent uses an MCP server with its own audit channel).
+- **Tool arguments ARE available** in `EventOriginalRequestDetails` (plain JSON for `ExecuteToolByGateway`, `key="value"` string for `ExecuteToolBySDK`). To inspect what a flagged agent actually passed to a tool, `parse_json(EventOriginalRequestDetails)` on the Gateway rows in `UAOSensitive` and project the args.
 
 ---
 
@@ -538,7 +554,7 @@ let LookbackDays = 30d;
 let UAOSession =
     workspace("default").UnifiedAgentObservability
     | where TimeGenerated > ago(LookbackDays)
-    | where EventOriginalType == "ExecuteToolBySDK"   // InvokeAgent uses zero-GUID SrcAgentId — drop here, fold in via session join if needed
+    | where EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")   // InvokeAgent user-prompt rows use zero-GUID SrcAgentId — fold in via session join if needed
     | where isnotempty(SrcAgentId) and SrcAgentId != "00000000-0000-0000-0000-000000000000"
     | summarize SessionStart   = min(TimeGenerated),
                 SessionEnd     = max(TimeGenerated),
@@ -622,19 +638,19 @@ let CAEFlagged =
     | summarize CAE_Time = min(TimeGenerated), SafetyVerdicts = make_set(SafetyVerdict, 5)
                 by AgentSpnId, AgentName, UserUpn, ThreadId
     | extend FlaggedId = strcat(tostring(CAE_Time), "|", UserUpn, "|", AgentSpnId, "|", ThreadId);
-// UAO side 1: actual prompt text (InvokeAgent rows have EventOriginalRequestDetails = raw user message)
+// UAO side 1: actual prompt text (InvokeAgent.EventOriginalRequestDetails.text = the user message)
 let UAOInvoke =
     workspace("default").UnifiedAgentObservability
     | where TimeGenerated > ago(30d)
     | where EventOriginalType == "InvokeAgent"
     | extend JoinUpn = tolower(ActorUsername)
     | project IA_Time = TimeGenerated, JoinUpn, IA_Session = EventSessionId,
-              Prompt = tostring(EventOriginalRequestDetails);
+              Prompt = tostring(parse_json(EventOriginalRequestDetails).text);
 // UAO side 2: tool calls
 let UAOTool =
     workspace("default").UnifiedAgentObservability
     | where TimeGenerated > ago(30d)
-    | where EventOriginalType == "ExecuteToolBySDK"
+    | where EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")
     | where isnotempty(SrcAgentId) and SrcAgentId != "00000000-0000-0000-0000-000000000000"
     | extend JoinSpn = tolower(SrcAgentId)
     | project TC_Time = TimeGenerated, JoinSpn, TC_Session = EventSessionId, ToolName;
@@ -768,16 +784,16 @@ let UAOInvoke =
     | where isnotempty(EventOriginalRequestDetails)
     | extend JoinUpn = tolower(ActorUsername),
              IA_Time = TimeGenerated,
-             Prompt  = tostring(EventOriginalRequestDetails)
+             Prompt  = tostring(parse_json(EventOriginalRequestDetails).text)
     | project IA_Time, JoinUpn, Prompt;
 let UAOTool =
     workspace("default").UnifiedAgentObservability
     | where TimeGenerated between (startTime .. endTime)
-    | where EventOriginalType == "ExecuteToolBySDK"
+    | where EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")
     | where SrcAgentId != "00000000-0000-0000-0000-000000000000"
     | extend JoinSpn = tolower(SrcAgentId),
              TT_Time = TimeGenerated,
-             Tool    = tostring(parse_json(EventOriginalRequestDetails).params.name)
+             Tool    = ToolName
     | project TT_Time, JoinSpn, Tool;
 let WithPrompts =
     CAEFlagged
@@ -840,14 +856,12 @@ let startTime = endTime - lookback - 15m;
 let SensitiveTablePattern = @"(?i)\b(identityinfo|identitylogonevents|emailevents|emailurlinfo|emailattachmentinfo|urlclickevents|datasecurityevents|behavioranalytics|aadriskyusers|aaduserriskevents|azurediagnostics|signinlogs|officeactivity|cloudappevents)\b";
 UnifiedAgentObservability
 | where TimeGenerated between (startTime .. endTime)
-| where EventOriginalType == "ExecuteToolBySDK"
-| extend Req = parse_json(EventOriginalRequestDetails)
-| where tostring(Req.method) == "tools/call"
-| where tostring(Req.params.name) == "query_lake"
+| where EventOriginalType == "ExecuteToolByGateway"
+| where ToolName == "query_lake"          // MCP-shim agents that expose a query_lake tool
+| extend Args = parse_json(EventOriginalRequestDetails)
 | extend
-    Args            = parse_json(tostring(Req.params.arguments)),
-    KqlText         = tostring(parse_json(tostring(Req.params.arguments)).query),
-    TargetWorkspace = tostring(parse_json(tostring(Req.params.arguments)).workspaceId)
+    KqlText         = tostring(Args.query),
+    TargetWorkspace = tostring(Args.workspaceId)
 | extend
     EventTime           = TimeGenerated,
     AgentName           = SrcAgentName,
@@ -863,7 +877,7 @@ UnifiedAgentObservability
 
 **Output schema:** `EventTime:datetime, AgentName:string, AgentId:string, SessionId:string, TargetWorkspace:string, KqlText:string, KqlLength:long, TouchesSensitive:bool, SensitiveTablesJson:string, EventId:string`.
 
-**Test result:** Surfaces `query_lake` invocations parsed cleanly with `TouchesSensitive` evaluated against `SensitiveTablePattern`.
+**Test result:** Surfaces `query_lake` invocations with `TouchesSensitive` evaluated against `SensitiveTablePattern`. **Applicability:** only agents that expose an MCP-style `query_lake` / `RunAdvancedHuntingQuery` tool emit these rows — in environments whose agents call Work IQ gateway tools (`GetUserDetails`, etc.) instead, this job yields zero rows. Adapt `ToolName ==` and `Args.<field>` to whichever data-access tool your agents use.
 
 **Tuning:** Extend `SensitiveTablePattern` with any tables your environment treats as crown-jewel (e.g., HR systems via custom `*_CL` tables).
 
@@ -883,25 +897,21 @@ let endTime  = now() - delay;
 let startTime = endTime - lookback - 1h;  // small overlap
 UnifiedAgentObservability
 | where TimeGenerated between (startTime .. endTime)
-| where EventOriginalType == "ExecuteToolBySDK"
-| extend
-    Method     = tostring(parse_json(EventOriginalRequestDetails).method),
-    ToolCalled = tostring(parse_json(EventOriginalRequestDetails).params.name)
-| where Method == "tools/call"
-| where isnotempty(SrcAgentId)
+| where EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")
+| where isnotempty(ToolName)
 | summarize
     Calls       = count(),
     Sessions    = dcount(EventSessionId),
     FirstCall   = min(TimeGenerated),
     LastCall    = max(TimeGenerated)
     by SnapshotDate = bin(TimeGenerated, 1d), AgentId = SrcAgentId, AgentName = SrcAgentName,
-       ToolName, ToolCalled, ToolOriginalType
+       ToolName, ToolType = EventOriginalType, ToolOriginalType
 | extend EventTime = SnapshotDate
-| project EventTime, SnapshotDate, AgentId, AgentName, ToolName, ToolCalled, ToolOriginalType,
+| project EventTime, SnapshotDate, AgentId, AgentName, ToolName, ToolType, ToolOriginalType,
           Calls, Sessions, FirstCall, LastCall
 ```
 
-**Output schema:** `EventTime:datetime, SnapshotDate:datetime, AgentId:string, AgentName:string, ToolName:string, ToolCalled:string, ToolOriginalType:string, Calls:long, Sessions:long, FirstCall:datetime, LastCall:datetime`.
+**Output schema:** `EventTime:datetime, SnapshotDate:datetime, AgentId:string, AgentName:string, ToolName:string, ToolType:string, ToolOriginalType:string, Calls:long, Sessions:long, FirstCall:datetime, LastCall:datetime`.
 
 **Test result:** Produces one row per (agent, tool, day) showing recurring tool usage — typically a few rows per day per active agent.
 
@@ -921,15 +931,10 @@ let endTime  = now() - delay;
 let startTime = endTime - lookback - 1h;
 UnifiedAgentObservability
 | where TimeGenerated between (startTime .. endTime)
-| where EventOriginalType == "ExecuteToolBySDK"
+| where EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")
 | extend
-    Method     = tostring(parse_json(EventOriginalRequestDetails).method),
-    ToolCalled = tostring(parse_json(EventOriginalRequestDetails).params.name),
     ResultText = tostring(EventOriginalResultDetails),
-    HasError   = isnotempty(EventErrorDetails)
-        or tostring(EventOriginalResultDetails) contains "\"error\""
-        or tostring(EventOriginalResultDetails) contains "\"isError\":true"
-| where Method == "tools/call"
+    HasError   = isnotempty(EventErrorDetails) or EventOriginalErrorType == "Error"
 | where HasError
 | extend
     ErrorCategory = case(
@@ -948,13 +953,13 @@ UnifiedAgentObservability
     LastError   = max(TimeGenerated),
     SampleError = any(ErrorSnippet)
     by SnapshotDate = bin(TimeGenerated, 1d), AgentId = SrcAgentId, AgentName = SrcAgentName,
-       ToolName, ToolCalled, ErrorCategory
+       ToolName, ToolType = EventOriginalType, ErrorCategory
 | extend EventTime = SnapshotDate
-| project EventTime, SnapshotDate, AgentId, AgentName, ToolName, ToolCalled, ErrorCategory,
+| project EventTime, SnapshotDate, AgentId, AgentName, ToolName, ToolType, ErrorCategory,
           Failures, Sessions, FirstError, LastError, SampleError
 ```
 
-**Output schema:** `EventTime:datetime, SnapshotDate:datetime, AgentId:string, AgentName:string, ToolName:string, ToolCalled:string, ErrorCategory:string, Failures:long, Sessions:long, FirstError:datetime, LastError:datetime, SampleError:string`.
+**Output schema:** `EventTime:datetime, SnapshotDate:datetime, AgentId:string, AgentName:string, ToolName:string, ToolType:string, ErrorCategory:string, Failures:long, Sessions:long, FirstError:datetime, LastError:datetime, SampleError:string`.
 
 **Test result:** Produces one row per (agent, tool, error category, day) for failed tool calls — zero rows when no failures occurred in the window.
 
@@ -1064,12 +1069,12 @@ adaptation_notes: "After legitimate agent changes, expect a transient spike. Sup
 ```kql
 let Baseline = A365_AgentToolDaily_KQL_CL
     | where SnapshotDate between (ago(31d) .. ago(1d))
-    | distinct AgentId, ToolCalled;
+    | distinct AgentName, ToolName;
 A365_AgentToolDaily_KQL_CL
 | where TimeGenerated > ago(1d)
 | where SnapshotDate > ago(1d)
-| join kind=leftanti Baseline on AgentId, ToolCalled
-| project EventTime = SnapshotDate, AgentId, AgentName, ToolName, ToolCalled, ToolOriginalType,
+| join kind=leftanti Baseline on AgentName, ToolName
+| project EventTime = SnapshotDate, AgentId, AgentName, ToolName, ToolType, ToolOriginalType,
           Calls, Sessions, FirstCall, LastCall
 ```
 
@@ -1080,7 +1085,7 @@ A365_AgentToolDaily_KQL_CL
 ## Notes & Caveats
 
 - **Preview schema** — `UnifiedAgentObservability` is part of the Agent 365 / A365 Observability connector preview. Columns may be added, renamed, or populated differently as the feature evolves. Re-validate field availability before promoting any query to production.
-- **Lab-light environments** — In environments with a single agent and low traffic, several columns (`ModelName`, token counts, `EventThoughtProcessDetails`) may always be empty. These queries are designed to degrade gracefully (using `coalesce` / null-safe checks).
+- **Lab-light environments** — In environments with a single agent and low traffic, some columns (`EventThoughtProcessDetails`, `EventOriginalErrorType`) may rarely populate. `ModelName` / `ModelProviderName` and `InputTokensUsed` / `OutputTokensUsed` **are** populated — but only on `InferenceCall` rows (they are empty on `InvokeAgent` and `ExecuteTool*` rows), so query token usage from `InferenceCall`. These queries degrade gracefully (using `coalesce` / null-safe checks).
 - **Pair with `AgentsInfo`** — For agent configuration posture (access posture, registered tools, declared data sources), join logically to the AH-only `AgentsInfo` table. Match the runtime `SrcAgentId` to `AgentsInfo.EntraAgentID` or `ObservabilityID` (the agent-config primary key is `AgentId`, a guid). Cross-platform joins are not directly supported — run queries side-by-side and correlate in analysis.
-- **Network-side view** — [`../network/gsa_generative_ai_insights.md`](../network/gsa_generative_ai_insights.md) captures the **same** Copilot Studio agent MCP `tools/call` from the Global Secure Access network edge (`NetworkAccessGenerativeAIInsights`). This table sees the runtime SDK side (full request + response arguments); GSA sees the network egress (incl. shadow/unsanctioned MCP servers). Correlate by tool name + time window.
+- **Network-side view** — [`../network/gsa_generative_ai_insights.md`](../network/gsa_generative_ai_insights.md) captures agent tool activity from the Global Secure Access network edge (`NetworkAccessGenerativeAIInsights`). `UnifiedAgentObservability` sees the runtime tool call (top-level `ToolName` + request/response payload); GSA sees the network egress (incl. shadow/unsanctioned MCP servers). Correlate by tool name + time window.
 - **PII in prompts** — `EventOriginalRequestDetails` contains raw user input, which may include sensitive data. Handle query exports with appropriate care and consider applying row-level security if exposing this table to non-SOC users.
