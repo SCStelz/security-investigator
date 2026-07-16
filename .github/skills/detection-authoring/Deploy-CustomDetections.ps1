@@ -118,6 +118,71 @@ function Build-RuleBody {
         $impactedAssets += $assetEntry
     }
 
+    # ── entityMappings — REQUIRED column binding (Pitfall 19) ────────────────
+    # impactedAssets alone only declares the asset *type*. The query-column→entity
+    # binding lives in entityMappings. The API auto-derives it from impactedAssets for
+    # recognized tables/columns, but that derivation SILENTLY FAILS for some connector
+    # tables (e.g. GSA NetworkAccess*), dropping impactedAssets entirely. The portal
+    # always writes entityMappings explicitly — so do we. Identifier→column lookup below
+    # is verified against live rules. Column NAME defaults to PascalCase(identifier)
+    # (the mandated projection convention, Pitfall 9); override per-asset with `column`.
+    $entityColumnProp = @{
+        'user' = @{
+            'accountObjectId' = 'aadUserIdColumn'; 'accountId' = 'aadUserIdColumn'
+            'recipientObjectId' = 'aadUserIdColumn'; 'processAccountObjectId' = 'aadUserIdColumn'
+            'servicePrincipalId' = 'aadUserIdColumn'
+            'accountSid' = 'sidColumn'; 'requestAccountSid' = 'sidColumn'; 'initiatingAccountSid' = 'sidColumn'
+            'accountUpn' = 'upnColumn'; 'initiatingProcessAccountUpn' = 'upnColumn'; 'targetAccountUpn' = 'upnColumn'
+            'accountName' = 'nameColumn'; 'requestAccountName' = 'nameColumn'
+            'initiatingAccountName' = 'nameColumn'; 'servicePrincipalName' = 'nameColumn'
+            'accountDomain' = 'ntDomainColumn'; 'requestAccountDomain' = 'ntDomainColumn'
+            'initiatingAccountDomain' = 'ntDomainColumn'
+        }
+        'device' = @{
+            'deviceId' = 'deviceIdColumn'; 'deviceName' = 'nameColumn'; 'remoteDeviceName' = 'nameColumn'
+            'targetDeviceName' = 'nameColumn'; 'destinationDeviceName' = 'nameColumn'
+        }
+        'mailbox' = @{
+            'accountUpn' = 'primaryAddressColumn'; 'fileOwnerUpn' = 'primaryAddressColumn'
+            'initiatingProcessAccountUpn' = 'primaryAddressColumn'; 'lastModifyingAccountUpn' = 'primaryAddressColumn'
+            'targetAccountUpn' = 'primaryAddressColumn'; 'senderFromAddress' = 'primaryAddressColumn'
+            'recipientEmailAddress' = 'primaryAddressColumn'; 'senderMailFromAddress' = 'primaryAddressColumn'
+            'senderDisplayName' = 'displayNameColumn'
+        }
+    }
+    $entityKeyForType = @{ 'user' = 'accounts'; 'device' = 'hosts'; 'mailbox' = 'mailboxes' }
+
+    $entityMappings = @{}
+    foreach ($asset in $Rule.impactedAssets) {
+        $entityKey = $entityKeyForType[$asset.type]
+        $colProp   = $entityColumnProp[$asset.type][$asset.identifier]
+        if (-not $colProp) {
+            Write-Warning "No entityMappings column mapping for $($asset.type)/$($asset.identifier) — relying on API auto-derivation (may fail silently)."
+            continue
+        }
+        $colName = if ($asset.PSObject.Properties['column'] -and $asset.column) {
+            $asset.column
+        } else {
+            $asset.identifier.Substring(0, 1).ToUpper() + $asset.identifier.Substring(1)
+        }
+        if (-not $entityMappings.ContainsKey($entityKey)) { $entityMappings[$entityKey] = @() }
+        $entityMappings[$entityKey] += @{ $colProp = $colName }
+    }
+
+    # Merge explicit related-evidence entityMappings from the manifest (ips, urls,
+    # cloudApplications, dns, files, processes, oAuthApplications, etc.).
+    if ($Rule.PSObject.Properties['entityMappings'] -and $Rule.entityMappings) {
+        foreach ($prop in $Rule.entityMappings.PSObject.Properties) {
+            $key = $prop.Name
+            if (-not $entityMappings.ContainsKey($key)) { $entityMappings[$key] = @() }
+            foreach ($m in @($prop.Value)) {
+                $h = @{}
+                $m.PSObject.Properties | ForEach-Object { $h[$_.Name] = $_.Value }
+                $entityMappings[$key] += $h
+            }
+        }
+    }
+
     # Alert title: use 'title' field if specified, fallback to displayName
     $alertTitle = if ($Rule.PSObject.Properties['title'] -and $Rule.title) {
         $Rule.title
@@ -156,6 +221,7 @@ function Build-RuleBody {
                 recommendedActions = $recActions
                 mitreTechniques    = @($Rule.mitreTechniques)
                 impactedAssets     = $impactedAssets
+                entityMappings     = $entityMappings
             }
             responseActions     = $respActions
         }

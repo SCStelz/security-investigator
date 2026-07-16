@@ -32,7 +32,7 @@ This skill deploys **custom detection rules** to Microsoft Defender XDR via the 
 6. **[Batch Deployment](#batch-deployment)** — Manifest-driven multi-rule deployment
 7. **[Lifecycle Management](#lifecycle-management)** — CRUD operations
 8. **[Existing Rule Discovery](#existing-rule-discovery)** — Search Analytic Rules & Custom Detections by table, EventID, or keyword
-9. **[Known Pitfalls](#known-pitfalls)** — Lessons learned (18 pitfalls documented)
+9. **[Known Pitfalls](#known-pitfalls)** — Lessons learned (19 pitfalls documented)
 10. **[CD Metadata Contract](#cd-metadata-contract)** — Schema for query file ↔ detection skill coordination
 
 ---
@@ -83,6 +83,7 @@ Custom detection queries have strict requirements that differ from Sentinel anal
 | **Timestamp column must be projected as-is** | The query MUST project the timestamp column **exactly as it appears in the source table** — `TimeGenerated` for Sentinel/LA tables, `Timestamp` for XDR-native tables. Do not alias one to the other (e.g., `Timestamp = TimeGenerated` causes `400 Bad Request`). See [Pitfall 1](#pitfall-1-timestamp-vs-timegenerated). |
 | **Event-unique columns (per table type)** | Required columns that uniquely identify the event differ by table family. A bare `summarize count()` or `make_set()` loses these columns and fails. `summarize` with `arg_max` IS allowed — see [Pitfall 3](#pitfall-3-summarize--allowed-only-with-row-level-output). See table below for per-type requirements. |
 | **Impacted asset identifier column** | The query must project at least one column whose name matches a valid `impactedAssets` identifier (e.g., `AccountUpn`, `DeviceName`, `DeviceId`). See [Impacted Asset Types](#impacted-asset-types) and [Pitfall 9](#pitfall-9-impactedassets-identifier-must-be-a-predefined-api-value). Queries without `project` or `summarize` typically return these columns automatically. |
+| **🔴 `entityMappings` binds the column — send it explicitly** | `impactedAssets` only declares the asset *type*. The actual query-column→entity binding lives in a **separate `entityMappings` structure**. The API auto-derives `entityMappings` from `impactedAssets` for recognized tables, but this **silently fails for some connector tables** (e.g. GSA `NetworkAccess*`), dropping `impactedAssets` to `[]` with **no error**. Always send `entityMappings` alongside `impactedAssets`. See [Pitfall 19](#pitfall-19-impactedassets-alone-is-silently-dropped--entitymappings-is-the-real-binding). |
 | **`impactedAssets` must be non-empty** | The `impactedAssets` array must contain **at least 1 element**. An empty array (`[]`) is rejected with `400 BadRequest`: *"The field ImpactedAssets must be a string or array type with a minimum length of '1'."* Every detection must declare which entity it impacts. See [Pitfall 13](#pitfall-13-impactedassets-must-be-non-empty). |
 | **No `let` statements (NRT)** | **NRT rules (`schedule: "0"`) reject `let` entirely** — the API returns a generic `400 Bad Request`. This is **not documented by Microsoft** (empirically discovered Feb 2026) but consistently reproducible. Inline all dynamic arrays/lists directly in `where` clauses. Non-NRT rules (1H+) tolerate `let`. |
 | **Unique `displayName` AND `title`** | Both the rule `displayName` and the alert `title` must be unique across all custom detections. Duplicate `displayName` returns `409 Conflict`. Duplicate `title` returns `400 Bad Request`. |
@@ -107,7 +108,7 @@ When converting a Sentinel query to custom detection format:
 
 1. ✅ Remove bare `summarize` — project raw rows instead. Exception: `summarize` with `arg_max` is allowed for threshold-based detections (see [Pitfall 3](#pitfall-3-summarize--allowed-only-with-row-level-output))
 2. ✅ Project the timestamp column as-is: `TimeGenerated = TimeGenerated` for Sentinel/LA tables, `Timestamp` for XDR tables. Never alias one to the other.
-3. ✅ Project the **impacted asset identifier column** — the column name must match a valid identifier from [Impacted Asset Types](#impacted-asset-types). Examples: `DeviceName = Computer` for device-focused detections, `AccountUpn = UserId` for user-focused. See [Pitfall 9](#pitfall-9-impactedassets-identifier-must-be-a-predefined-api-value).
+3. ✅ Project the **impacted asset identifier column** — the column name must match a valid identifier from [Impacted Asset Types](#impacted-asset-types). Examples: `DeviceName = Computer` for device-focused detections, `AccountUpn = UserId` for user-focused. See [Pitfall 9](#pitfall-9-impactedassets-identifier-must-be-a-predefined-api-value). **Also populate `entityMappings`** binding that column to the entity (see [Entity Mappings](#entity-mappings--required-column-binding) and [Pitfall 19](#pitfall-19-impactedassets-alone-is-silently-dropped--entitymappings-is-the-real-binding)) — `impactedAssets` alone is silently dropped on some connector tables.
 4. ✅ Project **event-unique columns** per table type — `DeviceId` + `ReportId` for MDE tables; `ReportId` for other XDR tables; recommended proxy `ReportId` for Sentinel tables (e.g., `ReportId = CorrelationId`). **Caveat:** proxy columns may contain empty strings for some events — acceptable but means those rows won't be individually identifiable in alert details.
 5. ✅ Add a time filter as the first `where` clause — prefer `ingestion_time() > ago(1h)` over `Timestamp > ago(1h)` (see tip below). **NRT exception:** For NRT rules (`schedule: "0"`), omit **all** time filters — `ingestion_time()` causes `400 Bad Request` in NRT mode (see [Pitfall 17](#pitfall-17-ingestion_time-rejected-in-nrt-rules)). `Timestamp > ago(...)` is accepted but unnecessary.
 6. ✅ Remove `let` variables for NRT rules — **NRT rejects `let` entirely** (generic 400 error, undocumented). Inline all dynamic arrays directly in `where` clauses. Non-NRT rules tolerate `let`.
@@ -251,6 +252,22 @@ Valid user identifiers: `accountObjectId`, `accountSid`, `accountUpn`, `accountN
 
 Valid mailbox identifiers: `accountUpn`, `fileOwnerUpn`, `initiatingProcessAccountUpn`, `lastModifyingAccountUpn`, `targetAccountUpn`, `senderFromAddress`, `senderDisplayName`, `recipientEmailAddress`, `senderMailFromAddress`
 
+### Entity Mappings — Required Column Binding
+
+`impactedAssets` declares the asset *type*; **`entityMappings` binds the query *column* to the entity** (both under `detectionAction.alertTemplate`). The API usually auto-derives `entityMappings` from `impactedAssets`, but that **silently fails on some connector tables** (e.g. GSA `NetworkAccess*`) — dropping `impactedAssets` to `[]` with no error. See [Pitfall 19](#pitfall-19-impactedassets-alone-is-silently-dropped--entitymappings-is-the-real-binding).
+
+**You rarely write this by hand** — [Deploy-CustomDetections.ps1](Deploy-CustomDetections.ps1) auto-generates `entityMappings` from each manifest `impactedAssets` entry (identifier→column lookup lives in the script) and merges any explicit `entityMappings` you add for related evidence. Only for **manual `Invoke-MgGraphRequest` POSTs** do you send it yourself:
+
+```json
+"entityMappings": {
+    "accounts": [ { "upnColumn": "AccountUpn" } ],
+    "hosts":    [ { "deviceIdColumn": "DeviceId" } ],
+    "ips":      [ { "addressColumn": "IPAddress" } ]
+}
+```
+
+The column value is the query output column name (PascalCase per the [Pitfall 9](#pitfall-9-impactedassets-identifier-must-be-a-predefined-api-value) convention: `accountUpn` → `AccountUpn`). Send only populated entity types — the API fills the rest. Related-evidence types include `ips`, `urls`, `cloudApplications`, `dns`, `oAuthApplications`.
+
 ### Minimal Valid POST Body
 
 ```json
@@ -276,7 +293,10 @@ Valid mailbox identifiers: `accountUpn`, `fileOwnerUpn`, `initiatingProcessAccou
                     "@odata.type": "#microsoft.graph.security.impactedDeviceAsset",
                     "identifier": "deviceName"
                 }
-            ]
+            ],
+            "entityMappings": {
+                "hosts": [ { "nameColumn": "DeviceName" } ]
+            }
         },
         "responseActions": []
     }
@@ -982,6 +1002,28 @@ Both fields are validated against fixed allowlists — invalid values return `40
 
 > **Fallback rule:** If a newer sub-technique returns *"Mitre techniques ... are invalid"*, fall back to the parent technique (`T1556.009` → `T1556`) or a legacy ID. Don't assume the newest ATT&CK values are available everywhere.
 
+### Pitfall 19: `impactedAssets` Alone Is Silently Dropped — `entityMappings` Is the Real Binding
+
+Entity extraction uses **two** parallel structures under `detectionAction.alertTemplate`: `impactedAssets` (the asset *type*) and `entityMappings` (the query-*column*→entity binding). The API auto-derives `entityMappings` from `impactedAssets` for recognized tables — so `impactedAssets` alone works on Device\*, CloudAppEvents, Email\*, SigninLogs. **But auto-derivation silently fails on some connector tables** (confirmed on GSA `NetworkAccessGenerativeAIInsights` / `NetworkAccessTraffic`, even with a single-table query):
+
+- POST/PATCH **succeeds with no error**, but a follow-up `GET` shows `impactedAssets: []` → the alert gets no impacted assets. **That empty `GET` is the diagnosis signature.**
+
+**Fix:** send `entityMappings` explicitly (what the portal does). **[Deploy-CustomDetections.ps1](Deploy-CustomDetections.ps1) does this automatically** from the manifest — so this only bites **manual `Invoke-MgGraphRequest` POSTs**, which must include `entityMappings` themselves (see [Entity Mappings](#entity-mappings--required-column-binding)):
+
+```powershell
+$body = @'
+{ "detectionAction": {
+    "alertTemplate": {
+      "impactedAssets": [ { "@odata.type": "#microsoft.graph.security.impactedUserAsset", "identifier": "accountUpn" } ],
+      "entityMappings": { "accounts": [ { "upnColumn": "AccountUpn" } ] }
+    },
+    "responseActions": [] } }
+'@
+Invoke-MgGraphRequest -Method PATCH -Uri "/beta/security/rules/detectionRules/<id>" -Body $body -ContentType "application/json"
+```
+
+> Not an API change — `entityMappings` was always the binding; it only surfaces when auto-derivation fails on an unrecognized table.
+
 ---
 
 ## CD Metadata Contract
@@ -1013,7 +1055,7 @@ category: "Persistence"
 title: "Encoded PowerShell in Scheduled Task on {{DeviceName}}"
 impactedAssets:
   - type: device
-    identifier: DeviceName
+    identifier: deviceName
 recommendedActions: "Investigate the scheduled task XML. Decode the base64 payload and check for malicious content."
 adaptation_notes: "Straightforward — already row-level, add mandatory columns"
 -->
@@ -1031,7 +1073,7 @@ adaptation_notes: "Straightforward — already row-level, add mandatory columns"
 | `schedule` | If cd_ready | `"0"` / `"1H"` / `"3H"` / `"12H"` / `"24H"` | Detection frequency. `"0"` = NRT (single-table, no joins/unions) |
 | `category` | If cd_ready | string | Alert category (see [API Reference](#api-reference) for valid values) |
 | `title` | No | string | Dynamic alert title with `{{ColumnName}}` placeholders. Falls back to query heading if omitted. **Limit: max 3 unique `{{Column}}` references across `title` AND `description` combined** (see [Pitfall 14](#pitfall-14-max-3-unique-dynamic-columns-across-title--description)) |
-| `impactedAssets` | If cd_ready | array | Asset entities to extract. Each entry: `type` (`device`/`user`/`mailbox`) + `identifier` (predefined API value, e.g., `accountUpn`, `deviceName` — see [Impacted Asset Types](#impacted-asset-types)) |
+| `impactedAssets` | If cd_ready | array | Asset entities to extract. Each entry: `type` (`device`/`user`/`mailbox`) + `identifier` (predefined API value, e.g., `accountUpn`, `deviceName` — see [Impacted Asset Types](#impacted-asset-types)). The deploy script derives the required `entityMappings` column binding from these automatically (see [Entity Mappings](#entity-mappings--required-column-binding) / [Pitfall 19](#pitfall-19-impactedassets-alone-is-silently-dropped--entitymappings-is-the-real-binding)). Optional per-entry `column` overrides the derived (PascalCase) column name |
 | `recommendedActions` | No | string | Triage guidance shown in the alert. Omit if not needed |
 | `responseActions` | No | array | **PROHIBITED** — must always be omitted or empty `[]`. Response actions must only be configured manually in the Defender portal |
 | `adaptation_notes` | No | string | Human-readable notes on what adaptation is needed (for the summary table) |
