@@ -30,13 +30,27 @@ LegacyHive requires two standard-user credentials plus a third (target) username
 ### ⚠️ Hunt Pitfalls
 | Pitfall | Mitigation |
 |---|---|
+| **`DeviceFileEvents.FolderPath` contains the full file path *including the filename*** (e.g., `C:\<GUID>\ntuser.dat`), despite the schema description reading "Folder containing the file." Anchoring the GUID-folder regex with `$` immediately after the GUID (`^...{12}$`) therefore **never matches** for per-file `FileCreated`/`FileModified`/`FileRenamed` events — verified live against the tenant | Terminate the GUID-folder regex with `(\\|$)` (backslash-or-end) so it matches both per-file paths (`C:\<GUID>\ntuser.dat`) and the folder-only `*AggregatedReport` form (`C:\<GUID>`). Applied in Queries 1 and 7 |
 | The hijacked registry value (`Local AppData` → `globalroot\BaseNamedObjects`) is written via the **offline registry API** directly into `NTUSER.DAT` file bytes — this bypasses the live registry hooks `DeviceRegistryEvents` is built on, so the malicious value **will not appear** there for the unmodified PoC | Don't rely on `DeviceRegistryEvents` alone (Query 6 is a defense-in-depth check for manual/variant `reg.exe` replication, not the PoC itself). Anchor detection on the **file-level** artifacts instead (Queries 1–2) |
 | A bare substring search for `"GLOBALROOT"` matches unrelated strings — e.g., Linux `update-ca-certificates` processing certificate files named `*_GlobalRoot_Class_*.crt` | Require the literal adjacency `globalroot...basenamedobjects` (Query 3), not a bare `has_any` on `"GLOBALROOT"` alone |
 | `notepad.exe` launched via alternate credentials is not unique to this exploit — `svchost.exe` (Task Scheduler service host) launching `notepad.exe` under a different account is a common enterprise pattern for scheduled tasks configured to run as a service account | Exclude `svchost.exe` as an initiating process (already applied in Query 4) or require co-occurrence with the GUID-folder (Query 1) signal before escalating |
-| `offreg.dll` is genuinely rare, but is legitimately loaded by some profile-management/migration tooling (e.g., user-state migration or imaging suites) | Treat Query 5 hits as a pivot, not an automatic true positive — correlate with Query 1 or Query 2 |
+| `offreg.dll` is loaded in normal operations by a small set of **trusted Microsoft servicing processes** — verified live, the only loaders were `MsMpEng.exe` (Defender engine), `OfficeClickToRun.exe`, and `mrt.exe` (MSRT). It was **not** observed loaded by generic profile-migration/imaging tooling in the tested tenant. Critically, the loads appeared **only in the CDC table `DeviceCustomImageLoadEvents`** — the standard `DeviceImageLoadEvents` showed 0 | Exclude the three trusted loaders (applied in Query 5) and treat any remaining loader as anomalous. Prefer the `DeviceCustomImageLoadEvents` variant where CDC is enabled — the standard table may be blind to `offreg.dll` entirely |
 | The working directory is a **GUID-named folder at the root of `C:\`** (e.g., `C:\550e8400-e29b-41d4-a716-446655440000\`) — legitimate `NTUSER.DAT`/`UsrClass.dat` only ever live under `C:\Users\<user>\...` | This is the single highest-fidelity artifact for the unmodified PoC (Query 1) — a recompiled variant could trivially change the working-directory naming pattern |
 | The tool requires **local console/interactive access** and two valid standard-user credentials plus the target username — it is not a remote or network-based exploit | Focus hunts on endpoint (`Device*`) telemetry; there is no useful network- or identity-plane signal for this specific chain |
 | No CVE has been assigned at time of writing and the exploit affects a **fully patched** July 2026 image — patch-status filtering will not narrow scope | Treat as broadly applicable to all supported desktop/server Windows builds until Microsoft ships a fix |
+
+> ### ⚠️ Telemetry Coverage Precondition (read before trusting a 0-result on Queries 1–2)
+>
+> **MDE `DeviceFileEvents` does not capture registry-hive file (`NTUSER.DAT` / `UsrClass.dat`) operations by default.** This was verified live: across 60+ active Windows client devices over 30 days, `DeviceFileEvents` surfaced **zero** `ntuser.dat`/`UsrClass.dat` events despite continuous per-logon hive churn on every machine. MDE selectively logs a curated file subset (executables, scripts, documents, downloads) — routine hive I/O is excluded.
+>
+> **Implication:** Queries 1 and 2 — the file's two highest-fidelity detections — will frequently return **0 because the telemetry is not collected, not because the environment is clean.** Do **not** interpret a 0-result on these two queries as "not affected."
+>
+> **CDC does *not* rescue this.** The MDE **Custom Data Collection (CDC)** table `DeviceCustomFileEvents` was tested live and, despite capturing 30+ other `.dat` families at high volume (5.2M events total), it also surfaced **zero** `ntuser.dat`/`UsrClass.dat` events fleet-wide. Registry-hive files appear to be excluded from MDE file telemetry entirely — standard *and* custom. Re-targeting Queries 1–2 at `DeviceCustomFileEvents` (schema is identical, same `FolderPath`-includes-filename behavior) is worth trying where CDC exists, but should **not** be assumed to close the gap.
+>
+> **Primary detection surface (reliably populated):**
+> - **Query 3** (Object Manager namespace command-line reference) and **Query 4** (alternate-credential `notepad.exe` launch) run on `DeviceProcessEvents` — always available.
+> - **Query 5** (`offreg.dll` image load) is the strongest available anchor, but only via the CDC table `DeviceCustomImageLoadEvents` — the standard `DeviceImageLoadEvents` was blind to `offreg.dll` in testing (see Query 5).
+> - Because the file-level GUID-folder artifact may be uncollectable, **weight process/image-load signals (Queries 3–5) over file signals (Queries 1–2)** when assessing a host.
 
 ---
 
@@ -85,13 +99,13 @@ adaptation_notes: "Single table (DeviceFileEvents), no let/joins — NRT-eligibl
 DeviceFileEvents
 | where Timestamp > ago(30d)
 | where FileName in~ ("ntuser.dat", "UsrClass.dat")
-| where FolderPath matches regex @"(?i)^[A-Za-z]:\\[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+| where FolderPath matches regex @"(?i)^[A-Za-z]:\\[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(\\|$)"
 | project Timestamp, DeviceName, ActionType, FileName, FolderPath,
     InitiatingProcessFileName, InitiatingProcessCommandLine,
     AccountName = InitiatingProcessAccountName, ReportId
 | order by Timestamp desc
 ```
-**Expected results:** 0 in a clean environment — legitimate `NTUSER.DAT`/`UsrClass.dat` files only ever live under `C:\Users\<user>\...`, so any match here is a strong, low-noise indicator of the LegacyHive working-directory pattern specifically.
+**Expected results:** 0 in a clean environment — legitimate `NTUSER.DAT`/`UsrClass.dat` files only ever live under `C:\Users\<user>\...`, so any match here is a strong, low-noise indicator of the LegacyHive working-directory pattern specifically. **⚠️ A 0-result is inconclusive by itself** — MDE `DeviceFileEvents` does not log hive-file operations by default (see the *Telemetry Coverage Precondition* callout above); confirm CDC/`DeviceCustomFileEvents` coverage or rely on Queries 3–5 before concluding the host is unaffected.
 
 ---
 
@@ -126,7 +140,7 @@ DeviceFileEvents
     AccountName = InitiatingProcessAccountName, ReportId
 | order by Timestamp desc
 ```
-**Expected results:** 0 from the documented system-process allowlist in most environments. Any hit warrants reviewing the initiating process's parent chain and command line; extend the allowlist per-environment for known profile-management/migration tooling before relying on this as a standalone alert.
+**Expected results:** 0 from the documented system-process allowlist in most environments. Any hit warrants reviewing the initiating process's parent chain and command line; extend the allowlist per-environment for known profile-management/migration tooling before relying on this as a standalone alert. **⚠️ As with Query 1, a 0-result here may reflect absent hive-file telemetry rather than absence of activity** (see the *Telemetry Coverage Precondition* callout above).
 
 ---
 
@@ -196,30 +210,45 @@ DeviceProcessEvents
 
 ## Query 5: offreg.dll module load by a non-standard process
 
-**Purpose:** LegacyHive uses the Windows Offline Registry Library (`offreg.dll`) to edit the attacker's own `NTUSER.DAT` without invoking live registry APIs. This DLL is rarely loaded outside profile-migration/imaging tooling, making any load event worth reviewing.  
+**Purpose:** LegacyHive uses the Windows Offline Registry Library (`offreg.dll`) to edit the attacker's own `NTUSER.DAT` without invoking live registry APIs. `offreg.dll` is loaded in normal operations **only by a small set of trusted Microsoft servicing processes** — verified live in a CDC-enabled tenant, the only loaders observed over 30 days were `MsMpEng.exe` (Defender engine), `OfficeClickToRun.exe`, and `mrt.exe` (Malicious Software Removal Tool). Any *other* process loading `offreg.dll` is anomalous.  
 **Severity:** Low  
+**⚠️ Telemetry note:** In the tested tenant, the **standard `DeviceImageLoadEvents` table surfaced 0 `offreg.dll` loads** — the DLL was only visible via the CDC table **`DeviceCustomImageLoadEvents`** (119 loads across 33 devices). Where CDC is available, prefer the CDC variant below; the standard-table query may be blind to this signal entirely.  
 **MITRE:** T1112
 <!-- cd-metadata
 cd_ready: true
 schedule: "0"
 category: "PrivilegeEscalation"
-title: "offreg.dll loaded by {{InitiatingProcessFileName}} on {{DeviceName}}"
+title: "offreg.dll loaded by non-standard process {{InitiatingProcessFileName}} on {{DeviceName}}"
 impactedAssets:
   - type: device
     identifier: deviceName
-recommendedActions: "Confirm whether the loading process is a known, sanctioned profile-management/migration/imaging tool. If not recognized, correlate with Query 1/2 hive artifacts on the same device."
-adaptation_notes: "Single table, no let/joins — NRT-eligible. Rare DLL; expect low volume — good NRT candidate if ingestion lag is acceptable."
+recommendedActions: "The known-benign loaders (MsMpEng.exe, OfficeClickToRun.exe, mrt.exe) are excluded. Any remaining hit is a process that should not normally touch the offline registry library — investigate its parent chain, command line, and correlate with Query 1/2 hive artifacts and Query 4 alternate-credential launches on the same device."
+adaptation_notes: "Single table, no let/joins — NRT-eligible. Standard DeviceImageLoadEvents may not capture offreg.dll at all (verified: 0 in the tested tenant); the reliable signal is DeviceCustomImageLoadEvents (CDC). For CD deployment where CDC is enabled, swap the table name to DeviceCustomImageLoadEvents. Extend the benign-loader exclusion per-environment for any additional sanctioned servicing/imaging tooling."
 -->
 ```kql
 DeviceImageLoadEvents
 | where Timestamp > ago(30d)
 | where FileName =~ "offreg.dll"
+// Known-benign Microsoft servicing loaders (verified live via CDC telemetry) — extend per-environment
+| where InitiatingProcessFileName !in~ ("MsMpEng.exe", "OfficeClickToRun.exe", "mrt.exe")
 | project Timestamp, DeviceName, ActionType, FileName, FolderPath,
     InitiatingProcessFileName, InitiatingProcessFolderPath, InitiatingProcessCommandLine,
     AccountName = InitiatingProcessAccountName, ReportId
 | order by Timestamp desc
 ```
-**Expected results:** 0 in most environments — `offreg.dll` is rarely loaded outside profile-migration/imaging tooling. Any load event is worth reviewing; correlate with Query 1/2 hive artifacts before treating as a true positive.
+**Expected results:** 0 after excluding the trusted Microsoft loaders (`MsMpEng.exe`, `OfficeClickToRun.exe`, `mrt.exe`). Any remaining hit is a genuinely anomalous process touching the offline registry library — investigate immediately and correlate with Query 4 (alternate-credential launch) on the same device.
+
+**CDC variant (recommended where `DeviceCustomImageLoadEvents` is available):** the standard table above was blind to `offreg.dll` in testing; the CDC table is the reliable detection surface.
+```kql
+DeviceCustomImageLoadEvents
+| where Timestamp > ago(30d)
+| where FileName =~ "offreg.dll"
+| where InitiatingProcessFileName !in~ ("MsMpEng.exe", "OfficeClickToRun.exe", "mrt.exe")
+| project Timestamp, DeviceName, ActionType, FileName, FolderPath,
+    InitiatingProcessFileName, InitiatingProcessFolderPath, InitiatingProcessCommandLine,
+    AccountName = InitiatingProcessAccountName, ReportId
+| order by Timestamp desc
+```
 
 ---
 
@@ -302,7 +331,7 @@ union isfuzzy=true
     | extend
         IsRootGuidHiveStaging =
             FileName in~ ("ntuser.dat", "UsrClass.dat")
-            and FolderPath matches regex @"(?i)^[A-Za-z]:\\[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            and FolderPath matches regex @"(?i)^[A-Za-z]:\\[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(\\|$)",
         IsHiveReplacedByUnexpectedProcess =
             FileName in~ ("NTUSER.DAT", "UsrClass.dat")
             and ActionType in ("FileModified", "FileRenamed", "FileCreated")
@@ -327,7 +356,7 @@ union isfuzzy=true
         ActorCommandLine = tostring(InitiatingProcessCommandLine),
         ParentProcess = tostring(InitiatingProcessParentFileName), ParentCommandLine = "N/A - File Event Context",
         ActorAccount = tostring(InitiatingProcessAccountName),
-        Evidence = strcat("Target File Path: ", FolderPath, "\\", FileName)
+        Evidence = strcat("Target File Path: ", FolderPath)
 )
 | order by RiskScore desc, Timestamp desc
 ```
@@ -340,7 +369,7 @@ union isfuzzy=true
 1. **No reliable name/hash-based IOCs exist for this PoC.** LegacyHive is published as source (`LegacyHive.cpp`) with no distributed binary. A name/command-line sweep for `LegacyHive.exe` was considered but deliberately **excluded** from this file — trivial renaming defeats it and it adds no real detection value beyond the behavioral queries. All detections here (Queries 1–6) anchor on artifacts that survive recompilation and renaming.
 2. **`DeviceRegistryEvents` blind spot is intentional, not a bug to "fix."** The PoC's core primitive — offline hive editing via `offreg.dll` — is specifically designed to avoid live registry API hooks. Query 6 exists for variant coverage; do not expect it to catch the published PoC.
 3. **Two known false-positive sources are already tuned out in the queries below:** (a) a bare `"GLOBALROOT"` substring match, which would false-positive on unrelated filenames containing that string (Query 3), and (b) `svchost.exe`-initiated `notepad.exe` launches, a common pattern for Task Scheduler-hosted scheduled tasks running as an alternate account (Query 4). Extend both exclusion lists further per-environment before enabling as automated detections.
-4. **CD-readiness summary:** Queries 1–6 are each single-signal, single-table, and `cd_ready: true` — all NRT-eligible (`schedule: "0"`). Query 7 is `cd_ready: false` — it is a multi-signal risk-scored aggregation intended for analyst triage/dashboarding, not a standalone custom detection. Deploy Queries 1 and 4 first — they map to the highest-fidelity behavioral artifacts (GUID-rooted hive staging, alternate-credential `notepad.exe` launch).
+4. **CD-readiness summary:** Queries 1–6 are each single-signal, single-table, and `cd_ready: true` — all NRT-eligible (`schedule: "0"`). Query 7 is `cd_ready: false` — it is a multi-signal risk-scored aggregation intended for analyst triage/dashboarding, not a standalone custom detection. **Deploy Query 4 (alternate-credential `notepad.exe` launch, on always-available `DeviceProcessEvents`) and Query 5 (`offreg.dll` load — swap to `DeviceCustomImageLoadEvents` where CDC is enabled) first** — they map to the most reliably-collected artifacts. **Deploy Queries 1–2 only where registry-hive file collection is confirmed present** (verified absent even under CDC in the tested tenant — see the *Telemetry Coverage Precondition* callout); otherwise they are likely blind.
 5. **Re-run periodically as the PoC evolves.** As a source-published exploit, expect community forks/variants (different working-directory naming, different target process instead of `notepad.exe`, live-registry variants). Re-validate the behavioral anchors (GUID-folder pattern, hive replacement) against any observed variant before assuming continued coverage.
 6. **This file is LegacyHive-specific.** Nightmare Eclipse/Chaotic Eclipse has a history of releasing multiple Windows local exploits targeting recovery/servicing components (WinRE, offline scanner, setup/OOBE flows). A companion, broader-scope campaign covering "trusted recovery/servicing process spawns risky child" patterns (see the community-shared generalized query referenced below) is a reasonable follow-up if this actor's activity continues.
 
