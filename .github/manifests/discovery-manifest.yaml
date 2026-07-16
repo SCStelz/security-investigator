@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-07-15T18:42:27Z'
+generated: '2026-07-16T22:25:01Z'
 valid_domains:
 - admin
 - cloud
@@ -957,6 +957,25 @@ queries:
   - T1480
   - TA0011
   - TA0003
+- title: AsyncAPI npm Supply Chain Compromise — Import-Time Payload (Miasma) — Threat Hunts
+  path: queries/threat-intelligence/2026-07/asyncapi_npm_import_time_compromise.md
+  domains:
+  - endpoint
+  mitre:
+  - T1195.002
+  - T1059.007
+  - T1027
+  - T1140
+  - T1105
+  - T1036.005
+  - T1547.001
+  - T1543.002
+  - T1546.004
+  - T1071.001
+  - T1573
+  - T1552.001
+  - T1552.005
+  - T1074
 - title: LegacyHive — ProfSvc Registry Hive Hijack Local Privilege Escalation — Threat Hunts
   path: queries/threat-intelligence/2026-07/legacyhive_profsvc_hive_hijack.md
   domains:
