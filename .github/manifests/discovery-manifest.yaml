@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-07-02T20:36:23Z'
+generated: '2026-07-15T18:42:27Z'
 valid_domains:
 - admin
 - cloud
@@ -957,3 +957,15 @@ queries:
   - T1480
   - TA0011
   - TA0003
+- title: LegacyHive — ProfSvc Registry Hive Hijack Local Privilege Escalation — Threat Hunts
+  path: queries/threat-intelligence/2026-07/legacyhive_profsvc_hive_hijack.md
+  domains:
+  - endpoint
+  mitre:
+  - T1068
+  - T1106
+  - T1112
+  - T1134.001
+  - T1552.002
+  - TA0002
+  - TA0004

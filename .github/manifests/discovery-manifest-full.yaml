@@ -3,7 +3,7 @@
 #
 # Full manifest with all fields (tables, keywords, mitre, domains, platform, timeframe).
 
-generated: '2026-06-23T03:42:43Z'
+generated: '2026-07-15T18:42:27Z'
 valid_domains:
 - admin
 - cloud
@@ -670,6 +670,40 @@ queries:
   - admin
   platform:
   - Microsoft Defender XDR (Advanced Hunting)
+  timeframe:
+  - Last 30 days (configurable)
+- title: Sentinel Ingestion Breakdown — CommonSecurityLog & Syslog (Split-Rule Targeting)
+  path: queries/cloud/sentinel_ingestion_split_rule_targeting.md
+  tables:
+  - CommonSecurityLog
+  - Syslog
+  - Usage
+  keywords:
+  - ingestion cost
+  - cost optimization
+  - split ingestion
+  - filter transformation
+  - DCR
+  - data collection rule
+  - Auxiliary tier
+  - Data lake tier
+  - tier migration
+  - CEF
+  - firewall logs
+  - DeviceVendor
+  - DeviceProduct
+  - Activity
+  - LogSeverity
+  - syslog facility
+  - ProcessName
+  - noise reduction
+  - _SPLT
+  mitre:
+  - N/A (cost & ingestion optimization)
+  domains:
+  - cloud
+  platform:
+  - Both
   timeframe:
   - Last 30 days (configurable)
 - title: Email Threat Detection & Investigation Queries
@@ -2330,6 +2364,184 @@ queries:
   - email
   - endpoint
   - identity
+  platform:
+  - Microsoft Defender XDR
+  timeframe:
+  - Last 30 days (configurable)
+- title: Sapphire Sleet — Mastra npm Supply Chain Compromise (easy-day-js) — Threat Hunts
+  path: queries/threat-intelligence/2026-06/mastra_npm_supply_chain.md
+  tables:
+  - DeviceProcessEvents
+  - DeviceNetworkEvents
+  - DeviceFileEvents
+  - DeviceRegistryEvents
+  keywords:
+  - Sapphire Sleet
+  - npm
+  - supply chain
+  - postinstall
+  - easy-day-js
+  - dayjs
+  - typosquat
+  - mastra
+  - setup.cjs
+  - protocal.cjs
+  - NvmProtocal
+  - NodePackages
+  - dropper
+  - second-stage payload
+  - detached node process
+  - NODE_TLS_REJECT_UNAUTHORIZED
+  - reflective .NET
+  - PowerShell backdoor
+  - onweblive
+  - maskasd
+  - Defender exclusion
+  - scdev
+  - svchost
+  - service persistence
+  - RunOnce
+  - Registry Run key
+  - anti-forensic
+  - PSReadLine
+  - North Korea
+  - BlueNoroff
+  - UNC1069
+  - crypto wallet theft
+  mitre:
+  - T1195.002
+  - T1546.016
+  - T1059.007
+  - T1059.001
+  - T1027
+  - T1140
+  - T1071.001
+  - T1105
+  - T1547.001
+  - T1543.003
+  - T1620
+  - T1562.001
+  - T1070.003
+  - T1217
+  - T1082
+  - T1555.003
+  - T1539
+  - T1041
+  domains:
+  - endpoint
+  platform:
+  - Microsoft Defender XDR
+  timeframe:
+  - Last 30 days (configurable)
+- title: StealC & Amadey — Infostealer + Loader-as-a-Service — Threat Hunts
+  path: queries/threat-intelligence/2026-06/stealc_amadey_infostealer.md
+  tables:
+  - DeviceFileEvents
+  - DeviceNetworkEvents
+  - DeviceProcessEvents
+  - DeviceRegistryEvents
+  keywords:
+  - StealC
+  - Amadey
+  - infostealer
+  - loader
+  - malware-as-a-service
+  - MaaS
+  - cybercrime services
+  - nudwee.exe
+  - e079729711
+  - scheduled task
+  - rundll32
+  - cred.dll
+  - clip.dll
+  - plugin
+  - clipper
+  - RunOnce
+  - self-uninstall
+  - RMDIR
+  - Enable RDP
+  - fDenyTSConnections
+  - hidden admin
+  - local administrator
+  - net localgroup
+  - SOCKS proxy
+  - screenshot exfiltration
+  - RC4
+  - GitLab delivery
+  - credential theft
+  - clipboard hijack
+  mitre:
+  - T1105
+  - T1059.001
+  - T1059.003
+  - T1218.011
+  - T1053.005
+  - T1547.001
+  - T1070.004
+  - T1021.001
+  - T1136.001
+  - T1098
+  - T1115
+  - T1555.003
+  - T1113
+  - T1071.001
+  - T1090
+  - T1041
+  - T1480
+  - TA0011
+  - TA0003
+  domains:
+  - endpoint
+  platform:
+  - Microsoft Defender XDR
+  timeframe:
+  - Last 30 days (configurable)
+- title: LegacyHive — ProfSvc Registry Hive Hijack Local Privilege Escalation — Threat Hunts
+  path: queries/threat-intelligence/2026-07/legacyhive_profsvc_hive_hijack.md
+  tables:
+  - DeviceProcessEvents
+  - DeviceFileEvents
+  - DeviceImageLoadEvents
+  - DeviceRegistryEvents
+  keywords:
+  - LegacyHive
+  - Nightmare Eclipse
+  - Chaotic Eclipse
+  - MSNightmare
+  - ProfSvc
+  - User Profile Service
+  - privilege escalation
+  - registry hive
+  - hive hijack
+  - NTUSER.DAT
+  - UsrClass.dat
+  - offline registry
+  - offreg.dll
+  - Object Manager namespace
+  - BaseNamedObjects
+  - GLOBALROOT
+  - symbolic link
+  - NtCreateSymbolicLinkObject
+  - NtCreateDirectoryObjectEx
+  - CreateProcessWithLogonW
+  - LOGON_WITH_PROFILE
+  - batch oplock
+  - User Shell Folders
+  - Local AppData
+  - zero-day
+  - 0-day
+  - local privilege escalation
+  - LPE
+  mitre:
+  - T1068
+  - T1106
+  - T1112
+  - T1134.001
+  - T1552.002
+  - TA0002
+  - TA0004
+  domains:
+  - endpoint
   platform:
   - Microsoft Defender XDR
   timeframe:
