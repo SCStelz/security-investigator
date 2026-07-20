@@ -2,9 +2,9 @@
 
 **Created:** 2026-06-10  
 **Platform:** Both  
-**Tables:** CopilotActivity, DataSecurityEvents  
-**Keywords:** CopilotActivity, AI activity, Copilot interaction, prompt injection, jailbreak, JailbreakDetected, AccessedResources, Contexts, AppHost, autonomous agent, agentic, MCP tool, connector, Defender runtime protection, SecurityWebhook, plugin lifecycle, PromptBook, AI model, data exposure, grounding data, declarative agent, Copilot Studio, hunt playbook, broad sweep, compliance violation, DLP, sensitivity label downgrade, risky prompt, sensitive response, DataSecurityEvents  
-**MITRE:** T1078.004, T1213, T1530, T1567.002, T1114.002, T1071.001, T1087, TA0007, TA0009, TA0010  
+**Tables:** CopilotActivity, DataSecurityEvents, CloudAppEvents  
+**Keywords:** CopilotActivity, AI activity, Copilot interaction, prompt injection, jailbreak, JailbreakDetected, AccessedResources, Contexts, AppHost, autonomous agent, agentic, MCP tool, connector, Defender runtime protection, SecurityWebhook, plugin lifecycle, PromptBook, AI model, data exposure, grounding data, declarative agent, Copilot Studio, hunt playbook, broad sweep, compliance violation, DLP, sensitivity label downgrade, risky prompt, sensitive response, DataSecurityEvents, SharePoint site access, agent knowledge source, Power Virtual Agents, Enterprise Copilot Platform, ClientAppName, SiteUrl, CloudAppEvents  
+**MITRE:** T1078.004, T1213, T1530, T1567.002, T1114.002, T1071.001, T1087, TA0007, TA0009, TA0010, T1213.002  
 **Domains:** cloud, admin, identity  
 **Timeframe:** Last 7–30 days (Advanced Hunting) or 30 Days + (Data Lake)
 
@@ -68,6 +68,9 @@ This file reconstructs AI activity for incident response using the **scope → c
 | 11 | [PromptBook Management Activity](#query-11-promptbook-management-activity) | Investigation | `CopilotActivity` |
 | 12 | [Single-Actor AI Activity Timeline](#query-12-single-actor-ai-activity-timeline) | Investigation | `CopilotActivity` |
 | 13 | [Copilot Compliance Violations](#query-13-copilot-compliance-violations) | Posture | `DataSecurityEvents` |
+| 14 | [SharePoint Sites Accessed by Declarative Agents](#query-14-sharepoint-sites-accessed-by-declarative-agents) | Investigation | `CopilotActivity` |
+| 15 | [Agent-Driven SharePoint Access — Full Audit Trail](#query-15-agent-driven-sharepoint-access--full-audit-trail) | Investigation | `CloudAppEvents` |
+| 16 | [Pivot — Correlate Agent Identity to SharePoint Audit Events](#query-16-pivot--correlate-agent-identity-to-sharepoint-audit-events) | Investigation | `CloudAppEvents` + `CopilotActivity` |
 
 
 ## 🎯 Hunt Playbook — 7-Day Broad Sweep
@@ -509,6 +512,113 @@ DataSecurityEvents
 ```
 
 > **Per-user drill-down:** to pivot to who is generating a specific violation, add `| where ActionType has "Label on file"` (or the ActionType of interest) and `summarize ... by AccountUpn` instead. Then run Q12 on that UPN for the full AI timeline.
+
+---
+
+### Query 14: SharePoint Sites Accessed by Declarative Agents
+
+**Purpose:** Answers *"which SharePoint sites/files has this agent read?"* directly from `CopilotActivity.AccessedResources`, scoped to interactions where `AgentId` is populated (i.e., a named declarative agent, not plain M365 Copilot chat). This is the runtime counterpart to `AgentsInfo.DeclaredDataSources` (`ai-agent-posture` skill Q7) — what the agent actually read, not just what it was configured with.  
+**Severity:** Low  
+**MITRE:** T1213, T1530
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregated per-agent SharePoint site inventory — investigation pivot, not a row-level detection."
+-->
+
+```kql
+CopilotActivity
+| where TimeGenerated > ago(30d)
+| where isnotempty(AgentId)
+| extend AR = parse_json(tostring(LLMEventData.AccessedResources))
+| mv-expand AR
+| extend SiteUrl = tostring(AR.SiteUrl)
+| where SiteUrl has ".sharepoint.com"
+| summarize
+    AccessCount = count(),
+    Users = dcount(ActorName),
+    Sites = make_set(SiteUrl, 20),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
+    by AgentName, AgentId
+| order by AccessCount desc
+```
+
+> **Filter note:** `AR.SiteUrl` is also populated for non-SharePoint resources (e.g. Outlook OWA deep links for `Untitled Notebook`-style agents) — the `has ".sharepoint.com"` filter is required to exclude that noise. To pivot to individual files instead of the site-level rollup, project `tostring(AR.Name)` / `ObjectId` alongside `SiteUrl` and drop the `summarize`.
+
+---
+
+### Query 15: Agent-Driven SharePoint Access — Full Audit Trail
+
+**Purpose:** `CopilotActivity.AccessedResources` only records `SiteUrl` and an action verb — it has **no client IP, no exact item ID, and no per-request detail**. `CloudAppEvents` carries the full SharePoint unified-audit trail (validated fingerprint: agent-driven access via **Copilot Studio** surfaces with `ApplicationDisplayName` / `AppAccessContext.ClientAppName` = **`Power Virtual Agents`** (Copilot Studio's legacy platform name — note the trailing space in some raw records, hence `trim()`) or **`Enterprise Copilot Platform`**, as opposed to human client apps like `Files`, `Browser`, `Microsoft Office`, `OfficeHome`). This query surfaces the same knowledge-source access with the fuller audit detail (`ClientIP`, per-file `ObjectName`, `ActionType` granularity including `FileDownloaded`).  
+**Severity:** Low (Medium if `FileDownloaded` on a sensitive file)  
+**MITRE:** T1213, T1530, T1567.002
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Aggregated per-actor SharePoint audit-trail inventory filtered to the Copilot Studio client-app fingerprint — investigation pivot, not a standalone row-level detection. A row-level variant scoped to ActionType == 'FileDownloaded' plus a sensitive-file allowlist could be promoted to a detection."
+-->
+
+```kql
+CloudAppEvents
+| where Timestamp > ago(30d)
+| where Application has "SharePoint"
+| where ActionType in ("FileAccessed", "FilePreviewed", "FileDownloaded", "FileModified", "PageViewed")
+| extend ClientApp = trim(" ", tostring(coalesce(RawEventData.AppAccessContext.ClientAppName, RawEventData.ApplicationDisplayName)))
+| where ClientApp in ("Power Virtual Agents", "Enterprise Copilot Platform")
+| extend SiteUrl = tostring(RawEventData.SiteUrl), ClientIP = tostring(RawEventData.ClientIP)
+| summarize
+    Events = count(),
+    Actions = make_set(ActionType, 10),
+    Sites = make_set(SiteUrl, 20),
+    Files = make_set(ObjectName, 20),
+    ClientIPs = make_set(ClientIP, 10),
+    FirstSeen = min(Timestamp),
+    LastSeen = max(Timestamp)
+    by ClientApp, AccountDisplayName, AccountObjectId
+| order by Events desc
+```
+
+> **Important caveat:** This is OBO (on-behalf-of) access — `AccountDisplayName`/`AccountObjectId` is the **impersonated human user**, not the agent's own identity. The `ClientApp` fingerprint tells you *a Copilot Studio agent* touched SharePoint on that user's behalf, but not *which* agent. Cross-reference with Q16 (or `AgentId`-scoped Q14 + matching `ActorUserId`/time window) to attribute a specific `AgentName`. Discover other client-app fingerprints in your tenant first with: `CloudAppEvents | where Application has "SharePoint" | extend ClientApp = trim(" ", tostring(coalesce(RawEventData.AppAccessContext.ClientAppName, RawEventData.ApplicationDisplayName))) | summarize count() by ClientApp | order by count_ desc` — new Copilot/agent platforms may introduce additional fingerprint values over time.
+
+---
+
+### Query 16: Pivot — Correlate Agent Identity to SharePoint Audit Events
+
+**Purpose:** **The definitive answer to "which SharePoint sites did Agent X access."** Joins `CopilotActivity` agent interactions (which know `AgentName`/`AgentId` but not `ClientIP`/exact file detail) to `CloudAppEvents` SharePoint audit records (which know the full detail but not which agent) on `ActorUserId == AccountObjectId` within a tight time window, attributing the full audit trail back to a named agent.  
+**Severity:** Low  
+**MITRE:** T1213, T1530
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Cross-table join/correlation pivot with a time-proximity match — investigation tooling, not a standalone row-level detection."
+-->
+
+```kql
+let lookback = 30d;
+let agentInteractions = CopilotActivity
+    | where TimeGenerated > ago(lookback)
+    | where isnotempty(AgentId)
+    | project InteractionTime = TimeGenerated, ActorUserId, AgentName, AgentId;
+CloudAppEvents
+| where Timestamp > ago(lookback)
+| where Application has "SharePoint"
+| extend ClientApp = trim(" ", tostring(coalesce(RawEventData.AppAccessContext.ClientAppName, RawEventData.ApplicationDisplayName)))
+| where ClientApp in ("Power Virtual Agents", "Enterprise Copilot Platform")
+| extend SiteUrl = tostring(RawEventData.SiteUrl), ClientIP = tostring(RawEventData.ClientIP)
+| join kind=inner agentInteractions on $left.AccountObjectId == $right.ActorUserId
+| where abs(datetime_diff('minute', Timestamp, InteractionTime)) <= 5
+| summarize
+    Events = count(),
+    Sites = make_set(SiteUrl, 20),
+    Files = make_set(ObjectName, 20),
+    Actions = make_set(ActionType, 10),
+    ClientIPs = make_set(ClientIP, 10)
+    by AgentName, AgentId, AccountDisplayName, AccountObjectId
+| order by Events desc
+```
+
+> **Tuning notes:** the 5-minute window is conservative for interactive Copilot Studio sessions; widen if an agent's tool-call chain runs longer before touching SharePoint. Pre-filtering both sides (`isnotempty(AgentId)` on the CopilotActivity side, `Application has "SharePoint"` + `ClientApp` fingerprint on the CloudAppEvents side) keeps the join inputs small and avoids the `CloudAppEvents` fleet-wide-join timeout documented in the `ai-agent-posture` skill. Join key is a plain string (`AccountObjectId`/`ActorUserId`), not dynamic — safe for `join`.
 
 ---
 

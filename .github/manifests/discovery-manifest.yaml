@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-07-15T18:42:27Z'
+generated: '2026-07-20T19:47:53Z'
 valid_domains:
 - admin
 - cloud
@@ -231,6 +231,7 @@ queries:
   - TA0007
   - TA0009
   - TA0010
+  - T1213.002
 - title: Defender EASM — Asset Inventory & Risk Exploration
   path: queries/cloud/easm_asset_inventory.md
   domains:

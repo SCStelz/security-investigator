@@ -498,6 +498,8 @@ AgentsInfo
 - Any data source on an agent that is also email-capable (Q5) → XPIA exfiltration chain.
 
 > **Coverage caveat:** `DeclaredDataSources` is sparse and stores source **names/filenames** (e.g., `Priority-Banking-Policy.docx`), not the richer `$kind`/site structure the old `KnowledgeDetails` column held. Source *type* classification (SharePoint vs public site vs federated) is not reliably available — report the declared source names and flag broadly-accessible agents that carry any.
+>
+> **For actual (runtime) SharePoint sites accessed by agents — not just declared config —** see `copilot_activity_investigation.md` Queries 14–16: `CopilotActivity.AccessedResources.SiteUrl` gives the agent-attributed site list, and `CloudAppEvents` (filtered to the validated `Power Virtual Agents` / `Enterprise Copilot Platform` client-app fingerprint) gives the full SharePoint audit trail (`ClientIP`, exact file, `FileDownloaded` granularity) for the same OBO access.
 
 **🔴 Document Injection Risk ([Attack Scenario 2](#attack-scenario-2-prompt-injection-via-shared-document--email-exfiltration-xpia)):** Data sources are the primary vector for indirect prompt injection (XPIA). **Cross-reference with Q5:** agents that combine declared data sources with an email-send operation are the textbook XPIA exfiltration pattern — flag these as **highest priority** in the Knowledge Source Risk dimension.
 
