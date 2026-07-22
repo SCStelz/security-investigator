@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-07-20T19:52:00Z'
+generated: '2026-07-22T19:47:34Z'
 valid_domains:
 - admin
 - cloud
@@ -958,6 +958,31 @@ queries:
   - T1480
   - TA0011
   - TA0003
+- title: ACR Stealer — ClickFix Intrusion Chains (WebDAV/Python & MSHTA/Steganography) — Threat Hunts
+  path: queries/threat-intelligence/2026-07/acr_stealer_clickfix_intrusion_chains.md
+  domains:
+  - endpoint
+  mitre:
+  - T1189
+  - T1204
+  - T1059.001
+  - T1059.003
+  - T1059.006
+  - T1218.011
+  - T1218.005
+  - T1053.005
+  - T1027
+  - T1027.003
+  - T1036
+  - T1070.003
+  - T1070.006
+  - T1620
+  - T1055
+  - T1555.003
+  - T1005
+  - T1074
+  - T1102
+  - T1568.002
 - title: AsyncAPI npm Supply Chain Compromise — Import-Time Payload (Miasma) — Threat Hunts
   path: queries/threat-intelligence/2026-07/asyncapi_npm_import_time_compromise.md
   domains:
