@@ -1,9 +1,9 @@
 # Agent 365 Observability — AI Agent Telemetry Hunting
 
 **Created:** 2026-05-22  
-**Platform:** Microsoft Sentinel (Data Lake + Analytics tier for promoted tables)  
-**Tables:** UnifiedAgentObservability, CloudAppEvents, A365_JailbreakIncidents_KQL_CL, A365_QueryLakeAudit_KQL_CL, A365_AgentToolDaily_KQL_CL, A365_AgentToolFailuresDaily_KQL_CL  
-**Keywords:** Agent 365, A365, AI agent, Copilot Studio, Work IQ, prompt injection, jailbreak, Prompt Shield, XPIA, MCP tool, gateway tool, ExecuteToolByGateway, ExecuteToolBySDK, InvokeAgent, InferenceCall, token usage, ToolName, Power Platform Connector, agent telemetry, conversation, tool call, prompt forensics, agent observability, CloudAppEvents CopilotInteraction  
+**Platform:** Both — Microsoft Sentinel (Data Lake) + Microsoft Defender (Advanced Hunting) + Microsoft Purview (audit / DSPM for AI)  
+**Tables:** UnifiedAgentObservability, CloudAppEvents, DataSecurityEvents, A365_JailbreakIncidents_KQL_CL, A365_QueryLakeAudit_KQL_CL, A365_AgentToolDaily_KQL_CL, A365_AgentToolFailuresDaily_KQL_CL  
+**Keywords:** Agent 365, A365, AI agent, Copilot Studio, Work IQ, prompt injection, jailbreak, Prompt Shield, XPIA, MCP tool, gateway tool, ExecuteToolByGateway, ExecuteToolBySDK, InvokeAgent, InferenceCall, token usage, ToolName, Power Platform Connector, agent telemetry, conversation, tool call, prompt forensics, agent observability, CloudAppEvents CopilotInteraction, Observability SDK, OpenTelemetry, OTel, Advanced Hunting, Defender-only, RawEventData, data plane, Purview, DSPM for AI, unified audit log, DataSecurityEvents, ClientIP  
 **MITRE:** T1078.004, T1059, T1087, T1530, T1071.001, TA0001, TA0007, TA0009  
 **Domains:** cloud, identity  
 **Timeframe:** Last 7 days to 12 years (Data Lake retention; KQL Jobs support up to 12-year lookback)
@@ -65,6 +65,7 @@ All four share `EventSessionId` (1:1 with `AdditionalFields.ConversationId`), th
 | `CloudAppEvents` (`ActionType == "CopilotInteraction"`) | Workspace (Analytics tier) | M365 Copilot / Copilot Studio prompt + response events with **Prompt Shield / XPIA / jailbreak verdicts** in `CopilotEventData.Messages[]`. Joinable to this table on **agent SPN GUID** — see [Query 9](#query-9-cross-source-correlation-with-cloudappevents). |
 | `GraphAPIAuditEvents` | Advanced Hunting | When agents call Graph API via MCP, those calls also surface here under the agent's SPN. |
 | `MicrosoftGraphActivityLogs` | Data Lake | Same as above, with token/session correlation for >30d. |
+| `DataSecurityEvents` | Advanced Hunting (Purview) | **Purview / DSPM for AI** view of agent & Copilot prompts/responses with **SIT and sensitivity-label** matches. The place to see *sensitive content* in prompts (SSNs, credentials, labeled files) that `CloudAppEvents` omits. Requires IRM opt-in. See the `data-security-analysis` skill for validated queries. |
 
 ---
 
@@ -72,15 +73,19 @@ All four share `EventSessionId` (1:1 with `AdditionalFields.ConversationId`), th
 
 | # | Query | Use Case | Key Table |
 |---|-------|----------|-----------|
-| 1 | [Agent & Actor Inventory](#query-1-agent--actor-inventory) | Posture | `UnifiedAgentObservability` |
+| 1 | [a: Agent & Actor Inventory](#query-1a-agent--actor-inventory) | Posture | `UnifiedAgentObservability` |
+| 1 | [b: Agent & Actor Inventory — Defender (CloudAppEvents)](#query-1b-agent--actor-inventory--defender-cloudappevents) | Posture | `CloudAppEvents` |
 | 2 | [Prompt Injection / Jailbreak Detection](#query-2-prompt-injection--jailbreak-detection) | Detection | `UnifiedAgentObservability` |
-| 3 | [Session Reconstruction — Prompts + Tool Calls](#query-3-session-reconstruction--prompts--tool-calls) | Investigation | `UnifiedAgentObservability` |
+| 3 | [a: Session Reconstruction — Prompts + Tool Calls](#query-3a-session-reconstruction--prompts--tool-calls) | Investigation | `UnifiedAgentObservability` |
 | 3 | [b: Agent-Centric Session Reconstruction (all of one agent's convers...](#query-3b-agent-centric-session-reconstruction-all-of-one-agents-conversations) | Investigation | `UnifiedAgentObservability` |
-| 4 | [Tool Invocation Inventory per Agent](#query-4-tool-invocation-inventory-per-agent) | Posture | `UnifiedAgentObservability` |
+| 4 | [a: Tool Invocation Inventory per Agent](#query-4a-tool-invocation-inventory-per-agent) | Posture | `UnifiedAgentObservability` |
+| 4 | [b: Tool Invocation Inventory per Agent — Defender (CloudAppEvents)](#query-4b-tool-invocation-inventory-per-agent--defender-cloudappevents) | Posture | `CloudAppEvents` |
 | 5 | [Tool Argument Audit (data-access tools)](#query-5-tool-argument-audit-data-access-tools) | Investigation | `UnifiedAgentObservability` |
 | 6 | [Tool Call Failures & Errors](#query-6-tool-call-failures--errors) | Investigation | `UnifiedAgentObservability` |
-| 7 | [New Tool First-Seen — Baseline Deviation](#query-7-new-tool-first-seen--baseline-deviation) | Dashboard | `UnifiedAgentObservability` |
-| 8 | [Channel & User Activity Distribution](#query-8-channel--user-activity-distribution) | Investigation | `UnifiedAgentObservability` |
+| 7 | [a: New Tool First-Seen — Baseline Deviation](#query-7a-new-tool-first-seen--baseline-deviation) | Dashboard | `UnifiedAgentObservability` |
+| 7 | [b: New Tool First-Seen — Defender (CloudAppEvents)](#query-7b-new-tool-first-seen--defender-cloudappevents) | Investigation | `CloudAppEvents` |
+| 8 | [a: Channel & User Activity Distribution](#query-8a-channel--user-activity-distribution) | Investigation | `UnifiedAgentObservability` |
+| 8 | [b: Channel & User Activity Distribution — Defender (CloudAppEvents)](#query-8b-channel--user-activity-distribution--defender-cloudappevents) | Investigation | `CloudAppEvents` |
 | 9 | [a: Cross-Source Base Correlation — prompts ↔ tool calls](#query-9a-cross-source-base-correlation--prompts--tool-calls) | Investigation | `CloudAppEvents` + `UnifiedAgentObservability` |
 | 9 | [b: Cross-Source High-Signal — prompt injection → downstream tool calls](#query-9b-cross-source-high-signal--prompt-injection--downstream-tool-calls) | Investigation | `CloudAppEvents` + `UnifiedAgentObservability` |
 | 9 | [c: Cross-Source Per-Session Rollup — safety + tool-use](#query-9c-cross-source-per-session-rollup--safety--tool-use) | Investigation | `CloudAppEvents` + `UnifiedAgentObservability` |
@@ -94,9 +99,75 @@ All four share `EventSessionId` (1:1 with `AdditionalFields.ConversationId`), th
 | — | [Detection 3 — AI Agent: New Tool First-Seen vs 30-Day Baseline](#detection-3--ai-agent-new-tool-first-seen-vs-30-day-baseline) | Dashboard | — |
 
 
+## Data Plane Selection — Sentinel Data Lake vs Defender vs Purview
+
+The Agent 365 Observability SDK instruments every agent turn as **OpenTelemetry spans** — `InvokeAgentScope`, `InferenceScope`, `ExecuteToolScope`, and `OutputScope` ([Observability SDK](https://learn.microsoft.com/microsoft-agent-365/developer/observability)) — then fans the **same events out to three independent sinks**. Each plane carries a different slice of the span: **Defender** gets the security *metadata*, **Purview** gets the sensitive *content* (prompts, responses, tool arguments — classified/labeled/DLP-scanned), and the **Sentinel Data Lake** connector carries the **full-fidelity span**. Choose the plane your **license** and **question** require.
+
+```mermaid
+flowchart LR
+    SDK["Agent 365 Observability SDK<br/>OTel spans: InvokeAgent · Inference · ExecuteTool · Output"]
+    SDK --> DL["A · Sentinel Data Lake<br/>UnifiedAgentObservability"]
+    SDK --> DEF["B · Microsoft Defender<br/>CloudAppEvents (Advanced Hunting)"]
+    SDK --> PUR["C · Microsoft Purview<br/>Audit log · DSPM for AI · DataSecurityEvents"]
+```
+
+### The three planes
+
+| Plane | Surface / table | Query tool | Retention | License / prereq | Carries |
+|-------|-----------------|-----------|-----------|------------------|---------|
+| **A · Sentinel Data Lake** | `UnifiedAgentObservability` (`workspaceId:"default"`) | `query_lake` | 90d+ (up to 12y via KQL Jobs) | Sentinel Data Lake | **Full span** — prompt/reply text (`EventOriginalRequestDetails.text`), tool args, token usage, session/conversation graph |
+| **B · Microsoft Defender** | `CloudAppEvents` (`ActionType in (InvokeAgent, InferenceCall, ExecuteToolBy*)`) + `CopilotInteraction` | `RunAdvancedHuntingQuery` | ≤30d (AH Graph cap) | Defender XDR (AH configured) | **Security metadata** — agent/actor/channel/tool names, `ClientIP`, blueprint discriminator, Prompt Shield jailbreak verdict. **No prompt text / tool args / tokens.** |
+| **C · Microsoft Purview** | Unified **audit log** → **DSPM for AI** Activity Explorer (AI activities); `DataSecurityEvents` in AH | Purview portal / `RunAdvancedHuntingQuery` | Audit retention (per SKU) | Purview Audit **on** + DSPM for AI policy; `DataSecurityEvents` needs IRM opt-in | **Sensitive content & compliance** — prompt/response SIT matches, sensitivity labels, DLP, IRM, Communication Compliance, eDiscovery |
+
+> **Why the payloads split.** The SDK's `InvokeAgentScope` / `InferenceScope` record `gen_ai.input.messages` + `gen_ai.output.messages`, and `ExecuteToolScope` records `gen_ai.tool.call.arguments` + `.result` — but that **content** is routed to the Purview compliance pipeline (where it is classified, labeled, and DLP-scanned), **not** to Defender `CloudAppEvents`. Defender receives the security-relevant metadata plus `client.address` (→ `ClientIP`). This is why a Defender-only hunt can see *which* tool an agent called but not the *arguments* it passed. ([SDK scope attributes](https://learn.microsoft.com/microsoft-agent-365/developer/observability#validate-for-store-publishing))
+
+### When to use each
+
+- **Have Sentinel Data Lake?** Use **Plane A** for everything — it is the only plane with prompt text, tool arguments, and token usage together, plus 90d+ retention. The numbered queries below default to Plane A.
+- **Defender-only (no Data Lake)?** Use **Plane B** (`CloudAppEvents`). Queries [1b](#query-1b-agent--actor-inventory--defender-cloudappevents), [4b](#query-4b-tool-invocation-inventory-per-agent--defender-cloudappevents), [7b](#query-7b-new-tool-first-seen--defender-cloudappevents), [8b](#query-8b-channel--user-activity-distribution--defender-cloudappevents) are tested Defender-native equivalents. For jailbreak / prompt-injection detection use `CopilotInteraction` ([Query 9](#query-9-cross-source-correlation-with-cloudappevents)) — the Prompt Shield verdict is Defender-native.
+- **Need the prompt/response *content* or sensitive-data classification?** Use **Plane C (Purview)** — the unified audit log and DSPM for AI Activity Explorer display the actual prompt & response text, and `DataSecurityEvents` surfaces SIT / sensitivity-label matches on prompts. See the **`data-security-analysis` skill** for validated `DataSecurityEvents` queries (Copilot SIT landscape, prompt-only sensitive-data-entry ranking, label exposure).
+
+### Field crosswalk — `CloudAppEvents.RawEventData` → `UnifiedAgentObservability`
+
+Extract `RawEventData` once (`extend d = parse_json(RawEventData)`) then read `d.<Field>`. Verified live against both planes:
+
+| `CloudAppEvents.RawEventData.*` | `UnifiedAgentObservability` | Notes |
+|---|---|---|
+| `Operation` | `EventOriginalType` (= `ActionType`) | `InvokeAgent` / `InferenceCall` / `ExecuteToolBySDK` / `ExecuteToolByGateway` / `ExecuteToolByMCPServer` |
+| `AgentBlueprintId` (zero-GUID = user prompt) | `SrcAgentBlueprintId` | **Same prompt-vs-reply discriminator** |
+| `AgentId` | `SrcAgentId` | Agent SPN GUID (real for custom agents, zero-GUID for M365 built-ins) |
+| `AgentName` | `SrcAgentName` | On tool / inference rows |
+| `TargetAgentName` | `TargetAgentName` | On `InvokeAgent` rows |
+| `UserId` | `ActorUsername` | Real UPN on `InvokeAgent`; `"N/A"` on tool/inference; Teams MRI `8:orgid:<guid>` or `system` possible |
+| `ChannelName` | `AdditionalFields.ChannelName` | |
+| `ConversationId` | `AdditionalFields.ConversationId` | |
+| `SessionIdentity` | `EventSessionId` | Session join key |
+| `ToolName` / `ToolType` | `ToolName` / `ToolOriginalType` | On `ExecuteTool*` rows |
+| `ClientIP` | *(not present)* | **Defender-only bonus** — source IP per event |
+| *(not present)* | `EventOriginalRequestDetails.text`, tool `arguments`, `InputTokensUsed`/`OutputTokensUsed` | **Data-Lake-only** — content & tokens route to Purview, not Defender |
+
+### Parity matrix — which hunts port to Defender (Plane B)
+
+Validated 30-day comparison (mcaps lab): the lake carries ~2× the `InvokeAgent` volume because it emits agent **replies** as separate rows; Defender `CloudAppEvents.InvokeAgent` is almost entirely user prompts.
+
+| # | Query | Plane B (Defender) feasibility | Reason |
+|---|-------|-------------------------------|--------|
+| 1 | Agent & actor inventory | ✅ **Full (better)** — see [1b](#query-1b-agent--actor-inventory--defender-cloudappevents) | all metadata + `ClientIP` |
+| 4 | Tool inventory per agent | ✅ **Full** — see [4b](#query-4b-tool-invocation-inventory-per-agent--defender-cloudappevents) | `ToolName`/`ToolType` present (resolves MCP / Power Platform connector names) |
+| 7 | New tool first-seen | ✅ **Full** — see [7b](#query-7b-new-tool-first-seen--defender-cloudappevents) | metadata-only |
+| 8 | Channel & user distribution | ✅ **Full (better)** — see [8b](#query-8b-channel--user-activity-distribution--defender-cloudappevents) | + `ClientIP` |
+| 9 | Safety / prompt-injection verdict | ✅ **Defender-native** ([Query 9](#query-9-cross-source-correlation-with-cloudappevents)) | `CopilotInteraction.JailbreakDetected` |
+| 2 | Prompt-text jailbreak regex | ⚠️ **Verdict-only** | `InvokeAgent` has no prompt text — use `CopilotInteraction` verdict (Defender) or `UnifiedAgentObservability` text (Data Lake); prompt *content* lives in Purview |
+| 3 | Session reconstruction | ⚠️ **Metadata timeline only** | no prompt text / tool args in `CloudAppEvents` |
+| 6 | Tool failures | ⚠️ **Partial** | only `RawEventData.ErrorMessage` (usually empty); no rich error payload |
+| 5 | Tool **argument** audit | ❌ **Not feasible in Defender** | `CloudAppEvents` omits tool args — use Plane A or Purview |
+| — | Token usage | ❌ **Not feasible in Defender** | no token fields in `CloudAppEvents` — Plane A only |
+
+---
+
 ## Queries
 
-### Query 1: Agent & Actor Inventory
+### Query 1a: Agent & Actor Inventory
 
 **Purpose:** High-level inventory of every agent emitting telemetry, the users invoking them, the channels in use, and per-agent activity volumes. Use as the entry point for any A365 hunt.  
 **Severity:** Informational  
@@ -143,6 +214,45 @@ UnifiedAgentObservability
 
 ---
 
+### Query 1b: Agent & Actor Inventory — Defender (CloudAppEvents)
+
+**Plane B equivalent of [Query 1a](#query-1a-agent--actor-inventory)** for Defender-only tenants (no Sentinel Data Lake). Runs on `CloudAppEvents` via Advanced Hunting (≤30d). Adds `ClientIP` (not in the lake); omits token usage (not in `CloudAppEvents`).  
+**Purpose:** Inventory every agent emitting telemetry, the users invoking them, channels, source IPs, and per-agent volumes.  
+**Severity:** Informational  
+**MITRE:** —  
+
+```kql
+CloudAppEvents
+| where Timestamp > ago(30d)
+| where ActionType in ("InvokeAgent", "InferenceCall", "ExecuteToolBySDK", "ExecuteToolByGateway", "ExecuteToolByMCPServer")
+| extend d = parse_json(RawEventData)
+| extend AgentName   = tostring(d.AgentName),
+         TargetAgent = tostring(d.TargetAgentName),
+         Actor       = tostring(d.UserId),
+         Channel     = tostring(d.ChannelName),
+         IP          = tostring(d.ClientIP),
+         Blueprint   = tostring(d.AgentBlueprintId)
+| extend AgentName = iif(isnotempty(AgentName), AgentName, TargetAgent)
+| summarize
+    Events        = count(),
+    UserPrompts   = countif(ActionType == "InvokeAgent" and Blueprint == "00000000-0000-0000-0000-000000000000"),
+    ToolCalls     = countif(ActionType startswith "ExecuteTool"),
+    Inferences    = countif(ActionType == "InferenceCall"),
+    DistinctUsers = dcountif(Actor, Actor != "N/A" and isnotempty(Actor)),
+    SourceIPs     = dcount(IP),
+    Channels      = make_set(Channel, 10),
+    FirstSeen     = min(Timestamp),
+    LastSeen      = max(Timestamp)
+    by AgentName
+| order by Events desc
+```
+
+**Expected results:** One row per agent. `UserPrompts` uses the same zero-GUID `AgentBlueprintId` discriminator as the lake. `SourceIPs` (from `ClientIP`) is a Defender-only enrichment for spotting an agent invoked from unexpected networks. Agent name comes from `AgentName` (tool/inference rows) or falls back to `TargetAgentName` (`InvokeAgent` rows).
+
+**Tuning:** Filter to a single agent with `| where AgentName == "<AgentName>"`. Note `CloudAppEvents.InvokeAgent` is almost entirely user prompts — agent replies largely land in the lake, not here — so `Events` will be lower than the Plane A count.
+
+---
+
 ### Query 2: Prompt Injection / Jailbreak Detection
 
 **Purpose:** Detect user prompts attempting to override system instructions, extract metaprompts, or bypass safety guidelines. Captures the full plaintext prompt for forensic review.  
@@ -176,13 +286,15 @@ UnifiedAgentObservability
 
 **Expected results:** Each row is one suspect prompt with the user, agent, channel, and session for pivot. The prompt text is extracted from `EventOriginalRequestDetails.text` (the raw column is a JSON object, not bare text). `PromptPreview` truncates to 500 chars — pull the full `.text` via `EventUid` for forensic review.
 
-**Pivot:** Use `EventSessionId` to feed [Query 3](#query-3-session-reconstruction--prompts--tool-calls) and see whether the agent actioned the malicious prompt by calling tools.
+**Pivot:** Use `EventSessionId` to feed [Query 3a](#query-3a-session-reconstruction--prompts--tool-calls) and see whether the agent actioned the malicious prompt by calling tools.
 
 **Tuning:** Extend the regex with environment-specific phrasing. Consider whitelisting prompts that originate from authorized red-team accounts.
 
+> **🔷 Defender (Plane B) note:** `CloudAppEvents.InvokeAgent` carries **no prompt text**, so this regex hunt cannot run on Defender data. For a Defender-only tenant, detect prompt injection via the **Prompt Shield verdict** on `CloudAppEvents` `CopilotInteraction` (`Messages[].JailbreakDetected == true`) — see [Query 9](#query-9-cross-source-correlation-with-cloudappevents). To read the actual prompt *text*, use Plane A (`UnifiedAgentObservability`) or Plane C (Purview audit / DSPM for AI).
+
 ---
 
-### Query 3: Session Reconstruction — Prompts + Tool Calls
+### Query 3a: Session Reconstruction — Prompts + Tool Calls
 
 **Purpose:** Rebuild a full conversation turn: the user prompt plus every downstream tool/connector call the agent made in the same session. Essential for forensic timelines after a flagged prompt.  
 **Severity:** Informational  
@@ -213,11 +325,13 @@ UnifiedAgentObservability
 
 **Tuning:** Replace `TargetSession` with the session ID from Query 2 or 6. Pull full payloads from `EventOriginalRequestDetails` / `EventOriginalResultDetails` via `EventUid`.
 
+> **🔷 Defender (Plane B) note:** You can rebuild a **metadata-only** timeline from `CloudAppEvents` (join agent / tool / inference rows on `RawEventData.SessionIdentity` or `.ConversationId`), but `CloudAppEvents` omits prompt text and tool arguments — the timeline shows *what happened* (which tools, which channel, when) but not *what was said or passed*. For full-content reconstruction use Plane A; for prompt/response content use Plane C (Purview).
+
 ---
 
 ### Query 3b: Agent-Centric Session Reconstruction (all of one agent's conversations)
 
-**Purpose:** Rebuild the full activity timeline for a **single named agent** across **all** the conversations it participated in over a window — interleaving user prompts, the agent's tool/connector calls, and its replies in one chronological stream. Unlike [Query 3](#query-3-session-reconstruction--prompts--tool-calls) (which drills into one known `EventSessionId`), this pivots from an **agent name** and stitches its conversations together. Ideal for "show me everything this agent did" forensic reviews and tool-usage auditing.  
+**Purpose:** Rebuild the full activity timeline for a **single named agent** across **all** the conversations it participated in over a window — interleaving user prompts, the agent's tool/connector calls, and its replies in one chronological stream. Unlike [Query 3a](#query-3a-session-reconstruction--prompts--tool-calls) (which drills into one known `EventSessionId`), this pivots from an **agent name** and stitches its conversations together. Ideal for "show me everything this agent did" forensic reviews and tool-usage auditing.  
 **Severity:** Informational  
 **MITRE:** TA0007  
 
@@ -313,7 +427,7 @@ UnifiedAgentObservability
 
 ---
 
-### Query 4: Tool Invocation Inventory per Agent
+### Query 4a: Tool Invocation Inventory per Agent
 
 **Purpose:** Catalog every MCP tool / connector each agent calls, with call counts and time bounds. Use to validate that agents are only invoking expected tools and to detect new tool usage.  
 **Severity:** Informational  
@@ -336,6 +450,35 @@ UnifiedAgentObservability
 **Expected results:** One row per (agent, tool). `ToolName` is the specific tool/function the agent invoked — e.g. `GetUserDetails`, `GetManagerDetails` (Agent365 / Work IQ gateway tools), or `enterprise_search.search_enterprise_meetings` (M365 Copilot SDK tools). `ToolType` distinguishes gateway vs SDK delivery.
 
 **Tuning:** Filter to `where SrcAgentName == "<AgentName>"` for per-agent drill-down.
+
+---
+
+### Query 4b: Tool Invocation Inventory per Agent — Defender (CloudAppEvents)
+
+**Plane B equivalent of [Query 4a](#query-4a-tool-invocation-inventory-per-agent).** Full parity — `ToolName`, `ToolType` (incl. `MCP - Power Platform Connector`), and per-tool call counts are all present in `CloudAppEvents`.  
+**Purpose:** Catalog every tool / connector each agent calls, with call counts and time bounds.  
+**Severity:** Informational  
+**MITRE:** TA0007  
+
+```kql
+CloudAppEvents
+| where Timestamp > ago(30d)
+| where ActionType in ("ExecuteToolBySDK", "ExecuteToolByGateway", "ExecuteToolByMCPServer")
+| extend d = parse_json(RawEventData)
+| extend Agent    = tostring(d.AgentName),
+         ToolName = tostring(d.ToolName),
+         ToolType = tostring(d.ToolType),
+         Session  = tostring(d.SessionIdentity)
+| where isnotempty(ToolName)
+| summarize Calls = count(), Sessions = dcount(Session),
+            FirstCall = min(Timestamp), LastCall = max(Timestamp)
+    by Agent, ToolName, ToolType, ToolPath = ActionType
+| order by Agent asc, Calls desc
+```
+
+**Expected results:** One row per (agent, tool). `ToolType` distinguishes `extension` (M365 Copilot SDK tools such as `python`, `web.search`), `Power Platform Connector`, and `MCP - Power Platform Connector`. `ToolPath` (the `ActionType`) shows the execution route (SDK / Gateway / MCPServer).
+
+**Tuning:** Filter `| where Agent == "<AgentName>"` for per-agent drill-down. To audit the *arguments* passed to a tool, Defender is insufficient — use Plane A ([Query 5](#query-5-tool-argument-audit-data-access-tools)) or Purview.
 
 ---
 
@@ -364,6 +507,8 @@ UnifiedAgentObservability
 - For **MCP-shim agents** that expose a `query_lake` / `RunAdvancedHuntingQuery` tool, filter `ToolName == "query_lake"` and read the KQL from `Args.query` (and target workspace from `Args.workspaceId`). The older JSON-RPC `params.arguments.query` shape does **not** apply to this connector — arguments are the top-level JSON object directly.
 - For `ExecuteToolBySDK` rows the request is a `key="value"` **string**, not JSON — parse with `extract_all(@'(\w+)="([^"]*)"', EventOriginalRequestDetails)` instead of `parse_json`.
 
+> **🔷 Defender (Plane B) note — not feasible:** `CloudAppEvents` `ExecuteTool*` rows expose `ToolName`/`ToolType` but **not** the tool arguments (`gen_ai.tool.call.arguments` routes to Purview, not Defender). Argument-level auditing requires Plane A (`UnifiedAgentObservability`) or Plane C (Purview audit / DSPM for AI).
+
 ---
 
 ### Query 6: Tool Call Failures & Errors
@@ -390,9 +535,11 @@ UnifiedAgentObservability
 
 **Tuning:** Group by `ToolName` to find consistently-failing tools. The `"error"` / `"isError":true` result-string checks used by some MCP shims do **not** apply here — this connector signals errors via `EventErrorDetails` / `EventOriginalErrorType`.
 
+> **🔷 Defender (Plane B) note:** `CloudAppEvents` `ExecuteTool*` rows carry a top-level `RawEventData.ErrorMessage`, but it is empty on most rows and there is no rich error payload equivalent to `EventErrorDetails`. Failure hunting is **partial** on Defender — use Plane A for reliable tool-error forensics.
+
 ---
 
-### Query 7: New Tool First-Seen — Baseline Deviation
+### Query 7a: New Tool First-Seen — Baseline Deviation
 
 **Purpose:** Detect tools an agent invoked for the first time in the recent window that weren't part of its 30-day baseline. New tool usage is a strong signal for either (a) intentional agent expansion or (b) unauthorized tool registration.  
 **Severity:** Medium  
@@ -421,7 +568,39 @@ UnifiedAgentObservability
 
 ---
 
-### Query 8: Channel & User Activity Distribution
+### Query 7b: New Tool First-Seen — Defender (CloudAppEvents)
+
+**Plane B equivalent of [Query 7a](#query-7a-new-tool-first-seen--baseline-deviation).** Metadata-only baseline deviation — full parity in Defender.  
+**Purpose:** Detect tools an agent invoked in the last 24h that weren't in its prior 30-day baseline.  
+**Severity:** Medium  
+**MITRE:** T1078.004  
+
+```kql
+let Baseline = CloudAppEvents
+    | where Timestamp between (ago(30d) .. ago(1d))
+    | where ActionType startswith "ExecuteTool"
+    | extend d = parse_json(RawEventData)
+    | extend Agent = tostring(d.AgentName), ToolName = tostring(d.ToolName)
+    | where isnotempty(ToolName)
+    | distinct Agent, ToolName;
+CloudAppEvents
+| where Timestamp > ago(1d)
+| where ActionType startswith "ExecuteTool"
+| extend d = parse_json(RawEventData)
+| extend Agent = tostring(d.AgentName), ToolName = tostring(d.ToolName)
+| where isnotempty(ToolName)
+| summarize FirstSeenRecent = min(Timestamp), Calls = count() by Agent, ToolName
+| join kind=leftanti Baseline on Agent, ToolName
+| order by FirstSeenRecent desc
+```
+
+**Expected results:** One row per (agent, tool) new in the last 24h vs the prior 30-day baseline. **Zero rows is the healthy steady state** — a non-empty result means an agent started using a tool it hadn't before, which should be triaged (sanctioned expansion vs unauthorized tool registration).
+
+**Tuning:** Widen the recent window (`ago(1d)` → `ago(7d)`) for low-traffic agents. Keyed on `AgentName` because M365 built-ins share a zero-GUID `AgentId`.
+
+---
+
+### Query 8a: Channel & User Activity Distribution
 
 **Purpose:** Dashboard view of how agents are being used — which channels carry the prompts, which users are most active, and whether channel mix shifts over time.  
 **Severity:** Informational  
@@ -456,6 +635,43 @@ UnifiedAgentObservability
 **Expected results:** One row per (user, channel) combination, ranked by prompt volume. Useful for capacity planning and for spotting users invoking agents from unexpected channels (e.g., Teams when policy restricts to M365 Copilot only). Note `ActorUsername` on `InvokeAgent` rows may be a Teams MRI (`8:orgid:<guid>`) for some channels rather than a UPN.
 
 **Tuning:** Pivot to `by Channel, bin(TimeGenerated, 1d)` for a time-series view of channel adoption.
+
+---
+
+### Query 8b: Channel & User Activity Distribution — Defender (CloudAppEvents)
+
+**Plane B equivalent of [Query 8a](#query-8a-channel--user-activity-distribution).** Adds `SourceIPs` (`ClientIP`) — a Defender-only enrichment.  
+**Purpose:** Dashboard of how agents are used — channels, most-active users, conversation volume, and source-IP spread.  
+**Severity:** Informational  
+**MITRE:** —  
+
+```kql
+CloudAppEvents
+| where Timestamp > ago(30d)
+| where ActionType == "InvokeAgent"
+| extend d = parse_json(RawEventData)
+| extend Blueprint = tostring(d.AgentBlueprintId),
+         Actor     = tostring(d.UserId),
+         Channel   = tostring(d.ChannelName),
+         Agent     = tostring(d.TargetAgentName),
+         Conv      = tostring(d.ConversationId),
+         IP        = tostring(d.ClientIP)
+| where Blueprint == "00000000-0000-0000-0000-000000000000"   // user prompts only
+| where Actor != "N/A" and isnotempty(Actor)
+| summarize
+    Prompts       = count(),
+    Conversations = dcount(Conv),
+    SourceIPs     = dcount(IP),
+    Agents        = make_set(Agent, 10),
+    FirstPrompt   = min(Timestamp),
+    LastPrompt    = max(Timestamp)
+    by Actor, Channel
+| order by Prompts desc
+```
+
+**Expected results:** One row per (user, channel). `Actor` may be a UPN, a Teams MRI (`8:orgid:<guid>`), or `system` depending on channel. `SourceIPs` flags users prompting from an unusually large number of IPs. Channels observed include `Copilot Studio Test Pane`, `M365 Copilot`, and `msteams:COPILOT`.
+
+**Tuning:** Pivot to `by Channel, bin(Timestamp, 1d)` for a channel-adoption time series. Enrich high-`SourceIPs` actors with `enrich_ips.py`.
 
 ---
 

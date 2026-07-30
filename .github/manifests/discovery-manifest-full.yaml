@@ -3,7 +3,7 @@
 #
 # Full manifest with all fields (tables, keywords, mitre, domains, platform, timeframe).
 
-generated: '2026-07-15T18:42:27Z'
+generated: '2026-07-30T20:48:49Z'
 valid_domains:
 - admin
 - cloud
@@ -135,6 +135,7 @@ queries:
   tables:
   - UnifiedAgentObservability
   - CloudAppEvents
+  - DataSecurityEvents
   - A365_JailbreakIncidents_KQL_CL
   - A365_QueryLakeAudit_KQL_CL
   - A365_AgentToolDaily_KQL_CL
@@ -164,6 +165,18 @@ queries:
   - prompt forensics
   - agent observability
   - CloudAppEvents CopilotInteraction
+  - Observability SDK
+  - OpenTelemetry
+  - OTel
+  - Advanced Hunting
+  - Defender-only
+  - RawEventData
+  - data plane
+  - Purview
+  - DSPM for AI
+  - unified audit log
+  - DataSecurityEvents
+  - ClientIP
   mitre:
   - T1078.004
   - T1059
@@ -177,7 +190,7 @@ queries:
   - cloud
   - identity
   platform:
-  - Microsoft Sentinel (Data Lake + Analytics tier for promoted tables)
+  - Both — Microsoft Sentinel (Data Lake) + Microsoft Defender (Advanced Hunting) + Microsoft Purview (audit / DSPM for AI)
   timeframe:
   - Last 7 days to 12 years (Data Lake retention; KQL Jobs support up to 12-year lookback)
 - title: Anomaly & Behavior Threat Detection — Sentinel UEBA + MCAS Hunting
@@ -338,6 +351,7 @@ queries:
   tables:
   - CopilotActivity
   - DataSecurityEvents
+  - CloudAppEvents
   keywords:
   - CopilotActivity
   - AI activity
@@ -369,6 +383,13 @@ queries:
   - risky prompt
   - sensitive response
   - DataSecurityEvents
+  - SharePoint site access
+  - agent knowledge source
+  - Power Virtual Agents
+  - Enterprise Copilot Platform
+  - ClientAppName
+  - SiteUrl
+  - CloudAppEvents
   mitre:
   - T1078.004
   - T1213
@@ -380,6 +401,7 @@ queries:
   - TA0007
   - TA0009
   - TA0010
+  - T1213.002
   domains:
   - cloud
   - admin
@@ -2494,6 +2516,209 @@ queries:
   - endpoint
   platform:
   - Microsoft Defender XDR
+  timeframe:
+  - Last 30 days (configurable)
+- title: ACR Stealer — ClickFix Intrusion Chains (WebDAV/Python & MSHTA/Steganography) — Threat Hunts
+  path: queries/threat-intelligence/2026-07/acr_stealer_clickfix_intrusion_chains.md
+  tables:
+  - DeviceRegistryEvents
+  - DeviceProcessEvents
+  - DeviceNetworkEvents
+  - DeviceFileEvents
+  keywords:
+  - ACR Stealer
+  - Amatera Stealer
+  - ClickFix
+  - RunMRU
+  - WebDAV
+  - pushd
+  - '@SSL'
+  - rundll32
+  - conhost headless
+  - delayed variable expansion
+  - environment variable obfuscation
+  - obfuscated PowerShell
+  - MSHTA
+  - HTA
+  - VBScript COM
+  - scheduled task masquerade
+  - Autoupdate
+  - timestomping
+  - PowerShell history clearing
+  - ConsoleHost_history
+  - pythonw loader
+  - LocalAppData Temp
+  - LogiOptionsPlus masquerade
+  - Fiber API
+  - ConvertThreadToFiber
+  - VirtualAlloc
+  - reflective shellcode
+  - process hollowing
+  - steganography
+  - JPEG payload
+  - DPAPI
+  - browser credential theft
+  - Login Data
+  - Web Data
+  - Chromium
+  - EtherHiding
+  - blockchain dead drop
+  - Web3 RPC
+  - data staging
+  - infostealer
+  - MaaS
+  mitre:
+  - T1189
+  - T1204
+  - T1059.001
+  - T1059.003
+  - T1059.006
+  - T1218.011
+  - T1218.005
+  - T1053.005
+  - T1027
+  - T1027.003
+  - T1036
+  - T1070.003
+  - T1070.006
+  - T1620
+  - T1055
+  - T1555.003
+  - T1005
+  - T1074
+  - T1102
+  - T1568.002
+  domains:
+  - endpoint
+  platform:
+  - Microsoft Defender XDR
+  timeframe:
+  - Last 30 days (configurable)
+- title: AsyncAPI npm Supply Chain Compromise — Import-Time Payload (Miasma) — Threat Hunts
+  path: queries/threat-intelligence/2026-07/asyncapi_npm_import_time_compromise.md
+  tables:
+  - DeviceFileEvents
+  - DeviceNetworkEvents
+  - DeviceProcessEvents
+  - DeviceRegistryEvents
+  keywords:
+  - AsyncAPI
+  - asyncapi/specs
+  - asyncapi/generator
+  - npm
+  - supply chain
+  - import-time execution
+  - require-time
+  - module load
+  - ignore-scripts bypass
+  - Miasma
+  - M-RED-TEAM
+  - miasma-monitor
+  - sync.js
+  - NodeJS masquerade directory
+  - IPFS
+  - IPFS CID
+  - ipfs.io
+  - detached node process
+  - windowsHide
+  - GitHub Actions
+  - pull_request_target
+  - pwn request
+  - OIDC trusted publishing
+  - npm-oidc-no-reply
+  - provenance
+  - credential harvesting
+  - HKCU Run key
+  - systemd user unit
+  - second-stage payload
+  - C2
+  - decentralized fallback
+  - Nostr
+  - libp2p
+  - BitTorrent DHT
+  mitre:
+  - T1195.002
+  - T1059.007
+  - T1027
+  - T1140
+  - T1105
+  - T1036.005
+  - T1547.001
+  - T1543.002
+  - T1546.004
+  - T1071.001
+  - T1573
+  - T1552.001
+  - T1552.005
+  - T1074
+  domains:
+  - endpoint
+  platform:
+  - Microsoft Defender XDR
+  timeframe:
+  - Last 30 days (configurable)
+- title: Email Threat Landscape Q2 2026 — Notable Campaign Hunts
+  path: queries/threat-intelligence/2026-07/email_threat_landscape_q2_2026.md
+  tables:
+  - EmailEvents
+  - EmailUrlInfo
+  - EmailAttachmentInfo
+  - UrlClickEvents
+  - DeviceProcessEvents
+  - DeviceNetworkEvents
+  - DeviceFileEvents
+  keywords:
+  - Q2 2026
+  - email threat landscape
+  - automated BEC
+  - Amazon SES
+  - Python email.mime
+  - aging report
+  - payroll diversion
+  - role-based mailbox
+  - reply-bait BEC
+  - executive impersonation
+  - nested EML
+  - Teams archive recording
+  - voicemail lure
+  - ICS calendar invite
+  - OAuth silent sign-in
+  - multi-tenant app redirect
+  - login.microsoftonline redirect
+  - ClickUp attachments
+  - pixeldrain
+  - Financial_report.bat
+  - hidden PowerShell
+  - BAT dropper
+  - installer.exe
+  - ecajovna
+  - 9i6pokerdepot
+  - clickup-attachments
+  - credential phishing
+  - QR code phishing
+  - CAPTCHA-gated
+  mitre:
+  - T1566.001
+  - T1566.002
+  - T1598.002
+  - T1656
+  - T1204.001
+  - T1204.002
+  - T1059.001
+  - T1059.003
+  - T1105
+  - T1070.004
+  - T1564.003
+  - T1528
+  - TA0001
+  - TA0002
+  - TA0005
+  domains:
+  - email
+  - endpoint
+  - identity
+  platform:
+  - Both
   timeframe:
   - Last 30 days (configurable)
 - title: LegacyHive — ProfSvc Registry Hive Hijack Local Privilege Escalation — Threat Hunts
