@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-08-12T04:08:24Z'
+generated: '2026-08-12T23:11:52Z'
 valid_domains:
 - admin
 - cloud
@@ -15,6 +15,12 @@ valid_domains:
 - incidents
 - spn
 skills:
+- name: ai-agent-activity
+  path: .github/skills/ai-agent-activity/SKILL.md
+  domains:
+  - cloud
+  - identity
+  prompt: Report AI agent runtime activity — agents used, tools invoked, users, channels, jailbreak/XPIA safety flags
 - name: ai-agent-posture
   path: .github/skills/ai-agent-posture/SKILL.md
   domains:
