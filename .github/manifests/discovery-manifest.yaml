@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-08-12T04:02:53Z'
+generated: '2026-08-12T04:08:24Z'
 valid_domains:
 - admin
 - cloud
@@ -1036,6 +1036,23 @@ queries:
   - T1552.002
   - TA0002
   - TA0004
+- title: DeadLock Ransomware — Rust Encryptor Threat Hunts
+  path: queries/threat-intelligence/2026-08/deadlock_ransomware_rust_encryptor.md
+  domains:
+  - endpoint
+  mitre:
+  - T1486
+  - T1548.002
+  - T1134.001
+  - T1489
+  - T1562.001
+  - T1070.001
+  - T1490
+  - T1112
+  - T1036.005
+  - T1485
+  - T1070.004
+  - T1657
 - title: macOS ClickFix — Cloaked Fingerprinting Gates Delivering AMOS/MacSync — Threat Hunts
   path: queries/threat-intelligence/2026-08/macos_clickfix_fingerprinting_gate.md
   domains:
