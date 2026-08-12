@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-08-12T03:58:03Z'
+generated: '2026-08-12T04:08:24Z'
 valid_domains:
 - admin
 - cloud
@@ -1053,3 +1053,17 @@ queries:
   - T1485
   - T1070.004
   - T1657
+- title: macOS ClickFix — Cloaked Fingerprinting Gates Delivering AMOS/MacSync — Threat Hunts
+  path: queries/threat-intelligence/2026-08/macos_clickfix_fingerprinting_gate.md
+  domains:
+  - endpoint
+  mitre:
+  - T1189
+  - T1204.004
+  - T1059.004
+  - T1059.002
+  - T1105
+  - T1140
+  - T1553.001
+  - T1555.001
+  - T1071.001
