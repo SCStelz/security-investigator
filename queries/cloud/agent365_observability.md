@@ -27,23 +27,64 @@ This table lives in the **Sentinel Data Lake system scope**, not a specific work
 
 > **`EventType` is blank** on every row from this connector — discriminate **only** on `EventOriginalType`.
 
-Telemetry splits across four `EventOriginalType` values. The mix is environment-dependent; in a validated lab the recent split was roughly `InvokeAgent` ~47% / `InferenceCall` ~33% / `ExecuteToolByGateway` ~16% / `ExecuteToolBySDK` ~4%.
+Telemetry splits across five `EventOriginalType` values (four tool/turn types plus `AISpanOutput`). The mix is environment-dependent; in a validated lab the recent split was roughly `InvokeAgent` ~47% / `InferenceCall` ~33% / `ExecuteToolByGateway` ~16% / `ExecuteToolBySDK` ~4%. A second validated tenant (Copilot Studio-heavy) showed `InvokeAgent` 53% / `AISpanOutput` 27% / `ExecuteToolBySDK` 16% / `InferenceCall` 4%.
 
 | `EventOriginalType` | What It Captures | Key Populated Fields | Notes |
 |---|---|---|---|
-| **`InvokeAgent`** | A conversation turn — **either a user prompt or an agent reply** | `parse_json(EventOriginalRequestDetails).text` = the message text; `ActorUsername`; `EventSessionId`; `SrcAgentBlueprintId`; `TargetAgentName` (M365 Copilot agents); `AdditionalFields.ChannelName` / `ConversationId` | **Discriminate prompt vs reply on `SrcAgentBlueprintId`:** zero-GUID (`00000000-…`) = **user prompt**; real blueprint GUID = **agent reply** (replies are emitted only by custom Agent365 agents). The message text is in `.text`, not the raw string. |
-| **`InferenceCall`** | One LLM model inference / token-usage event | `SrcAgentName`; `ModelName` / `ModelProviderName`; `InputTokensUsed` / `OutputTokensUsed`; `ActorUsername`; `AdditionalFields.ChannelName` / `ConversationId` | Best source for an **agent-name + token-usage inventory**, especially for M365 Copilot built-in agents (which have no SPN). `SrcAgentBlueprintId` is zero-GUID for built-ins; `ModelName`/`ModelProviderName` = `"Internal"`. |
+| **`InvokeAgent`** | A conversation turn — **either a user prompt or an agent reply** | **Message text — see the [payload shape crosswalk](#-message-content-payload-shapes-validated-live) below (there is NO `.text` key)**; `ActorUsername`; `EventSessionId`; `SrcAgentBlueprintId`; `TargetAgentName` (M365 Copilot agents); `AdditionalFields.ChannelName` / `ConversationId` | **Discriminate prompt vs reply on `SrcAgentBlueprintId`:** zero-GUID (`00000000-…`) = **user prompt**; real blueprint GUID = **agent reply** (replies are emitted only by custom Agent365 agents). For Copilot Studio agents the reply is on a paired **`AISpanOutput`** row instead. |
+| **`AISpanOutput`** | **The agent's reply text for Copilot Studio-hosted agents** | `EventOriginalResultDetails` = OTel array `[{"finish_reason":"stop","role":"assistant","parts":[{"content":"…"}]}]`; `SrcAgentName`; `ActorUsername`; `EventSessionId` | **Undocumented in most references but carries real content.** `EventOriginalRequestDetails` is empty. If you omit this event type you will falsely conclude "agent reply not captured" for every Copilot Studio agent. |
+| **`InferenceCall`** | One LLM model inference / token-usage event | `SrcAgentName`; `ModelName` / `ModelProviderName`; `InputTokensUsed` / `OutputTokensUsed`; `ActorUsername`; `AdditionalFields.ChannelName` / `ConversationId` | Best source for an **agent-name + token-usage inventory**, especially for M365 Copilot built-in agents (which have no SPN). `SrcAgentBlueprintId` is zero-GUID for built-ins; `ModelName`/`ModelProviderName` = `"Internal"`. Request payload is a JSON array carrying the **full message history including the system prompt** — can exceed 50 KB, always `substring()` it. |
 | **`ExecuteToolByGateway`** | Agent-to-tool call through the Agent365 / Work IQ **gateway** (the dominant tool type) | **`ToolName` (top-level column)** e.g. `GetUserDetails`; `EventOriginalRequestDetails` = **plain JSON args object** (`{"userId":"me","select":"…"}`); `EventOriginalResultDetails` = `{"result":"…"}`; `SrcAgentName`; `SrcAgentId` (real SPN GUID); `ActorUsername` = the agentic-user UPN | **No JSON-RPC envelope.** Read the tool name from the `ToolName` column directly. |
-| **`ExecuteToolBySDK`** | Agent-to-tool call from an M365 Copilot **built-in** agent (e.g. Researcher) | **`ToolName` (top-level column)** e.g. `enterprise_search.search_enterprise_meetings`; `EventOriginalRequestDetails` = **`key="value"` param string** (not JSON); `EventOriginalResultDetails` = `{"messageText":"…"}`; `SrcAgentName`; `ActorUsername` = the human UPN | **No JSON-RPC envelope.** `SrcAgentId` is zero-GUID (built-ins have no SPN). |
+| **`ExecuteToolBySDK`** | Agent-to-tool call from an M365 Copilot **built-in** agent (e.g. Researcher) or a Copilot Studio connector/MCP action | **`ToolName` (top-level column)** e.g. `enterprise_search.search_enterprise_meetings`; `EventOriginalRequestDetails` = JSON args object **or** a **`key="value"` param string**; `EventOriginalResultDetails` = JSON object **or** a JSON-RPC array `[{"jsonrpc":"2.0","result":{…}}]` for MCP connectors; `SrcAgentName`; `ActorUsername` = the human UPN | **The agent-side call has no JSON-RPC envelope**, but an MCP connector's *result* may contain one. `SrcAgentId` is zero-GUID (built-ins have no SPN). |
 
-All four share `EventSessionId` (1:1 with `AdditionalFields.ConversationId`), the join key for reconstructing a conversation together with the inference and tool-call events it triggered.
+All share `EventSessionId` (1:1 with `AdditionalFields.ConversationId`), the join key for reconstructing a conversation together with the inference and tool-call events it triggered.
+
+### 🔴 Message content payload shapes (validated live)
+
+**There is no `.text` key.** `parse_json(EventOriginalRequestDetails).text` recovered **0 of 160** content rows in a validated tenant. The shape varies **by agent hosting platform**:
+
+| Event type | Hosting platform | `EventOriginalRequestDetails` | `EventOriginalResultDetails` |
+|---|---|---|---|
+| `InvokeAgent` | **Copilot Studio** | OTel array `[{"role":"user","parts":[{"content":"…","type":"text"}]}]` | **empty** — reply is on the paired `AISpanOutput` |
+| `InvokeAgent` | **Foundry / Teams-hosted** | **bare text string** (no JSON) | **bare text string** (the reply), or `[]` when suppressed |
+| `AISpanOutput` | **Copilot Studio** | empty | OTel array — `[0].parts[0].content` is the reply |
+
+Shape-aware extractor (recovers 104/105 prompts and 55/55 replies where `.text` recovered 0):
+
+```kql
+let ReqText = (s:string) { case(
+    isempty(s), "",
+    s startswith "[", tostring(parse_json(s)[0].parts[0].content),
+    s startswith "{", "",
+    s) };
+let ResText = (s:string) { case(
+    isempty(s), "",
+    s == "[]", "<<EMPTY REPLY — blocked/suppressed>>",
+    s startswith "[", tostring(parse_json(s)[0].parts[0].content),
+    s startswith "{", "",
+    s) };
+UnifiedAgentObservability
+| where TimeGenerated > ago(30d)
+| where EventOriginalType in ("InvokeAgent","AISpanOutput")
+| extend Agent = iff(isnotempty(SrcAgentName), SrcAgentName, tostring(TargetAgentName))
+| extend Prompt = ReqText(EventOriginalRequestDetails), Reply = ResText(EventOriginalResultDetails)
+| where isnotempty(Prompt) or isnotempty(Reply)
+| project TimeGenerated, EventOriginalType, Agent, ActorUsername, EventSessionId,
+          Prompt = substring(Prompt, 0, 1000), Reply = substring(Reply, 0, 1000), EventUid
+| order by TimeGenerated asc
+```
+
+> `[]` as a result is a **blocked/suppressed reply** — a safety signal, not missing data.
 
 ### ⚠️ Table Pitfalls
 
 | Pitfall | Detail |
 |---------|--------|
 | **`workspaceId: "default"` required** | See above — workspace GUID returns table-not-found. |
-| **`EventType` is blank; use `EventOriginalType`** | The normalized `EventType` column is empty on every row. All event discrimination is on `EventOriginalType` (`InvokeAgent`, `InferenceCall`, `ExecuteToolByGateway`, `ExecuteToolBySDK`). |
+| **🔴 `parse_json(EventOriginalRequestDetails).text` returns empty — there is no `.text` key** | Validated live: `.text` recovered **0 of 160** content rows. Content is a **bare text string** (Foundry/Teams hosts) or an **OTel message array** (Copilot Studio hosts). Use the [shape-aware extractor](#-message-content-payload-shapes-validated-live). Never report "prompt text unavailable" from an empty `.text` result. |
+| **🔴 Copilot Studio agent replies are on `AISpanOutput`, not `InvokeAgent`** | `InvokeAgent.EventOriginalResultDetails` is empty on **every** Copilot Studio row. Omitting `AISpanOutput` from a transcript query produces a false "reply not captured" conclusion. Foundry/Teams-hosted agents *do* carry the reply on the `InvokeAgent` row. |
+| **`[]` as a result value = blocked/suppressed reply** | Report as a blocked turn, not as missing telemetry. |
+| **`EventType` is blank; use `EventOriginalType`** | The normalized `EventType` column is empty on every row. All event discrimination is on `EventOriginalType` (`InvokeAgent`, `AISpanOutput`, `InferenceCall`, `ExecuteToolByGateway`, `ExecuteToolBySDK`). |
 | **Tool name is the top-level `ToolName` column — NOT JSON-RPC** | This connector does **not** emit a JSON-RPC envelope. There is no `EventOriginalRequestDetails.method == "tools/call"` and no `.params.name`. Read `ToolName` directly — it is populated on both `ExecuteToolByGateway` and `ExecuteToolBySDK` rows. Filter tool calls with `EventOriginalType in ("ExecuteToolByGateway","ExecuteToolBySDK")`. |
 | **Tool request payload format differs by tool type** | `ExecuteToolByGateway` → `EventOriginalRequestDetails` is a **plain JSON args object** (`parse_json()` it). `ExecuteToolBySDK` → it is a **`key="value"` string** (parse with `extract_all` / `split`, not `parse_json`). |
 | **`ActorUsername` is a real UPN on tool rows (not `"N/A"`)** | On `ExecuteToolByGateway` it is the agentic-user UPN; on `ExecuteToolBySDK` it is the human UPN. On `InvokeAgent` it can also be a Teams MRI (`8:orgid:<guid>`) or `system`. `ActorUsernameType` is empty. (Older schema versions emitted `"N/A"` on tool rows — stay null-safe both ways with `ActorUsername != "N/A" and isnotempty(ActorUsername)`.) |
@@ -52,7 +93,7 @@ All four share `EventSessionId` (1:1 with `AdditionalFields.ConversationId`), th
 | **Tool errors via `EventErrorDetails` / `EventOriginalErrorType`** | A failed tool call has non-empty `EventErrorDetails`, `EventOriginalErrorType == "Error"`, and an **empty** `EventOriginalResultDetails`. Do **not** rely on `"error"` / `"isError":true` substring checks in the result string — they don't match this schema. |
 | **Token usage lives on `InferenceCall`** | `InputTokensUsed` / `OutputTokensUsed` are populated on `InferenceCall` rows. They are empty on `InvokeAgent` / tool rows. |
 | `AdditionalFields` is **dynamic** | Always `parse_json(tostring(AdditionalFields))` before dot-access. Common keys: `ChannelName`, `ConversationId`, `ConversationLink`, `OpId`, `ParentId`, `CorrelationIdentity`. |
-| `EventOriginalRequestDetails` / `EventOriginalResultDetails` are **strings**, not dynamic | Use `parse_json()` (Gateway/JSON) or string parsing (SDK/`key=value`) to extract fields. Payloads can be large; extract specific fields rather than `tostring(col) has "x"`. |
+| `EventOriginalRequestDetails` / `EventOriginalResultDetails` are **strings**, not dynamic | Use the [shape-aware extractor](#-message-content-payload-shapes-validated-live) for message content, `parse_json()` for Gateway JSON args, or string parsing for SDK `key=value`. Payloads can be large (`InferenceCall` requests exceed 50 KB) — extract specific fields or `substring()` rather than `tostring(col) has "x"`. |
 | `EventEndTime` may be `0001-01-01T00:00:00Z` | Treat as null — use `EventStartTime` / `TimeGenerated` for time analysis. |
 | **Channels** | `InvokeAgent` → `msteams`, `M365Copilot`, `agents`. `InferenceCall` → `M365Copilot`. `ExecuteToolByGateway` → channel often empty. `ExecuteToolBySDK` → `M365Copilot`. |
 | No content-safety verdict | No Prompt Shield outcome, XPIA flag, or groundedness score lives in this table. Pair with `CloudAppEvents` `CopilotInteraction` ([Query 9](#query-9-cross-source-correlation-with-cloudappevents)) for safety verdicts and `AgentsInfo` (AH-only) for agent posture. |
@@ -73,6 +114,7 @@ All four share `EventSessionId` (1:1 with `AdditionalFields.ConversationId`), th
 
 | # | Query | Use Case | Key Table |
 |---|-------|----------|-----------|
+| — | [🔴 Message content payload shapes (validated live)](#-message-content-payload-shapes-validated-live) | Investigation | `UnifiedAgentObservability` |
 | 1 | [a: Agent & Actor Inventory](#query-1a-agent--actor-inventory) | Posture | `UnifiedAgentObservability` |
 | 1 | [b: Agent & Actor Inventory — Defender (CloudAppEvents)](#query-1b-agent--actor-inventory--defender-cloudappevents) | Posture | `CloudAppEvents` |
 | 2 | [Prompt Injection / Jailbreak Detection](#query-2-prompt-injection--jailbreak-detection) | Detection | `UnifiedAgentObservability` |
@@ -115,7 +157,7 @@ flowchart LR
 
 | Plane | Surface / table | Query tool | Retention | License / prereq | Carries |
 |-------|-----------------|-----------|-----------|------------------|---------|
-| **A · Sentinel Data Lake** | `UnifiedAgentObservability` (`workspaceId:"default"`) | `query_lake` | 90d+ (up to 12y via KQL Jobs) | Sentinel Data Lake | **Full span** — prompt/reply text (`EventOriginalRequestDetails.text`), tool args, token usage, session/conversation graph |
+| **A · Sentinel Data Lake** | `UnifiedAgentObservability` (`workspaceId:"default"`) | `query_lake` | 90d+ (up to 12y via KQL Jobs) | Sentinel Data Lake | **Full span** — prompt/reply text ([shape-aware extraction](#-message-content-payload-shapes-validated-live) — **not** `.text`), tool args, token usage, session/conversation graph |
 | **B · Microsoft Defender** | `CloudAppEvents` (`ActionType in (InvokeAgent, InferenceCall, ExecuteToolBy*)`) + `CopilotInteraction` | `RunAdvancedHuntingQuery` | ≤30d (AH Graph cap) | Defender XDR (AH configured) | **Security metadata** — agent/actor/channel/tool names, `ClientIP`, blueprint discriminator, Prompt Shield jailbreak verdict. **No prompt text / tool args / tokens.** |
 | **C · Microsoft Purview** | Unified **audit log** → **DSPM for AI** Activity Explorer (AI activities); `DataSecurityEvents` in AH | Purview portal / `RunAdvancedHuntingQuery` | Audit retention (per SKU) | Purview Audit **on** + DSPM for AI policy; `DataSecurityEvents` needs IRM opt-in | **Sensitive content & compliance** — prompt/response SIT matches, sensitivity labels, DLP, IRM, Communication Compliance, eDiscovery |
 
@@ -144,7 +186,7 @@ Extract `RawEventData` once (`extend d = parse_json(RawEventData)`) then read `d
 | `SessionIdentity` | `EventSessionId` | Session join key |
 | `ToolName` / `ToolType` | `ToolName` / `ToolOriginalType` | On `ExecuteTool*` rows |
 | `ClientIP` | *(not present)* | **Defender-only bonus** — source IP per event |
-| *(not present)* | `EventOriginalRequestDetails.text`, tool `arguments`, `InputTokensUsed`/`OutputTokensUsed` | **Data-Lake-only** — content & tokens route to Purview, not Defender |
+| *(not present)* | Message content (`InvokeAgent` / `AISpanOutput`, [shape-aware extraction](#-message-content-payload-shapes-validated-live)), tool `arguments`, `InputTokensUsed`/`OutputTokensUsed` | **Data-Lake-only** — content & tokens route to Purview, not Defender |
 
 ### Parity matrix — which hunts port to Defender (Plane B)
 
@@ -270,7 +312,10 @@ UnifiedAgentObservability
 | where TimeGenerated > ago(7d)
 | where EventOriginalType == "InvokeAgent"
 | where SrcAgentBlueprintId == zero                       // user prompts only (agent replies carry a real blueprint GUID)
-| extend PromptText = tostring(parse_json(EventOriginalRequestDetails).text)
+| extend PromptText = case(isempty(EventOriginalRequestDetails), "",
+                          EventOriginalRequestDetails startswith "[", tostring(parse_json(EventOriginalRequestDetails)[0].parts[0].content),
+                          EventOriginalRequestDetails startswith "{", "",
+                          EventOriginalRequestDetails)
 | where isnotempty(PromptText)
 | where PromptText matches regex JailbreakPatterns
 | extend
@@ -284,7 +329,7 @@ UnifiedAgentObservability
 | order by TimeGenerated desc
 ```
 
-**Expected results:** Each row is one suspect prompt with the user, agent, channel, and session for pivot. The prompt text is extracted from `EventOriginalRequestDetails.text` (the raw column is a JSON object, not bare text). `PromptPreview` truncates to 500 chars — pull the full `.text` via `EventUid` for forensic review.
+**Expected results:** Each row is one suspect prompt with the user, agent, channel, and session for pivot. The prompt text is extracted with the [shape-aware extractor](#-message-content-payload-shapes-validated-live) — the raw column is an OTel message array on Copilot Studio hosts and a bare string on Foundry/Teams hosts, and **has no `.text` key**. `PromptPreview` truncates to 500 chars — pull the full payload via `EventUid` for forensic review.
 
 **Pivot:** Use `EventSessionId` to feed [Query 3a](#query-3a-session-reconstruction--prompts--tool-calls) and see whether the agent actioned the malicious prompt by calling tools.
 
@@ -308,7 +353,13 @@ UnifiedAgentObservability
 | extend AF = parse_json(tostring(AdditionalFields))
 | extend
     Channel     = tostring(AF.ChannelName),
-    MessageText = iif(EventOriginalType == "InvokeAgent", tostring(parse_json(EventOriginalRequestDetails).text), "")
+    MessageText = case(EventOriginalType !in ("InvokeAgent","AISpanOutput"), "",
+                       isnotempty(EventOriginalRequestDetails) and EventOriginalRequestDetails startswith "[", tostring(parse_json(EventOriginalRequestDetails)[0].parts[0].content),
+                       isnotempty(EventOriginalRequestDetails) and not(EventOriginalRequestDetails startswith "{"), EventOriginalRequestDetails,
+                       EventOriginalResultDetails == "[]", "<<EMPTY REPLY — blocked/suppressed>>",
+                       EventOriginalResultDetails startswith "[", tostring(parse_json(EventOriginalResultDetails)[0].parts[0].content),
+                       isnotempty(EventOriginalResultDetails) and not(EventOriginalResultDetails startswith "{"), EventOriginalResultDetails,
+                       "")
 | project
     TimeGenerated,
     EventOriginalType,
@@ -379,7 +430,8 @@ UnifiedAgentObservability
         EventOriginalType == "ExecuteToolByGateway",                        "2 · 🧰 TOOL CALL",
                                                                             "3 · 🤖 AGENT REPLY")
 | extend Detail = case(
-        EventOriginalType == "InvokeAgent",   tostring(P.text),
+        EventOriginalType == "InvokeAgent" and EventOriginalRequestDetails startswith "[", tostring(P[0].parts[0].content),
+        EventOriginalType == "InvokeAgent" and not(EventOriginalRequestDetails startswith "{"), EventOriginalRequestDetails,
         isnotempty(EventErrorDetails),        strcat("ERROR: ", EventErrorDetails),
                                               tostring(EventOriginalResultDetails))
 | project TimeGenerated, Step, Tool = ToolName,
@@ -412,16 +464,22 @@ UnifiedAgentObservability
   | extend Step = case(
           EventOriginalType == "InvokeAgent" and SrcAgentBlueprintId == zero, "1 · 🗣️ USER PROMPT",
           EventOriginalType == "InvokeAgent",                                 "4 · 🤖 AGENT REPLY",
+          EventOriginalType == "AISpanOutput",                                "4 · 🤖 AGENT REPLY",
           EventOriginalType == "InferenceCall",                               "·  🧠 LLM INFERENCE",
           EventOriginalType startswith "ExecuteTool",                         "2 · 🧰 TOOL CALL",
                                                                               EventOriginalType)
   | project TimeGenerated, Step, EventOriginalType, Tool = ToolName, Conversation = ConvId,
             Actor  = ActorUsername,
-            Detail = substring(iif(EventOriginalType == "InvokeAgent", tostring(parse_json(EventOriginalRequestDetails).text), tostring(EventOriginalResultDetails)), 0, 400)
+            Detail = substring(case(
+                EventOriginalRequestDetails startswith "[", tostring(parse_json(EventOriginalRequestDetails)[0].parts[0].content),
+                isnotempty(EventOriginalRequestDetails) and not(EventOriginalRequestDetails startswith "{"), EventOriginalRequestDetails,
+                EventOriginalResultDetails == "[]", "<<EMPTY REPLY — blocked/suppressed>>",
+                EventOriginalResultDetails startswith "[", tostring(parse_json(EventOriginalResultDetails)[0].parts[0].content),
+                tostring(EventOriginalResultDetails)), 0, 400)
   | sort by TimeGenerated asc
   ```
 
-  This variant also folds in `InferenceCall` (token/LLM turns) and `ExecuteToolBySDK`, so it works for built-in (Researcher) and declarative (Copilot Studio) agents — though those classes typically show `InferenceCall` + SDK tool rows rather than gateway tool calls.
+  This variant also folds in `InferenceCall` (token/LLM turns), `ExecuteToolBySDK`, and **`AISpanOutput`** — the latter is where Copilot Studio agents emit their reply text, so omitting it makes those agents look like they never answered. It works for built-in (Researcher) and declarative (Copilot Studio) agents — though those classes typically show `InferenceCall` + SDK tool rows rather than gateway tool calls.
 - Narrow to one conversation by appending `| where Conversation == "<ConversationId>"`.
 - Set `Window` to your incident scope; widen if the agent is low-traffic.
 
@@ -953,14 +1011,17 @@ let CAEFlagged =
     | summarize CAE_Time = min(TimeGenerated), SafetyVerdicts = make_set(SafetyVerdict, 5)
                 by AgentSpnId, AgentName, UserUpn, ThreadId
     | extend FlaggedId = strcat(tostring(CAE_Time), "|", UserUpn, "|", AgentSpnId, "|", ThreadId);
-// UAO side 1: actual prompt text (InvokeAgent.EventOriginalRequestDetails.text = the user message)
+// UAO side 1: actual prompt text (InvokeAgent carries the user message - see shape crosswalk, there is no .text key)
 let UAOInvoke =
     workspace("default").UnifiedAgentObservability
     | where TimeGenerated > ago(30d)
     | where EventOriginalType == "InvokeAgent"
     | extend JoinUpn = tolower(ActorUsername)
     | project IA_Time = TimeGenerated, JoinUpn, IA_Session = EventSessionId,
-              Prompt = tostring(parse_json(EventOriginalRequestDetails).text);
+              Prompt = case(isempty(EventOriginalRequestDetails), "",
+                            EventOriginalRequestDetails startswith "[", tostring(parse_json(EventOriginalRequestDetails)[0].parts[0].content),
+                            EventOriginalRequestDetails startswith "{", "",
+                            EventOriginalRequestDetails);
 // UAO side 2: tool calls
 let UAOTool =
     workspace("default").UnifiedAgentObservability
@@ -1099,7 +1160,9 @@ let UAOInvoke =
     | where isnotempty(EventOriginalRequestDetails)
     | extend JoinUpn = tolower(ActorUsername),
              IA_Time = TimeGenerated,
-             Prompt  = tostring(parse_json(EventOriginalRequestDetails).text)
+             Prompt  = case(EventOriginalRequestDetails startswith "[", tostring(parse_json(EventOriginalRequestDetails)[0].parts[0].content),
+                            EventOriginalRequestDetails startswith "{", "",
+                            EventOriginalRequestDetails)
     | project IA_Time, JoinUpn, Prompt;
 let UAOTool =
     workspace("default").UnifiedAgentObservability
