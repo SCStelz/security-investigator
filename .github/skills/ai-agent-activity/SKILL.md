@@ -611,6 +611,31 @@ Ask before generating:
 
 All templates open with the [mandatory plane banner](#-mandatory-report-banner). Omit sections the active plane cannot support, and state why (gap note).
 
+### Follow-up prompt guidance (applies to every template)
+
+Every report ends with a **Suggested Follow-Up Prompts** section — copy-paste-ready prompts that let the analyst drill from the fleet view into a specific agent, user, session, or turn without having to know the skill's scope syntax.
+
+**Rules:**
+- **Derive them from the actual results** — name the real agents, users, session IDs, and dates the queries returned. Never emit a generic placeholder list.
+- **Order by what the evidence justifies**: safety-flagged pairs first, then sensitive-tool users, then highest-volume agents, then the routine long tail.
+- **Cap at 5–7** — this is a shortlist, not an index of every entity.
+- **One line each**, in backticks so it can be copied verbatim, with a short "why" after it.
+- **Cross-skill hand-offs count** — `ai-agent-posture` for configuration, `user-investigation` for identity context, `incident-investigation` for a correlated incident ID.
+
+**Prompt patterns to draw from:**
+
+| Goal | Prompt shape |
+|---|---|
+| All activity for one agent | `Run an AI agent activity report for agent "<Agent Name>", last <N> days` |
+| All activity for one user | `Run an AI agent activity report for user <upn>, last <N> days` |
+| One user ↔ one agent | `Show every interaction between <upn> and agent "<Agent Name>" over the last <N> days, with prompts and replies` |
+| Full transcript of a session | `Reconstruct session <EventSessionId> — prompts, tool calls, and replies in order` |
+| A specific flagged turn | `Show the prompt and the agent's reply for the <verdict> hit on <Agent Name> at <timestamp>` |
+| Tool arguments for an agent | `Show every tool call "<Agent Name>" made with its arguments and results, last <N> days` |
+| Config for a flagged agent | `Run an AI agent posture audit for agent "<Agent Name>"` |
+| Identity context for a user | `Investigate user <upn>` |
+| Correlated incident | `Investigate incident <ProviderIncidentId>` |
+
 ### Template 1: Tenant-wide
 
 ````markdown
@@ -658,7 +683,27 @@ All templates open with the [mandatory plane banner](#-mandatory-report-banner).
 ## 9. Findings & Recommendations
 <prioritized, evidence-based>
 
-## 10. Appendix — Queries Used
+## 10. Suggested Follow-Up Prompts
+<5–7 copy-paste prompts derived from THIS report's results — see [guidance](#follow-up-prompt-guidance-applies-to-every-template). Order by evidence, not volume.>
+
+**Drill into a specific agent**
+- `Run an AI agent activity report for agent "<top/flagged agent>", last <N> days` — <why: e.g. highest tool-call volume; carries the only write-capable connector>
+
+**Drill into a specific user**
+- `Run an AI agent activity report for user <upn>, last <N> days` — <why>
+
+**Drill into one user↔agent pair**
+- `Show every interaction between <upn> and agent "<Agent Name>" over the last <N> days, with prompts and replies` — <why>
+
+**Drill into a flagged turn or session**
+- `Reconstruct session <EventSessionId> — prompts, tool calls, and replies in order` — <why>
+- `Show the prompt and the agent's reply for the <verdict> hit on <Agent Name> at <timestamp>` — <why>
+
+**Hand off to another skill**
+- `Run an AI agent posture audit for agent "<Agent Name>"` — <why: config-side view of a runtime finding>
+- `Investigate incident <ProviderIncidentId>` — <why: correlated Defender incident>
+
+## 11. Appendix — Queries Used
 <the KQL run, with the plane/timestamp variant noted>
 ````
 
@@ -686,6 +731,14 @@ All templates open with the [mandatory plane banner](#-mandatory-report-banner).
 <CopilotInteraction hits for this agent, if any>
 
 ## 6. Risk Signals & Recommendations
+
+## 7. Suggested Follow-Up Prompts
+<derived from this agent's actual users, sessions, and tools — see [guidance](#follow-up-prompt-guidance-applies-to-every-template)>
+- `Run an AI agent activity report for user <upn>, last <N> days` — <why: this agent's heaviest / only flagged user>
+- `Show every interaction between <upn> and agent "<this agent>" over the last <N> days, with prompts and replies` — <why>
+- `Reconstruct session <EventSessionId> — prompts, tool calls, and replies in order` — <why: longest / flagged session>
+- `Show every tool call "<this agent>" made with its arguments and results, last <N> days` — <why: sensitive or newly-seen tool>
+- `Run an AI agent posture audit for agent "<this agent>"` — <why: confirm declared tools/access match observed runtime>
 ````
 
 ### Template 3: Single-user
@@ -709,6 +762,14 @@ All templates open with the [mandatory plane banner](#-mandatory-report-banner).
 <CopilotInteraction hits attributed to this user + IP enrichment>
 
 ## 5. Risk Signals & Recommendations
+
+## 6. Suggested Follow-Up Prompts
+<derived from this user's actual agents, sessions, and flags — see [guidance](#follow-up-prompt-guidance-applies-to-every-template)>
+- `Run an AI agent activity report for agent "<Agent Name>", last <N> days` — <why: agent this user hit hardest / where the flag landed>
+- `Show every interaction between <this user> and agent "<Agent Name>" over the last <N> days, with prompts and replies` — <why>
+- `Reconstruct session <EventSessionId> — prompts, tool calls, and replies in order` — <why>
+- `Show the prompt and the agent's reply for the <verdict> hit on <Agent Name> at <timestamp>` — <why>
+- `Investigate user <this user>` — <why: sign-in / identity context for the agent activity>
 ````
 
 ---
@@ -762,4 +823,5 @@ All templates open with the [mandatory plane banner](#-mandatory-report-banner).
 - [ ] Notable IPs enriched via `enrich_ips.py` (JSON parsed, not `.txt` read); Azure-VPN FP considered
 - [ ] Zero-result sections use the explicit absence pattern (`✅ No … detected`)
 - [ ] Any *new / previously-unseen* agent/user/IP pattern is flagged as **new**, not asserted benign
+- [ ] Report ends with **Suggested Follow-Up Prompts** — 5–7 copy-paste prompts naming real agents/users/sessions from these results, ordered by evidence
 - [ ] Output written to `reports/ai-agent-activity/` with the correct scope filename
