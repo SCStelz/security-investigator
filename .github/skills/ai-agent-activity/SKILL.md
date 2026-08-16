@@ -157,6 +157,7 @@ Every report MUST open with a plane banner so the analyst knows what was and was
 ### Phase 2 — Tool / connector usage
 - Tool-invocation inventory per agent (tool name, tool type, calls).
 - Tool-type distribution across the fleet.
+- **Agent-to-agent handoffs** (C13; on Plane A also run C14 blueprint-family discovery) — detect parent→sub-agent orchestration for the Phase 5 diagrams.
 - *(optional)* New-tool first-seen vs prior baseline.
 
 ### Phase 3 — Channel & user distribution
@@ -174,7 +175,8 @@ Every report MUST open with a plane banner so the analyst knows what was and was
 
 ### Phase 5 — Clustering & path derivation
 - Apply the [Agent Clustering Methodology](#agent-clustering-methodology): group agents into environment-specific clusters and name them.
-- Build the **user→agent→tool** mermaid diagram for each material cluster.
+- **Treat a parent + sub-agent(s) sharing a blueprint (C14) or linked by a handoff (C13) as one multi-agent family** — cluster them together rather than as unrelated agents.
+- Build the **user→agent→tool** mermaid diagram for each material cluster. **Where C13/C14 found handoffs, use the [Agent → Agent handoff + tools](#agent--agent-handoff--tools-flowchart--multi-agent-orchestration) diagram** so both agent→tool and agent→agent edges appear in one topology.
 
 ### Phase 6 — IP enrichment
 - Enrich notable IPs (top agent egress IP, jailbreak-source IPs) with `enrich_ips.py`. Parse the JSON via PowerShell.
@@ -197,6 +199,7 @@ Full-fleet inventory + clustering + safety + risk signals. Uses the [tenant-wide
 Filter every query to one agent name. Include:
 - Agent inventory row (events, users, channels, first/last seen).
 - Tool inventory for the agent; per-tool call counts.
+- **Sub-agent handoffs** — does this agent hand off to (or get handed off from) another agent? Run C13 scoped to the agent (`| where Source == "<agent>" or Target == "<agent>"`); on Plane A check its blueprint family (C14). Draw the [Agent → Agent handoff + tools](#agent--agent-handoff--tools-flowchart--multi-agent-orchestration) diagram if any handoff exists.
 - User list + channels + (Plane B) source IPs.
 - **Session reconstruction** — Plane A: full prompt+tool+reply timeline ([query library](../../../queries/cloud/agent365_observability.md) Query 3a/3b). Plane B: metadata-only timeline (agent/tool/channel/time, no content).
 - Safety flags for the agent (`CopilotInteraction`).
@@ -247,6 +250,7 @@ Uses the [single-user template](#template-3-single-user).
 | 7 | **Tool-call failures / errors** *(Plane A only)* | UAO `EventErrorDetails` ([query library](../../../queries/cloud/agent365_observability.md) Q6) | A failure spike from a previously-stable agent (probing, broken MCP, permission revocation) |
 | 8 | **Runtime-protection fail-close posture** *(Plane C only)* | `CopilotActivity` `AccessedResources[].Type == "SecurityWebhook"`, extract `FailClose` | Any **sensitive tool (mail-send, data-write, security-query)** evaluated with `FailClose = False` — the agent proceeds even if the security evaluation can't complete |
 | 9 | **Plugin/agent lifecycle tampering** *(Plane C only)* | `CopilotActivity` `RecordType in (CreateCopilotPlugin, EnableCopilotPlugin, DisableCopilotPlugin, DeleteCopilotPlugin, CopilotAgentManagement)` | Enable/create by an unexpected actor, a security-relevant plugin disabled, or high-volume `CopilotAgentManagement` by an unattributed (`ActorName == "Unknown"`) system identity — confirm it's a known provisioning principal |
+| 10 | **Unexpected agent-to-agent handoff** | Handoff edges from C13 (compound `ConversationId`) + blueprint families from C14 | A parent agent handing off to a sub-agent that is **not** part of its declared/known family, a handoff to a sensitive-tool-capable sub-agent, or a newly-appearing handoff edge absent from prior baseline (possible orchestration abuse / confused-deputy routing) |
 
 Present these as a findings table with per-signal verdict, evidence, and a recommendation.
 
@@ -436,6 +440,56 @@ CloudAppEvents
 ```
 > `JailbreakDetected` is **PascalCase** in current tenants. Drill a cluster by adding `| where tostring(P.UserId) =~ "<upn>"` and projecting `TimeGenerated, IPAddress, AgentName, ThreadId=tostring(P.CopilotEventData.ThreadId)`.
 
+### C13 — Agent-to-agent handoff detection (Plane B)
+
+Detects **sub-agent handoffs** — a parent agent routing a turn to a sub-agent — plus every agent→tool edge, in one edge list ready for the [Agent → Agent handoff + tools diagram](#agent--agent-handoff--tools-flowchart--multi-agent-orchestration). There is **no dedicated "Agent A invoked Agent B" event**: a handoff is revealed by a **compound `ConversationId`** on the sub-agent's `InvokeAgent` rows — the parent's own `ConversationId`, then `_`, then a new child GUID (`<parentConversationId>_<childConversationId>`). Safe to split on `_` because conversation GUIDs use only hyphens.
+```kql
+let Lookback = 30d;
+let Raw =
+    CloudAppEvents
+    | where Timestamp > ago(Lookback)
+    | where ActionType in ("InvokeAgent","ExecuteToolBySDK","ExecuteToolByGateway","ExecuteToolByMCPServer")   // most selective filter first
+    | extend d = parse_json(RawEventData)   // parse once
+    | extend SrcAgent = tostring(d.AgentName), DstAgent = tostring(d.TargetAgentName),
+             ToolName = tostring(d.ToolName), ToolType = tostring(d.ToolType),
+             ConvId = tostring(d.ConversationId), SessionId = tostring(d.SessionIdentity)
+    | extend ConvParts = split(ConvId, "_")
+    | extend RootConvId = tostring(ConvParts[0]), IsSubThread = array_length(ConvParts) > 1;
+let ThreadOwner = Raw
+    | where ActionType == "InvokeAgent" and isnotempty(DstAgent)
+    | summarize OwnerAgent = take_any(DstAgent) by ConvId;
+let AgentToTool = Raw
+    | where ActionType in ("ExecuteToolBySDK","ExecuteToolByGateway","ExecuteToolByMCPServer")
+    | where isnotempty(SrcAgent)
+    | summarize Count = count(), Sessions = dcount(SessionId), FirstSeen = min(Timestamp), LastSeen = max(Timestamp)
+        by Source = SrcAgent, EdgeType = "Agent -> Tool", Target = ToolName, Detail = ToolType;
+let AgentToAgent = Raw
+    | where ActionType == "InvokeAgent" and IsSubThread
+    | join kind=leftouter (ThreadOwner | project RootConvId = ConvId, ParentAgent = OwnerAgent) on RootConvId
+    | where isnotempty(ParentAgent) and ParentAgent != DstAgent
+    | summarize Count = count(), Sessions = dcount(SessionId), FirstSeen = min(Timestamp), LastSeen = max(Timestamp)
+        by Source = ParentAgent, EdgeType = "Agent -> Agent (handoff)", Target = DstAgent, Detail = "sub-agent conversation";
+union AgentToTool, AgentToAgent
+| project Source, EdgeType, Target, Detail, Count, Sessions, FirstSeen, LastSeen
+| order by Source asc, EdgeType asc, Count desc
+```
+> **Plane A equivalent:** [query library](../../../queries/cloud/agent365_observability.md) **Query 10b** (same edge shape, simpler — `SrcAgentName`/`TargetAgentName`/`ToolName` are typed columns, no `RawEventData` parsing). Scope to one agent by appending `| where Source == "<Agent>" or Target == "<Agent>"`.
+
+### C14 — Agent-family discovery via shared blueprint (Plane A only)
+
+Groups agent identities that share a `SrcAgentBlueprintId` — a **direction-agnostic** signal that a parent orchestrator and its sub-agent(s) belong to the **same deployed multi-agent solution**. `CloudAppEvents` never populates the sub-agent's identity, so this cross-check is **Data-Lake-only**. Use it as a fast tenant-wide sweep to find handoff candidates, then run C13 for direction + counts.
+```kql
+// mcp_sentinel-data_query_lake, workspaceId: "default"
+UnifiedAgentObservability
+| where TimeGenerated > ago(30d)
+| where isnotempty(SrcAgentName) and isnotempty(SrcAgentBlueprintId) and SrcAgentBlueprintId != "00000000-0000-0000-0000-000000000000"
+| summarize Agents = make_set(SrcAgentName), AgentIds = make_set(SrcAgentId), Events = count() by SrcAgentBlueprintId
+| extend AgentCount = array_length(Agents)
+| where AgentCount > 1
+| order by AgentCount desc
+```
+> A row with `AgentCount > 1` is a candidate multi-agent solution. Keep the zero-GUID `SrcAgentBlueprintId` exclusion — M365 Copilot built-ins all share it and would otherwise collapse into one false-positive "family."
+
 ### Scope filters
 - **Single-agent:** add `| where tostring(d.AgentName) =~ "<agent>"` (or `tostring(P.AgentName)` / `tostring(P.CopilotEventData.TargetAgentName)` for safety) to C2–C7.
 - **Single-user:** add `| where tostring(d.UserId) =~ "<upn>"` (or `tostring(P.UserId)` for safety).
@@ -571,6 +625,33 @@ flowchart LR
     class A1 agent;
     class T1 tool;
 ```
+
+### Agent → Agent handoff + tools (flowchart) — multi-agent orchestration
+
+Use when C13/C14 surface a sub-agent handoff. Shows both the agent→tool edges **and** the parent→sub-agent handoff (`==>`) in one topology. Draw one per multi-agent family. Edge labels carry the handoff turn count / tool call count from the C13 edge list.
+```mermaid
+flowchart LR
+    U(["user@contoso.com"])
+    P["<Parent / Orchestrator Agent>"]
+    S["<Sub-Agent><br/>(handed-off task)"]
+    T1["<parent tool / connector>"]
+    T2["<sub-agent tool / connector>"]
+
+    U -->|"<prompts> prompts · <channel>"| P
+    P -->|"<calls>"| T1
+    P ==>|"handoff ×<turns><br/>(sub-agent conversation)"| S
+    S -->|"<calls>"| T2
+
+    classDef user fill:#1e3a5f,stroke:#3b82f6,color:#fff;
+    classDef agent fill:#14532d,stroke:#22c55e,color:#fff;
+    classDef subagent fill:#134e4a,stroke:#2dd4bf,color:#fff;
+    classDef tool fill:#3f3f46,stroke:#a1a1aa,color:#fff;
+    class U user;
+    class P agent;
+    class S subagent;
+    class T1,T2 tool;
+```
+> A sub-agent that makes **no** tool calls (e.g. a conversational logger) simply has no outgoing `-->` edge — that is expected, not missing data. The handoff `==>` edge alone is the relationship.
 
 ### Safety cluster (flowchart) — for a jailbreak/XPIA drill-down
 ```mermaid
@@ -803,6 +884,7 @@ Every report ends with a **Suggested Follow-Up Prompts** section — copy-paste-
 | **`CopilotActivity` uses `TimeGenerated`, not `Timestamp`, in both AH and Data Lake** | Unlike `CloudAppEvents` (which needs `Timestamp` in AH), `CopilotActivity` is consistent — always `TimeGenerated`. |
 | **Security for AI native alerts don't reliably sync to Sentinel `SecurityIncident`/`SecurityAlert`** | Validated on a live multi-stage incident: 2 of 4 correlated alerts were native `ServiceSource == "Security for AI"` alerts (`AlertId` prefixed `ai...`) — neither resolved via a Sentinel `SecurityAlert.SystemAlertId` lookup. Use `GetIncidentById(includeAlertsData=true)` or [C12](#c12--security-for-ai-native-alerts-identify--gather-context) above — not a Sentinel-side join — to pivot into these alerts. |
 | **`BehaviorInfo` jailbreak rows are a subset of the turn-level signal** | `BehaviorInfo` (`ActionType == "BehaviorPromptShieldJailbreakDetect"`) undercounts relative to `CloudAppEvents`/`CopilotActivity` `Messages[].JailbreakDetected` (validated: 6 vs. 17 hits, same 30d window). Treat `CloudAppEvents`/`CopilotActivity` as authoritative for jailbreak counts; use `BehaviorInfo` only as a supplementary agent/user correlation signal. |
+| **Agent-to-agent handoffs have no dedicated event** | Neither plane emits an "Agent A invoked Agent B" event, and `AgentsInfo` config doesn't declare sub-agents as callable actions — a handoff is a Copilot Studio runtime routing decision. Detect it via the **compound `ConversationId`** (`<parent>_<child>`) on the sub-agent's `InvokeAgent` rows (C13). The parent keeps emitting its own root-`ConversationId` rows throughout — it stays the orchestrating shell. In `CloudAppEvents` the sub-agent's `AgentName`/`AgentId` are **blank** (both look like ordinary user-prompt rows — only the `ConversationId` structure reveals the handoff); in `UnifiedAgentObservability` the sub-agent gets a **real** `SrcAgentId`/`SrcAgentName` on its `AISpanOutput` rows and shares the parent's `SrcAgentBlueprintId` (C14). |
 
 ---
 

@@ -13,7 +13,9 @@ SKIP_FILES = {
 # Map heading keywords to use case
 def infer_use_case(heading: str) -> str:
     h = heading.lower()
-    if any(w in h for w in ["summary", "overview", "breakdown", "volume", "trend", "dashboard", "efficacy", "baseline"]):
+    if h.startswith("detection "):
+        return "Detection"
+    if any(w in h for w in ["summary", "overview", "breakdown", "volume", "trend", "dashboard", "efficacy", "baseline", "first-seen", "first seen"]):
         return "Dashboard"
     if any(w in h for w in ["posture", "hygiene", "inventory", "maturity", "score", "compliance", "assessment"]):
         return "Posture"

@@ -3,7 +3,7 @@
 **Created:** 2026-05-22  
 **Platform:** Both — Microsoft Sentinel (Data Lake) + Microsoft Defender (Advanced Hunting) + Microsoft Purview (audit / DSPM for AI)  
 **Tables:** UnifiedAgentObservability, CloudAppEvents, DataSecurityEvents, A365_JailbreakIncidents_KQL_CL, A365_QueryLakeAudit_KQL_CL, A365_AgentToolDaily_KQL_CL, A365_AgentToolFailuresDaily_KQL_CL  
-**Keywords:** Agent 365, A365, AI agent, Copilot Studio, Work IQ, prompt injection, jailbreak, Prompt Shield, XPIA, MCP tool, gateway tool, ExecuteToolByGateway, ExecuteToolBySDK, InvokeAgent, InferenceCall, token usage, ToolName, Power Platform Connector, agent telemetry, conversation, tool call, prompt forensics, agent observability, CloudAppEvents CopilotInteraction, Observability SDK, OpenTelemetry, OTel, Advanced Hunting, Defender-only, RawEventData, data plane, Purview, DSPM for AI, unified audit log, DataSecurityEvents, ClientIP  
+**Keywords:** Agent 365, A365, AI agent, Copilot Studio, Work IQ, prompt injection, jailbreak, Prompt Shield, XPIA, MCP tool, gateway tool, ExecuteToolByGateway, ExecuteToolBySDK, InvokeAgent, InferenceCall, token usage, ToolName, Power Platform Connector, agent telemetry, conversation, tool call, prompt forensics, agent observability, CloudAppEvents CopilotInteraction, Observability SDK, OpenTelemetry, OTel, Advanced Hunting, Defender-only, RawEventData, data plane, Purview, DSPM for AI, unified audit log, DataSecurityEvents, ClientIP, agent map, agent-to-agent, agent orchestration, sub-agent handoff, sub-agent, ConversationId, compound conversation ID, blueprint grouping, SrcAgentBlueprintId, multi-agent solution, agent communication map, agent topology  
 **MITRE:** T1078.004, T1059, T1087, T1530, T1071.001, TA0001, TA0007, TA0009  
 **Domains:** cloud, identity  
 **Timeframe:** Last 7 days to 12 years (Data Lake retention; KQL Jobs support up to 12-year lookback)
@@ -23,7 +23,7 @@ This table lives in the **Sentinel Data Lake system scope**, not a specific work
 - ❌ Not indexed by `mcp_sentinel-data_search_tables`
 - ✅ Data Lake only, via `workspaceId: "default"`
 
-### Event Shapes — Four Telemetry Types
+### Event Shapes — Five Telemetry Types
 
 > **`EventType` is blank** on every row from this connector — discriminate **only** on `EventOriginalType`.
 
@@ -97,6 +97,7 @@ UnifiedAgentObservability
 | `EventEndTime` may be `0001-01-01T00:00:00Z` | Treat as null — use `EventStartTime` / `TimeGenerated` for time analysis. |
 | **Channels** | `InvokeAgent` → `msteams`, `M365Copilot`, `agents`. `InferenceCall` → `M365Copilot`. `ExecuteToolByGateway` → channel often empty. `ExecuteToolBySDK` → `M365Copilot`. |
 | No content-safety verdict | No Prompt Shield outcome, XPIA flag, or groundedness score lives in this table. Pair with `CloudAppEvents` `CopilotInteraction` ([Query 9](#query-9-cross-source-correlation-with-cloudappevents)) for safety verdicts and `AgentsInfo` (AH-only) for agent posture. |
+| **Sub-agent handoffs are invisible in config and have no dedicated event** | Neither `AgentsInfo.DeclaredTools`/`declarativeCopilotMetadata.actions[]` nor any `EventOriginalType` models "Agent A invoked Agent B" directly — it's a Copilot Studio runtime routing decision. Detect it from the **compound `ConversationId`** pattern (`<parentConversationId>_<childConversationId>`) — see [Query 10](#query-10-agent-communication-map--agent-to-tool--agent-to-agent-handoff-detection). |
 
 ### Related Tables
 
@@ -112,6 +113,8 @@ UnifiedAgentObservability
 
 ## Quick Reference — Query Index
 
+> **Suffix convention:** For Queries 1/4/7/8 the letter suffix marks the **data plane** (`a` = Sentinel Data Lake / `UnifiedAgentObservability`, `b` = Defender / `CloudAppEvents`). For Queries 3/9/10 the suffix marks a **query variant** — a distinct query, not a plane split (e.g. 10a is the Defender query, 10b the Data Lake query, 10c a Data-Lake-only discovery query).
+
 | # | Query | Use Case | Key Table |
 |---|-------|----------|-----------|
 | — | [🔴 Message content payload shapes (validated live)](#-message-content-payload-shapes-validated-live) | Investigation | `UnifiedAgentObservability` |
@@ -125,20 +128,23 @@ UnifiedAgentObservability
 | 5 | [Tool Argument Audit (data-access tools)](#query-5-tool-argument-audit-data-access-tools) | Investigation | `UnifiedAgentObservability` |
 | 6 | [Tool Call Failures & Errors](#query-6-tool-call-failures--errors) | Investigation | `UnifiedAgentObservability` |
 | 7 | [a: New Tool First-Seen — Baseline Deviation](#query-7a-new-tool-first-seen--baseline-deviation) | Dashboard | `UnifiedAgentObservability` |
-| 7 | [b: New Tool First-Seen — Defender (CloudAppEvents)](#query-7b-new-tool-first-seen--defender-cloudappevents) | Investigation | `CloudAppEvents` |
+| 7 | [b: New Tool First-Seen — Defender (CloudAppEvents)](#query-7b-new-tool-first-seen--defender-cloudappevents) | Dashboard | `CloudAppEvents` |
 | 8 | [a: Channel & User Activity Distribution](#query-8a-channel--user-activity-distribution) | Investigation | `UnifiedAgentObservability` |
 | 8 | [b: Channel & User Activity Distribution — Defender (CloudAppEvents)](#query-8b-channel--user-activity-distribution--defender-cloudappevents) | Investigation | `CloudAppEvents` |
 | 9 | [a: Cross-Source Base Correlation — prompts ↔ tool calls](#query-9a-cross-source-base-correlation--prompts--tool-calls) | Investigation | `CloudAppEvents` + `UnifiedAgentObservability` |
 | 9 | [b: Cross-Source High-Signal — prompt injection → downstream tool calls](#query-9b-cross-source-high-signal--prompt-injection--downstream-tool-calls) | Investigation | `CloudAppEvents` + `UnifiedAgentObservability` |
 | 9 | [c: Cross-Source Per-Session Rollup — safety + tool-use](#query-9c-cross-source-per-session-rollup--safety--tool-use) | Investigation | `CloudAppEvents` + `UnifiedAgentObservability` |
 | 9 | [d: Cross-Source Safety Audit — every flagged prompt with prompt tex...](#query-9d-cross-source-safety-audit--every-flagged-prompt-with-prompt-text--tool-activity) | Investigation | `CloudAppEvents` + `UnifiedAgentObservability` |
+| 10 | [a: Agent Communication Map — Defender (CloudAppEvents)](#query-10a-agent-communication-map--defender-cloudappevents) | Investigation | `CloudAppEvents` |
+| 10 | [b: Agent Communication Map — Data Lake (`UnifiedAgentObservability`)](#query-10b-agent-communication-map--data-lake-unifiedagentobservability) | Investigation | `UnifiedAgentObservability` |
+| 10 | [c: Agent Family Discovery — Shared Blueprint Grouping (Data Lake only)](#query-10c-agent-family-discovery--shared-blueprint-grouping-data-lake-only) | Investigation | `UnifiedAgentObservability` |
 | — | [Job 1 — Hourly Jailbreak Incident Promotion (CAE-anchored)](#job-1--hourly-jailbreak-incident-promotion-cae-anchored) | Investigation | `CloudAppEvents` |
 | — | [Job 2 — Hourly `query_lake` Argument Audit](#job-2--hourly-querylake-argument-audit) | Investigation | `UnifiedAgentObservability` |
 | — | [Job 3 — Daily Agent Tool Inventory Snapshot](#job-3--daily-agent-tool-inventory-snapshot) | Posture | `UnifiedAgentObservability` |
 | — | [Job 4 — Daily Agent Tool Failure Rollup](#job-4--daily-agent-tool-failure-rollup) | Investigation | `UnifiedAgentObservability` |
 | — | [Detection 1 — AI Agent: Prompt Injection / Jailbreak Incident](#detection-1--ai-agent-prompt-injection--jailbreak-incident) | Detection | — |
 | — | [Detection 2 — AI Agent: KQL Access to Sensitive Tables](#detection-2--ai-agent-kql-access-to-sensitive-tables) | Detection | — |
-| — | [Detection 3 — AI Agent: New Tool First-Seen vs 30-Day Baseline](#detection-3--ai-agent-new-tool-first-seen-vs-30-day-baseline) | Dashboard | — |
+| — | [Detection 3 — AI Agent: New Tool First-Seen vs 30-Day Baseline](#detection-3--ai-agent-new-tool-first-seen-vs-30-day-baseline) | Detection | — |
 
 
 ## Data Plane Selection — Sentinel Data Lake vs Defender vs Purview
@@ -198,6 +204,7 @@ Validated 30-day comparison (mcaps lab): the lake carries ~2× the `InvokeAgent`
 | 4 | Tool inventory per agent | ✅ **Full** — see [4b](#query-4b-tool-invocation-inventory-per-agent--defender-cloudappevents) | `ToolName`/`ToolType` present (resolves MCP / Power Platform connector names) |
 | 7 | New tool first-seen | ✅ **Full** — see [7b](#query-7b-new-tool-first-seen--defender-cloudappevents) | metadata-only |
 | 8 | Channel & user distribution | ✅ **Full (better)** — see [8b](#query-8b-channel--user-activity-distribution--defender-cloudappevents) | + `ClientIP` |
+| 10 | Agent-to-agent handoff / agent-to-tool map | ✅ **Full parity** — see [10a](#query-10a-agent-communication-map--defender-cloudappevents) / [10b](#query-10b-agent-communication-map--data-lake-unifiedagentobservability) | Compound `ConversationId` technique is identical on both planes and produces identical edge sets. Data-Lake-only bonus: real sub-agent identity via `AISpanOutput` + `SrcAgentBlueprintId` family grouping ([10c](#query-10c-agent-family-discovery--shared-blueprint-grouping-data-lake-only)) |
 | 9 | Safety / prompt-injection verdict | ✅ **Defender-native** ([Query 9](#query-9-cross-source-correlation-with-cloudappevents)) | `CopilotInteraction.JailbreakDetected` |
 | 2 | Prompt-text jailbreak regex | ⚠️ **Verdict-only** | `InvokeAgent` has no prompt text — use `CopilotInteraction` verdict (Defender) or `UnifiedAgentObservability` text (Data Lake); prompt *content* lives in Purview |
 | 3 | Session reconstruction | ⚠️ **Metadata timeline only** | no prompt text / tool args in `CloudAppEvents` |
@@ -1088,6 +1095,151 @@ WithPrompts
 - Add a per-day rollup downstream (`| summarize Blocked = countif(Outcome startswith "🟢"), DownstreamBlocked = countif(Outcome startswith "🟡"), ActedOn = countif(Outcome !startswith "🟢" and Outcome !startswith "🟡") by bin(CAE_Time, 1d)`) as a safety-layer KPI time-series.
 - Set `WindowSec` to your largest observed lag from Q9a (`abs(DeltaSec)` max).
 - **Privacy note:** Prompt text may contain PII or sensitive content. Restrict access to this query and any KQL Job (J5 candidate) materializing it.
+
+---
+
+### Query 10: Agent Communication Map — Agent-to-Tool & Agent-to-Agent Handoff Detection
+
+**Purpose:** Build a complete relationship map of what an agent (or every agent tenant-wide) talks to — both its **tool/connector/MCP calls** and any **sub-agent handoffs** it triggers. Validated against a live two-agent orchestration test (a top-level agent handing off a sub-task mid-conversation to a dedicated sub-agent) in a Copilot Studio lab tenant. Feeds directly into a Mermaid/graph diagram of the agent's call topology.
+**Severity:** Informational
+**MITRE:** TA0007, T1071.001
+
+#### Why this exists
+
+The Agent 365 **Agent Map** UX is intended to visualize agent-to-agent relationships, but at time of writing it does not reliably surface sub-agent handoffs for custom Copilot Studio orchestrations. Neither `AgentsInfo` (config) nor the `DeclaredTools` / `declarativeCopilotMetadata.actions[]` fields document a sub-agent as a callable action — the handoff is a **Copilot Studio runtime routing decision**, invisible in agent configuration. It only shows up in the runtime telemetry, and only if you know what to look for.
+
+#### The compound `ConversationId` technique
+
+Neither `CloudAppEvents` nor `UnifiedAgentObservability` emit an explicit "Agent A invoked Agent B" event. Instead, once a parent agent hands a turn off to a sub-agent, **every subsequent `InvokeAgent` row for the sub-agent carries a compound `ConversationId`**: the parent's own `ConversationId`, followed by `_`, followed by a new child-conversation GUID (e.g. `<parentConversationId>_<childConversationId>`). This is safe to split on `_` because conversation GUIDs use hyphens, never underscores.
+
+The parent agent keeps emitting its own `InvokeAgent` rows (on its unmodified root `ConversationId`) for the duration of the handoff — it remains the orchestrating "shell" for every turn even while the sub-agent is actively answering. Both the parent-shell row and the sub-agent row for the same user turn land within the same second, and neither has `SrcAgentName`/`SrcAgentId` populated (both look like ordinary user-prompt rows) — the **only** signal that a handoff occurred is the compound `ConversationId` structure on the sub-agent's row.
+
+**Data Lake bonus:** `UnifiedAgentObservability` additionally emits `AISpanOutput` reply rows for the sub-agent with a **real, non-zero `SrcAgentId`/`SrcAgentName`**, and that `SrcAgentId` shares the **same `SrcAgentBlueprintId`** as the parent agent's own tool/inference rows — a second, direction-agnostic signal that two agent identities belong to the same deployed multi-agent solution (see [Query 10c](#query-10c-agent-family-discovery--shared-blueprint-grouping-data-lake-only)). `CloudAppEvents` never populates an identity for the sub-agent, so this cross-check is Data-Lake-only.
+
+### Query 10a: Agent Communication Map — Defender (CloudAppEvents)
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Relationship-mapping/inventory query (summarize over a lookback window to build an edge list) — not a single-event detection. For real-time alerting on new/unexpected handoffs, adapt using the Query 7a/Detection 3 new-first-seen-vs-baseline pattern instead."
+-->
+
+```kql
+let Lookback = 7d;
+let TargetAgentName = "";                    // set to a specific agent name to scope; "" = all agents (full tenant map)
+let Raw =
+    CloudAppEvents
+    | where Timestamp > ago(Lookback)
+    | where ActionType in ("InvokeAgent", "ExecuteToolBySDK", "ExecuteToolByGateway", "ExecuteToolByMCPServer", "InferenceCall")   // most selective filter first — narrows CloudAppEvents to the Agent 365 telemetry slice before any JSON parsing
+    | extend d = parse_json(RawEventData)   // parse once, reuse below — avoids the CloudAppEvents "repeated parse_json" perf killer
+    | extend
+        SrcAgent    = tostring(d.AgentName),           // populated on tool/inference rows
+        DstAgent    = tostring(d.TargetAgentName),      // populated on InvokeAgent rows
+        ToolName    = tostring(d.ToolName),
+        ToolType    = tostring(d.ToolType),
+        ConvId      = tostring(d.ConversationId),
+        SessionId   = tostring(d.SessionIdentity)
+    | extend ConvParts = split(ConvId, "_")
+    | extend RootConvId = tostring(ConvParts[0]), IsSubThread = array_length(ConvParts) > 1;
+// Which agent "owns" each conversation thread (root or child), from its InvokeAgent target
+let ThreadOwner =
+    Raw
+    | where ActionType == "InvokeAgent" and isnotempty(DstAgent)
+    | summarize OwnerAgent = take_any(DstAgent) by ConvId;
+// Edge type 1: Agent -> Tool (direct tool / connector / MCP invocations)
+let AgentToTool =
+    Raw
+    | where ActionType in ("ExecuteToolBySDK", "ExecuteToolByGateway", "ExecuteToolByMCPServer")
+    | where isnotempty(SrcAgent)
+    | summarize Count = count(), Sessions = dcount(SessionId), FirstSeen = min(Timestamp), LastSeen = max(Timestamp)
+        by Source = SrcAgent, EdgeType = "Agent -> Tool", Target = ToolName, Detail = ToolType;
+// Edge type 2: Agent -> Agent (sub-agent handoff, detected via compound ConversationId)
+let AgentToAgent =
+    Raw
+    | where ActionType == "InvokeAgent" and IsSubThread
+    | join kind=leftouter (ThreadOwner | project RootConvId = ConvId, ParentAgent = OwnerAgent) on RootConvId
+    | where isnotempty(ParentAgent) and ParentAgent != DstAgent
+    | summarize Count = count(), Sessions = dcount(SessionId), FirstSeen = min(Timestamp), LastSeen = max(Timestamp)
+        by Source = ParentAgent, EdgeType = "Agent -> Agent (handoff)", Target = DstAgent, Detail = "sub-agent conversation";
+union AgentToTool, AgentToAgent
+| project Source, EdgeType, Target, Detail, Count, Sessions, FirstSeen, LastSeen
+| where isempty(TargetAgentName) or Source == TargetAgentName or Target == TargetAgentName
+| order by Source asc, EdgeType asc, Count desc
+```
+
+**Expected results:** One row per (agent, edge) pair — `Agent -> Tool` rows show every connector/MCP/knowledge-source call, `Agent -> Agent (handoff)` rows show every sub-agent relationship with a turn count (`Count`) and time bounds. Set `TargetAgentName = ""` for a full tenant-wide communication map in one query; scope to one agent by name to build a per-agent diagram.
+
+**Why this scales on a massive `CloudAppEvents` table:** filter order is `Timestamp` → `ActionType` (5 specific values, eliminating the overwhelming majority of rows) → everything else, and `RawEventData` is parsed exactly once and reused. No identity/UPN filtering is needed since this maps agent relationships, not user activity.
+
+**Tuning:** Widen `Lookback` for low-traffic agents. Add `| where Count >= 2` to suppress one-off/noise edges. Feed the output directly into a Mermaid `flowchart` (one `-->` per row) or `sequenceDiagram` for a visual agent topology.
+
+### Query 10b: Agent Communication Map — Data Lake (`UnifiedAgentObservability`)
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Relationship-mapping/inventory query, same shape as 10a — not a single-event detection."
+-->
+
+```kql
+let Lookback = 7d;
+let Raw =
+    UnifiedAgentObservability
+    | where TimeGenerated > ago(Lookback)
+    | where EventOriginalType in ("InvokeAgent", "ExecuteToolByGateway", "ExecuteToolBySDK", "InferenceCall", "AISpanOutput")
+    | extend AF = parse_json(tostring(AdditionalFields))
+    | extend
+        SrcAgent = SrcAgentName,               // top-level column — no RawEventData-equivalent parsing needed
+        DstAgent = tostring(TargetAgentName),
+        ConvId   = tostring(AF.ConversationId),
+        SessId   = EventSessionId
+    | extend ConvParts = split(ConvId, "_")
+    | extend RootConvId = tostring(ConvParts[0]), IsSubThread = array_length(ConvParts) > 1;
+let ThreadOwner =
+    Raw
+    | where EventOriginalType == "InvokeAgent" and isnotempty(DstAgent)
+    | summarize OwnerAgent = take_any(DstAgent) by ConvId;
+let AgentToTool =
+    Raw
+    | where EventOriginalType in ("ExecuteToolByGateway", "ExecuteToolBySDK")
+    | where isnotempty(SrcAgent)
+    | summarize Count = count(), Sessions = dcount(SessId), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated)
+        by Source = SrcAgent, EdgeType = "Agent -> Tool", Target = ToolName, Detail = ToolOriginalType;
+let AgentToAgent =
+    Raw
+    | where EventOriginalType == "InvokeAgent" and IsSubThread
+    | join kind=leftouter (ThreadOwner | project RootConvId = ConvId, ParentAgent = OwnerAgent) on RootConvId
+    | where isnotempty(ParentAgent) and ParentAgent != DstAgent
+    | summarize Count = count(), Sessions = dcount(SessId), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated)
+        by Source = ParentAgent, EdgeType = "Agent -> Agent (handoff)", Target = DstAgent, Detail = "sub-agent conversation";
+union AgentToTool, AgentToAgent
+| project Source, EdgeType, Target, Detail, Count, Sessions, FirstSeen, LastSeen
+| order by Source asc, EdgeType asc, Count desc
+```
+
+*(Pass `workspaceId: "default"` — this is the lake system table.)*
+
+**Expected results:** Identical edge shape to Query 10a — validated to produce the same edge set (same handoff + same tool calls) as CloudAppEvents for the same session. Simpler than 10a: fields are already typed columns (`SrcAgentName`, `TargetAgentName`, `ToolName`, `ToolOriginalType`), so no `parse_json(RawEventData)` step is needed.
+
+**Tuning:** Add `| where Source == "<AgentName>" or Target == "<AgentName>"` to scope to one agent. Extend `Lookback` up to 12y via a KQL Job if you need long-horizon relationship history.
+
+### Query 10c: Agent Family Discovery — Shared Blueprint Grouping (Data Lake only)
+
+<!-- cd-metadata
+cd_ready: false
+adaptation_notes: "Discovery/grouping query — flags candidate multi-agent solutions but does not establish call direction. Not a detection."
+-->
+
+```kql
+UnifiedAgentObservability
+| where TimeGenerated > ago(7d)
+| where isnotempty(SrcAgentName) and isnotempty(SrcAgentBlueprintId) and SrcAgentBlueprintId != "00000000-0000-0000-0000-000000000000"
+| summarize Agents = make_set(SrcAgentName), AgentIds = make_set(SrcAgentId), Events = count() by SrcAgentBlueprintId
+| extend AgentCount = array_length(Agents)
+| order by AgentCount desc
+```
+
+**Expected results:** One row per `SrcAgentBlueprintId` with `AgentCount > 1` — these are candidate multi-agent solutions (a parent orchestrator plus one or more sub-agents deployed under the same Copilot Studio blueprint). This is a **direction-agnostic discovery signal**: it tells you which agent identities are related, but not which one calls which — pair it with [Query 10b](#query-10b-agent-communication-map--data-lake-unifiedagentobservability) to get direction and call counts. Use as a fast tenant-wide sweep to find handoff candidates before running the full edge query per agent.
+
+**Tuning:** Drop the `SrcAgentBlueprintId != zero-GUID` filter cautiously — M365 Copilot built-in agents all share the zero-GUID blueprint and would otherwise appear as one giant false-positive "family."
 
 ---
 
