@@ -1,6 +1,6 @@
 ---
 name: ai-agent-posture
-description: 'Use this skill when asked to audit, assess, or report on AI agent security posture across Copilot Studio, Microsoft 365 Copilot, Microsoft Foundry, and third-party agents. Triggers on keywords like "AI agent posture", "agent security audit", "Copilot Studio agents", "agent inventory", "agent access", "broadly accessible agents", "agent tools", "MCP tools on agents", "agent knowledge sources", "XPIA risk", "agent sprawl", "AI agent risk", "agent governance", or when investigating AI agent configurations, access posture, tool permissions, or credential exposure. This skill queries the AgentsInfo table in Advanced Hunting to produce a comprehensive security posture assessment covering agent inventory, access posture, broadly-accessible agent exposure, MCP tool proliferation, knowledge source exposure, XPIA email exfiltration risk, hard-coded credential detection, external endpoint risks, creator governance, and agent sprawl analysis. Supports inline chat and markdown file output.'
+description: 'Use this skill when asked to audit, assess, or report on AI agent security posture across Copilot Studio, Microsoft 365 Copilot, Microsoft Foundry, and third-party agents. Triggers on keywords like "AI agent posture", "agent security audit", "Copilot Studio agents", "agent inventory", "agent access", "broadly accessible agents", "agent tools", "MCP tools on agents", "agent knowledge sources", "XPIA risk", "agent sprawl", "AI agent risk", "agent governance", "agent identity", "agentic user", "agent blueprint", "dormant agents", "ownerless agents", or when investigating AI agent configurations, access posture, tool permissions, credential exposure, or Entra agent identities. This skill queries the AgentsInfo table in Advanced Hunting (the always-available baseline) to produce a comprehensive security posture assessment covering agent inventory, access posture, broadly-accessible agent exposure, MCP tool proliferation, knowledge source exposure, XPIA email exfiltration risk, hard-coded credential detection, external endpoint risks, creator governance, and agent sprawl analysis. When Microsoft Sentinel Data Lake is present, it additionally enriches the assessment with the Entra agent identity model (EntraAgentIdentities, EntraAgentIdentityBlueprints, EntraAgentUsers) for lifecycle state, blueprint governance, agentic-user accounts, and dormant-agent detection. Performs data-plane detection so Defender-only tenants still receive a full assessment. Supports inline chat and markdown file output.'
 threat_pulse_domains: [admin, cloud]
 drill_down_prompt: 'Run AI agent security audit — agent inventory, authentication gaps, tool permissions'
 ---
@@ -124,16 +124,17 @@ This is the primary runtime defense against all three scenarios above. When revi
 ## 📑 TABLE OF CONTENTS
 
 1. **[Critical Workflow Rules](#-critical-workflow-rules---read-first-)** — Mandatory rules
-2. **[Table Schema Reference](#table-schema-reference)** — AgentsInfo columns and data types
-3. **[Agent Security Score Formula](#agent-security-score-formula)** — Composite risk scoring
-4. **[Execution Workflow](#execution-workflow)** — Phase-by-phase query plan
-5. **[Sample KQL Queries](#sample-kql-queries)** — All queries (Q1–Q12)
-6. **[Output Modes](#output-modes)** — Inline vs Markdown report
-7. **[Inline Report Template](#inline-report-template)** — Chat-rendered format
-8. **[Markdown File Report Template](#markdown-file-report-template)** — Disk-saved format
-9. **[Known Pitfalls](#known-pitfalls)** — Schema quirks and edge cases
-10. **[Quality Checklist](#quality-checklist)** — Pre-delivery validation
-11. **[SVG Dashboard Generation](#svg-dashboard-generation)** — Visual dashboard from report
+2. **[Data Plane Detection & Selection](#data-plane-detection--selection)** — baseline (AgentsInfo) + optional Entra identity enrichment
+3. **[Table Schema Reference](#table-schema-reference)** — AgentsInfo columns and data types
+4. **[Agent Security Score Formula](#agent-security-score-formula)** — Composite risk scoring
+5. **[Execution Workflow](#execution-workflow)** — Phase-by-phase query plan
+6. **[Sample KQL Queries](#sample-kql-queries)** — All queries (Q1–Q15)
+7. **[Output Modes](#output-modes)** — Inline vs Markdown report
+8. **[Inline Report Template](#inline-report-template)** — Chat-rendered format
+9. **[Markdown File Report Template](#markdown-file-report-template)** — Disk-saved format
+10. **[Known Pitfalls](#known-pitfalls)** — Schema quirks and edge cases
+11. **[Quality Checklist](#quality-checklist)** — Pre-delivery validation
+12. **[SVG Dashboard Generation](#svg-dashboard-generation)** — Visual dashboard from report
 
 ---
 
@@ -157,6 +158,32 @@ This is the primary runtime defense against all three scenarios above. When revi
 7. **Run queries in parallel batches** where possible — Phase 1 queries (Q1–Q3) are independent and can run in parallel. Phase 2 queries (Q4–Q9) are independent and can run in parallel. Phase 3 (Q10–Q12) can run in parallel.
 
 8. **Time tracking** — Report elapsed time after each phase completion.
+
+9. **🔴 DATA PLANE AWARENESS** — This skill's **baseline** is `AgentsInfo` (Advanced Hunting), available to **every Defender XDR tenant** — Phases 1–5 depend only on it. When **Microsoft Sentinel Data Lake** is present, an **optional enrichment tier** (the `EntraAgent*` identity tables, Phase 6) adds lifecycle state, blueprint governance, agentic-user accounts, and clean dormant-agent detection. **Probe for the enrichment plane before using it and skip gracefully if absent** — never block or degrade the baseline assessment for a Defender-only tenant, and never change the /100 score based on enrichment availability. See [Data Plane Detection & Selection](#data-plane-detection--selection).
+
+---
+
+## Data Plane Detection & Selection
+
+Agent posture spans three planes. Only the **baseline** is required; detect and use the others when present.
+
+| Plane | Table(s) | Query tool | Availability | Role |
+|-------|----------|-----------|--------------|------|
+| **Baseline — config posture** | `AgentsInfo` | `RunAdvancedHuntingQuery` | **All Defender XDR tenants** | Inventory, tools/MCP, knowledge, **owner/creator**, Entra linkage. Drives Phases 1–5 and the /100 score. |
+| **Enrichment — Entra identity** | `EntraAgentIdentities`, `EntraAgentIdentityBlueprints`, `EntraAgentUsers` | `mcp_sentinel-data_query_lake` (`workspaceId:"default"`) | **Sentinel Data Lake only** | Lifecycle/compliance, blueprint app-reg governance, agentic-user accounts, duplicate/dormant identities (Phase 6). |
+| **Runtime** | `CopilotActivity` (AH) / `UnifiedAgentObservability` (Data Lake) | AH / `query_lake` | AH everywhere; UAO Data-Lake-only | Which flagged agents are actually active (Phase 5). |
+
+**Enrichment-plane probe (run once, before Phase 6):**
+```kql
+// mcp_sentinel-data_query_lake, workspaceId: "default"
+EntraAgentIdentities | where TimeGenerated > ago(7d) | summarize Rows = count()
+```
+- Returns rows → **enrichment plane available**, run Phase 6.
+- `SemanticError: Failed to resolve table` or 0 rows → **Defender-only tenant**, skip Phase 6 and state the gap in the report banner.
+
+> **🔴 MANDATORY report banner:** State which planes were available, e.g. *"Baseline: AgentsInfo ✅ · Entra identity enrichment: ✅ (14 identities) · Runtime: CopilotActivity ✅"* or *"…Entra identity enrichment: ❌ not available (no Sentinel Data Lake) — lifecycle, blueprint governance, agentic-user, and identity-based dormancy findings were not assessed."*
+
+> **Full enrichment query library:** [`queries/cloud/entra_agent_identity.md`](../../../queries/cloud/entra_agent_identity.md) — Queries 1–6, the validated cross-plane join map, and the Defender-only fallback. Phase 6 references it rather than duplicating the KQL.
 
 ---
 
@@ -261,12 +288,15 @@ Each dimension contributes 0–20 points to a maximum of 100:
 
 ### Supplementary Indicators (not summed into the /100 score)
 
-Two indicators are reported **alongside** the composite score for added context. They are intentionally **not** added to the /100 total — they enrich interpretation and feed the dimensions above as evidence.
+These indicators are reported **alongside** the composite score for added context. They are intentionally **not** added to the /100 total — they enrich interpretation and feed the dimensions above as evidence.
 
 | Indicator | Source | What it tells you |
 |-----------|--------|-------------------|
 | **Capability Privilege Index** | Q13 | Count of agents holding ≥1 *sensitive* operation (mail-send, directory-write, data-write, messaging). Split by broad access. A high count of broadly-accessible + sensitive-op agents is the strongest privilege-abuse signal and should justify maxing the Broad Access and/or XPIA dimensions. |
 | **Deep-Manifest Coverage** | Q14 | Percentage of the fleet carrying `declarativeCopilotMetadata` (DCM). Because the XPIA, endpoint, and capability queries depend on DCM, this is the fraction of the estate that was *fully* inspectable. Every report MUST surface this so the analyst knows what was **not** inspected. |
+| **Ownership Governance — Orphaned Agents** *(baseline — all tenants)* | Q16 | Count of agents whose **assigned owner has left the org** (`Owners[]` GUID no longer resolves in `IdentityInfo`) — the telemetry equivalent of the Agent 365 *"Agents without owners"* registry card, but **cross-platform**. Validated: telemetry surfaced **~30× more** orphaned agents than the admin-center card (which is Agent-Builder-scoped). A live, credentialed, Published agent with no accountable human = **MITRE T1098** governance risk. **AH-native — reported for every tenant**, unlike the Data-Lake-only indicators below. Canonical cross-platform version: [`entra_agent_identity.md` Query 7](../../../queries/cloud/entra_agent_identity.md). |
+| **Lifecycle Hygiene** *(Phase 6, Data Lake only)* | Queries 1 & 5a ([`entra_agent_identity.md`](../../../queries/cloud/entra_agent_identity.md)) | Count of agent identities that are disabled-but-present, lifecycle-expired, or **dormant** (enabled SPN with no runtime activity). In a validated lab, 11 of 14 provisioned identities were dormant. High dormancy = credentialed attack surface with no operational value; feed to decommissioning recommendations. Omitted entirely for Defender-only tenants. |
+| **Agent-User / Blueprint Sprawl** *(Phase 6, Data Lake only)* | Queries 2, 3 & 6 ([`entra_agent_identity.md`](../../../queries/cloud/entra_agent_identity.md)) | Agentic-user accounts (orphaned SP/blueprint links), duplicate/re-provisioned identities (same name, multiple SPNs), and multi-tenant blueprints with no verified publisher. Contextualizes the baseline sprawl signal (Q11) with Entra-identity evidence. Omitted for Defender-only tenants. |
 
 ---
 
@@ -300,7 +330,7 @@ Two indicators are reported **alongside** the composite score for added context.
 | Q8 | Hard-coded credential scan |
 | Q9 | External endpoint & HTTP risk (connector `serverUrls`) |
 
-### Phase 3: Governance & Trends (Q10–Q12)
+### Phase 3: Governance & Trends (Q10–Q16)
 
 **Run in parallel — no dependencies between queries.**
 
@@ -311,6 +341,7 @@ Two indicators are reported **alongside** the composite score for added context.
 | Q12 | Capability / tools inventory (all operation types) |
 | Q13 | Operation-level privilege mapping (sensitive-operation matrix → Capability Privilege Index) |
 | Q14 | Deep-manifest coverage (% of fleet with DCM → report coverage banner) |
+| Q16 | Orphaned agents — owner departed (`Owners[]` ∖ `IdentityInfo`) → Ownership Governance indicator |
 
 ### Phase 4: Score Computation & Report Generation
 
@@ -336,9 +367,34 @@ Two indicators are reported **alongside** the composite score for added context.
 - **Active-and-dangerous** — a flagged agent (broadly accessible / XPIA-exposed / sensitive ops) that ALSO appears in `CopilotActivity` with real interactions → **highest remediation priority** (Query 15).
 - **Configured-but-dormant** — a flagged agent absent from `CopilotActivity` over the window → lower urgency, candidate for decommissioning (caveat: attribution gaps above).
 
+> **🔴 Do NOT present a fleet-wide Defender dormancy table.** `CloudAppEvents`/`CopilotActivity` attribute only ~0.3% of the fleet at runtime (validated: **45 of 15,038** agents), so a fleet-wide `AgentsInfo ∖ runtime` leftanti reports ~99% "dormant" as a **telemetry artifact**, not a finding. Fleet-wide dormancy is only valid on the **Data Lake** plane ([`entra_agent_identity.md`](../../../queries/cloud/entra_agent_identity.md) Query 5a, via `UnifiedAgentObservability.SrcAgentId`). On Defender, present the **positive** runtime-attributed set (that file's Query 5b) plus the scoped flagged-list check above — never an inverted fleet-wide dormancy count.
+
 For deeper runtime reconstruction (data accessed, tools invoked, jailbreak detections), hand off to the dedicated query library **`queries/cloud/copilot_activity_investigation.md`** rather than duplicating queries here.
 
 > Keep this phase thin and scoped: the posture skill owns *configuration* assessment; `copilot_activity_investigation.md` owns *runtime* reconstruction. Reference, don't duplicate.
+
+### Phase 6: Entra Agent Identity Enrichment (Optional — Sentinel Data Lake only)
+
+`AgentsInfo` describes how agents are *configured* and *owned*; it does not carry the **Entra identity model** — the service-principal lifecycle, the app-registration (blueprint) governance, or the agentic-user accounts. When Sentinel Data Lake is present, this phase adds that layer.
+
+**When to run:** After the [enrichment-plane probe](#data-plane-detection--selection) returns rows. If the probe fails (Defender-only tenant), **skip this phase entirely** and record the gap in the report banner — the baseline assessment and /100 score are unaffected.
+
+**🔴 All queries here are Data Lake — use `mcp_sentinel-data_query_lake` with `workspaceId: "default"`.** Full tested KQL lives in [`queries/cloud/entra_agent_identity.md`](../../../queries/cloud/entra_agent_identity.md); reference it, don't duplicate.
+
+| Query | Purpose | Feeds |
+|-------|---------|-------|
+| Query 1 | Agent identity state & lifecycle (enabled, compliance, expiration, provisioning source) | Lifecycle Hygiene indicator |
+| Query 2 | Agent user account audit (agentic UPNs, orphaned SP/blueprint links) | Agent-User / Blueprint Sprawl indicator |
+| Query 3 | Blueprint app-registration governance (verified publisher, multi-tenant audience, OAuth2 scopes/app-roles) | Agent-User / Blueprint Sprawl indicator |
+| Query 4 | Identity graph — Blueprint → Identity → Agent User (Mermaid) | Report visualization |
+| Query 5a | 🔴 Dormant / provisioned-but-inactive agents (identity ∖ `UnifiedAgentObservability`) | Lifecycle Hygiene indicator; decommissioning recommendations |
+| Query 6 | Duplicate / re-provisioned identities (same name, multiple SPNs) | Agent-User / Blueprint Sprawl indicator |
+
+**Cross-plane enrichment:** join the identity plane back to the baseline on `EntraAgentIdentities.appId == AgentsInfo.EntraAgentID` to attach the **owner/creator** (from `AgentsInfo`, which the Entra tables lack) to each identity finding. This makes a dormant or duplicate identity **actionable** — you can name who owns it.
+
+**Score impact:** Phase 6 feeds the **Lifecycle Hygiene** and **Agent-User / Blueprint Sprawl** [supplementary indicators](#supplementary-indicators-not-summed-into-the-100-score) only — it does **NOT** change the composite /100 score, so a Defender-only tenant receives the same maximum score and comparable ratings.
+
+> The dedicated hunting library **`entra_agent_identity.md`** owns the full identity-plane query set + the Defender-only coverage notes; this phase orchestrates it. Reference, don't duplicate.
 
 ---
 
@@ -719,6 +775,28 @@ CopilotActivity
 
 ---
 
+### Query 16: Orphaned Agents — Owner Departed
+
+👥 **Governance query (Phase 3)** — agents whose assigned **owner has left the organization**. Telemetry equivalent of the Agent 365 **"Agents without owners"** registry card, but **cross-platform** (the admin-center card is Agent-Builder-scoped and materially under-reports). AH-native — runs for **every tenant**. Feeds the **Ownership Governance** supplementary indicator.
+
+```kql
+// Owner lives in AgentsInfo.Owners[] (populated for shared agents); "departed" = GUID no longer a current directory user.
+let CurrentUsers = IdentityInfo | where isnotempty(AccountObjectId) | distinct AccountObjectId;
+AgentsInfo
+| summarize arg_max(Timestamp, *) by AgentId
+| where LifecycleStatus != "Deleted"
+| mv-expand OwnerGuid = parse_json(tostring(Owners)) to typeof(string)
+| where isnotempty(OwnerGuid)
+| where OwnerGuid !in (CurrentUsers)          // owner no longer in directory = departed
+| summarize OrphanedAgents = dcount(AgentId), DepartedOwners = dcount(OwnerGuid),
+            PublishedOrphans = countif(PublishedStatus == "Published") by Platform
+| order by OrphanedAgents desc
+```
+
+> **Interpretation:** Each row is a platform's count of agents whose owner has departed. Prioritize `PublishedOrphans` (live + unowned). **`IdentityInfo`-absence is a proxy for "departed"** — it reliably catches hard-deleted creators but may also include disabled/external/unsynced identities, so corroborate a specific owner before blocking/deleting. Keys on `Owners[]` (shared agents); it does **not** attempt "no owner assigned at all" — `AgentsInfo.Owners`/`creatorId` are too sparse for that (blank ≠ no owner; use the Agent Registry / Graph `/servicePrincipals/{id}/owners` for that signal). Canonical cross-platform detail + caveats: [`entra_agent_identity.md` Query 7](../../../queries/cloud/entra_agent_identity.md).
+
+---
+
 ## Output Modes
 
 ### Mode 1: Inline Chat Summary
@@ -905,6 +983,12 @@ Render the following sections in order. Omit sections only if explicitly noted a
 
 > **Coverage caveat:** Only agents with a populated `RawAgentInfo.creatorId` are attributed; GUIDs unresolved in `IdentityInfo` fall back to the raw GUID.
 
+### Ownerless / Orphaned Agents (Q16)
+- **Owner departed** (assigned owner left the org): **<N>** agents across **<P>** platforms (**<PublishedN>** Published)
+- Most affected platform: **<Platform>** (<N>)
+
+> The Agent 365 admin-center *"Agents without owners"* card is Agent-Builder-scoped; this telemetry view is **cross-platform** and typically surfaces materially more orphaned agents (validated ~30× in one large tenant). Owner-departed = **MITRE T1098** governance risk (live, credentialed, unowned). Corroborate `IdentityInfo`-absence (may include disabled/external identities) before blocking or reassigning.
+
 ---
 
 ## 📈 Agent Creation Trend
@@ -1072,6 +1156,12 @@ Include the **Capability Privilege Index** and (if Phase 5 ran) **Runtime Correl
 **Problem:** The normalized columns (`DeclaredTools`, `McpServers`, `DeclaredDataSources`, `Owners`, `Capabilities`) are **sparsely populated and flat**. The rich governance/configuration detail lives in the `RawAgentInfo` dynamic column (populated for ~all agents) and, for the connector-sourced subset, in `RawAgentInfo.declarativeCopilotMetadata` (DCM).
 
 **Solution:** For creator (`RawAgentInfo.creatorId`), broad access (`RawAgentInfo.allowForAllUsers`), app type (`RawAgentInfo.appType`), and deep capability/endpoint detail, parse `RawAgentInfo`. `RawAgentInfo` is dynamic — no double-parse needed; access nested keys directly with `tostring(RawAgentInfo.key)`.
+
+### 4. Entra Identity Enrichment Is Data Lake Only (Phase 6)
+
+**Problem:** The `EntraAgentIdentities` / `EntraAgentIdentityBlueprints` / `EntraAgentUsers` tables are **Sentinel Data Lake system tables** — they do NOT exist in Advanced Hunting. A Defender-only tenant has no access to them, and querying them via `RunAdvancedHuntingQuery` or with a workspace GUID fails.
+
+**Solution:** Always [probe first](#data-plane-detection--selection) and query with `mcp_sentinel-data_query_lake` + `workspaceId: "default"`. Skip Phase 6 gracefully when absent and note it in the report banner. Additional Entra-table pitfalls (snapshot dedup with `arg_max(TimeGenerated,*) by id`, `id == appId`, dynamic `lifecycle`/`tags`, blueprint table containing non-agent platform apps, no native owner field) are documented in [`queries/cloud/entra_agent_identity.md`](../../../queries/cloud/entra_agent_identity.md). Owner/creator is NOT in these tables — cross-reference `AgentsInfo` (`EntraAgentIdentities.appId == AgentsInfo.EntraAgentID`) or Graph `/servicePrincipals/{id}/owners`.
 
 ### 4. declarativeCopilotMetadata (DCM) Covers Only a Subset
 

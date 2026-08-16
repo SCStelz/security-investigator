@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-08-16T18:18:39Z'
+generated: '2026-08-16T21:02:40Z'
 valid_domains:
 - admin
 - cloud
@@ -248,6 +248,18 @@ queries:
   - T1592 (Gather Victim Host Information)
   - T1590 (Gather Victim Network Information)
   - T1589 (Gather Victim Identity Information)
+- title: Entra Agent Identity — AI Agent Identity & Governance Posture
+  path: queries/cloud/entra_agent_identity.md
+  domains:
+  - identity
+  - cloud
+  mitre:
+  - T1078.004
+  - T1136.003
+  - T1098
+  - TA0003
+  - TA0004
+  - TA0005
 - title: ExposureGraph Critical Assets & Attack Paths - Complete Query Library
   path: queries/cloud/exposure_graph_attack_paths.md
   domains:
