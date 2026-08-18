@@ -19,7 +19,7 @@ Related source material: [`queries/cloud/agent365_observability.md`](../queries/
 - [AH-7 — New Tool First-Seen vs 30-Day Baseline](#ah-7)
 - [AH-8 — Channel & User Activity Distribution](#ah-8) ([AH-8b](#ah-8b))
 - [AH-9 — Prompt Injection / Jailbreak Verdicts](#ah-9)
-- [AH-10 — Sensitive Operation Privilege Mapping](#ah-10)
+- [AH-10 — Sensitive Operation Privilege Mapping](#ah-10) ([AH-10b](#ah-10b))
 - [AH-11 — XPIA Email Exfiltration Risk](#ah-11)
 - [AH-12 — Agent Communication Map: Agent-to-Tool & Agent-to-Agent Handoff](#ah-12)
 - [AH-12a / AH-12b — Declared Agent-to-Agent Connections](#ah-12a)
@@ -637,11 +637,14 @@ AgentsInfo
 | mv-expand Op = Api.operations
 | extend OperationId = tostring(Op.operationId)
 | where isnotempty(OperationId)
+| extend IsGenericWriteVerb = (OperationId matches regex @"^(?i:create|update|delete|add|remove|upload|enable|disable|grant|revoke|set)[_-]")
+    or (OperationId matches regex @"^(create|update|delete|add|remove|upload|enable|disable|grant|revoke|set)[A-Z]")
 | extend PrivilegeCategory = case(
     OperationId has_any ("Send an email", "SendEmail", "Send email"), "Mail-Send",
-    OperationId has_any ("AddUserToGroup", "RemoveMember", "UpdatePerson", "UpdateOrganisation", "Create user", "Delete user", "Update user", "Assign"), "Directory-Write",
-    OperationId has_any ("unbound action", "Create a row", "Update a row", "Delete a row", "Create record", "Update record"), "Data-Write",
-    OperationId has_any ("Post message", "Post a message", "Send message", "Create chat", "post in a chat"), "Messaging",
+    OperationId has_any ("Add user to group", "Remove Member From Group", "AddUserToGroup", "RemoveMember", "UpdatePerson", "UpdateOrganisation", "Create user", "Delete user", "Update user"), "Directory-Write",
+    (OperationId has_any ("unbound action", "Create a row", "Update a row", "Delete a row", "Add a new row", "Create record", "Update record",
+                           "Update organisation", "Update person", "Create file", "Create event", "Send an HTTP request")) or IsGenericWriteVerb, "Data-Write",
+    OperationId has_any ("Post message", "Post a message", "Send message", "post in a chat", "Create a chat", "Add a member to a channel", "Add assignees to a task", "Create a task"), "Messaging",
     OperationId has_any ("Security Copilot", "Sentinel"), "Security-Tooling",
     "Other/Read")
 | summarize AgentCount = dcount(AgentId) by PrivilegeCategory
@@ -650,6 +653,80 @@ AgentsInfo
 ```
 
 **Notes:** This is the fleet-wide equivalent of the Registry's Permissions tab — one query, every agent, bucketed by what kind of write access it holds. Follow with a drill-down: pick the `Directory-Write` or `Mail-Send` bucket and open one of those agents in the Registry to compare Data & Tools vs Permissions side by side.
+
+**⚠️ Validated live against a lab tenant — the categorization logic required real fixes, not just tuning.** Three issues were confirmed by inspecting the actual distinct `OperationId` values in a live tenant:
+1. **A bare `"Assign"` keyword produced 100% false positives in `Directory-Write`** — it matched things like `Office 365 Outlook Assign a category to multiple emails` (a mail-organization action, not a directory write) while the tenant's one **genuine** Entra ID group-membership operation (`Microsoft Entra ID Add user to group` / `Remove Member From Group`) went **undetected** because the original literals expected camelCase (`AddUserToGroup`) rather than the real spaced-out text. The corrected query drops the bare `"Assign"` catch-all and matches the real Entra ID phrasing directly.
+2. **`Data-Write` was undercounted by roughly 5×** because the original matching only covered Dataverse's specific phrasing (`Create a row`, `unbound action`, etc.). Third-party/custom connectors overwhelmingly use snake_case (`create_doc`), camelCase (`createIssue`, `updateTicket`), or kebab-case (`create-folder`) operation IDs that never matched. `IsGenericWriteVerb` adds a regex catch for verb-prefixed operation IDs in any of those three styles, plus a handful of additional natural-language phrases (`Update organisation`, `Create file`, `Create event`, `Send an HTTP request`) found in the live tenant that connector-name-prefixed text (e.g. a CRM connector's `Update organisation` operation) still won't match via anchored regex.
+3. **`Messaging` missed real Teams/Planner writes** — the original `"Create chat"` literal never matches actual operation text like `Microsoft Teams Create a chat` (note the "a"). Added `Create a chat`, `Add a member to a channel`, `Add assignees to a task`, and `Create a task` to catch the real phrasing.
+
+**Residual limitation (expected, not a bug):** the regex only catches API-style verb-prefixed operation IDs. Natural-language operation names prefixed by a connector name (e.g. a CRM connector's `Update person (V2)` operation, or `SharePoint Send an HTTP request to SharePoint`) will keep slipping into `Other/Read` unless their exact phrase is added to the `has_any` list — this is inherent to matching free-text operation names across an unbounded set of third-party connectors, not something a single regex can fully solve. Treat a nonzero `Other/Read` count as expected, and periodically skim it (`| where PrivilegeCategory == "Other/Read" | where OperationId has_any ("create","update","delete","add","remove","grant","upload")`) to catch new connector phrasing worth adding.
+
+<a id="ah-10b"></a>
+
+**AH-10b — Full operation inventory dump (cross-tenant reference).** Every tenant's connector mix is different — a lab tenant's third-party long tail (project-management, file-storage, CRM, and helpdesk connectors, among others) won't match another tenant's. Rather than trying to hand-curate every possible operation name in AH-10's `case()` logic, this dumps **every distinct `OperationId` in the fleet** alongside its current AH-10 bucket, a human-readable summary (from the DCM's own `summary`/`description` field), sample agents using it, and the connector it belongs to — so a security team can eyeball the full list once and manually flag anything AH-10 missed for their own tenant.
+
+**✅ Validated live against a lab tenant — the scale is the finding.** Before drilling into the per-operation dump, run the headline stat first:
+
+```kql
+AgentsInfo
+| summarize arg_max(Timestamp, *) by AgentId
+| where LifecycleStatus != "Deleted"
+| where isnotempty(tostring(RawAgentInfo.declarativeCopilotMetadata))
+| mv-expand DCM = RawAgentInfo.declarativeCopilotMetadata
+| mv-expand Action = DCM.actions
+| mv-expand Api = Action.apis
+| mv-expand Op = Api.operations
+| extend OperationId = tostring(Op.operationId), ConnectorDisplayName = tostring(Action.nameForHuman)
+| where isnotempty(OperationId)
+| summarize DistinctOperations = dcount(OperationId), DistinctConnectors = dcount(ConnectorDisplayName), DistinctAgentsWithManifest = dcount(AgentId)
+```
+
+In one validated environment this returned **well over a thousand distinct operations across well over a hundred distinct connectors and a large share of the agent fleet** — a number worth leading with live, since it's the concrete answer to "how big is our actual agent attack surface" that a Registry agent-count alone can't give you. Expect a comparable order of magnitude to surprise you the first time this runs against your own tenant.
+
+```kql
+AgentsInfo
+| summarize arg_max(Timestamp, *) by AgentId
+| where LifecycleStatus != "Deleted"
+| where isnotempty(tostring(RawAgentInfo.declarativeCopilotMetadata))
+| mv-expand DCM = RawAgentInfo.declarativeCopilotMetadata
+| mv-expand Action = DCM.actions
+| mv-expand Api = Action.apis
+| mv-expand Op = Api.operations
+| extend OperationId = tostring(Op.operationId),
+         OperationSummary = tostring(Op.summary),
+         ConnectorDisplayName = tostring(Action.nameForHuman),
+         CredentialType = tostring(Op.credentialType)
+| where isnotempty(OperationId)
+| extend IsGenericWriteVerb = (OperationId matches regex @"^(?i:create|update|delete|add|remove|upload|enable|disable|grant|revoke|set)[_-]")
+    or (OperationId matches regex @"^(create|update|delete|add|remove|upload|enable|disable|grant|revoke|set)[A-Z]")
+| extend CurrentPrivilegeCategory = case(
+    OperationId has_any ("Send an email", "SendEmail", "Send email"), "Mail-Send",
+    OperationId has_any ("Add user to group", "Remove Member From Group", "AddUserToGroup", "RemoveMember", "UpdatePerson", "UpdateOrganisation", "Create user", "Delete user", "Update user"), "Directory-Write",
+    (OperationId has_any ("unbound action", "Create a row", "Update a row", "Delete a row", "Add a new row", "Create record", "Update record",
+                           "Update organisation", "Update person", "Create file", "Create event", "Send an HTTP request")) or IsGenericWriteVerb, "Data-Write",
+    OperationId has_any ("Post message", "Post a message", "Send message", "post in a chat", "Create a chat", "Add a member to a channel", "Add assignees to a task", "Create a task"), "Messaging",
+    OperationId has_any ("Security Copilot", "Sentinel"), "Security-Tooling",
+    "Other/Read")
+| summarize
+    AgentCount = dcount(AgentId),
+    SampleAgentNames = make_set(Name, 5),
+    SampleConnectorNames = make_set(ConnectorDisplayName, 3),
+    SampleSummary = any(OperationSummary),
+    CredentialTypesSeen = make_set(CredentialType, 5)
+    by OperationId, CurrentPrivilegeCategory
+| project OperationId,
+          CurrentPrivilegeCategory,
+          AgentCountUsingThisOperation = AgentCount,
+          SampleAgentDisplayNames = SampleAgentNames,
+          SampleConnectorNames,
+          SampleOperationSummary = SampleSummary,
+          CredentialTypesObserved = CredentialTypesSeen
+| order by CurrentPrivilegeCategory asc, AgentCountUsingThisOperation desc
+```
+
+**Notes:** This is the raw material AH-10's `case()` logic is built from — every unique `OperationId` the fleet's DCM manifests declare, one row each, regardless of category. `CurrentPrivilegeCategory` shows where AH-10's logic currently files it, so filtering to `CurrentPrivilegeCategory == "Other/Read"` and skimming `SampleOperationSummary` is the fastest way to spot-check whether anything sensitive is hiding in the uncategorized bucket for a *specific* tenant's connector mix. `SampleOperationSummary` pulls from the connector's own declared `summary`/`description` text — useful for cryptic operation IDs like `search_archive_imagery` or `getStacksToCreateLibraryEntries` that give no hint of what they do from the name alone. `CredentialTypesObserved` (`Invoker`, `Maker`, etc.) hints at whether the operation runs under the interacting user's own delegated context or a fixed maker-configured connection — worth a second look when it's `Maker` on a write-capable operation, since that means every user of the agent triggers the write under the *maker's* identity, not their own.
+
+**Practical workflow for a new tenant:** run AH-10b once, export or skim the full list, and treat any `Other/Read` row whose `SampleOperationSummary` describes a write, delete, send, or grant action as a candidate to fold into AH-10's `case()` logic (or just track separately) — this is expected, ongoing curation for that tenant's specific connector ecosystem, not a one-time fix.
 
 ---
 
@@ -1442,7 +1519,7 @@ AlertInfo
 | [AH-7](#ah-7) | New tool first-seen vs. 30-day baseline |
 | [AH-8](#ah-8) / [AH-8b](#ah-8b) | Channel & user activity distribution, per-IP drill-down |
 | [AH-9](#ah-9) | Prompt injection / jailbreak verdicts |
-| [AH-10](#ah-10) | Sensitive operation privilege mapping |
+| [AH-10](#ah-10) / [AH-10b](#ah-10b) | Sensitive operation privilege mapping, and full operation inventory dump for cross-tenant review |
 | [AH-11](#ah-11) | XPIA email exfiltration risk |
 | [AH-12](#ah-12) | Agent communication map (tool calls + agent handoffs) |
 | [AH-12a](#ah-12a) / [AH-12b](#ah-12b) | Declared agent-to-agent connections (`ConnectedAgents`) |
