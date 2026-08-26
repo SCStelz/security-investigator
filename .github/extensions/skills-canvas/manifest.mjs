@@ -48,6 +48,28 @@ const HIDDEN_SKILLS = new Set([
     "context-memory-review",
 ]);
 
+// Skills whose {entity} prompt can also run tenant/fleet-wide. When the analyst
+// picks "Fleet-wide" on the card, {entity} is replaced with the `phrase` below
+// (instead of a single target), so the launched skill sweeps every asset. `label`
+// is the short descriptor shown on the card toggle. Keeping this here is the
+// single source of truth — the UI reads `fleet` off each skill, and composePrompt
+// substitutes the phrase, so the two never drift.
+const FLEET_SCOPE = {
+    "scope-drift-detection-device": {
+        label: "all devices",
+        phrase: "the entire device fleet — analyze every device, rank by drift score, and surface the highest-drift outliers",
+    },
+    "scope-drift-detection-spn": {
+        label: "all service principals",
+        phrase: "all service principals fleet-wide — rank by drift score and surface the highest-drift outliers",
+    },
+};
+
+/** Fleet metadata for a skill name, or null when it isn't fleet-capable. */
+export function fleetScope(name) {
+    return FLEET_SCOPE[name] || null;
+}
+
 /**
  * Minimal parser for the slim discovery manifest. Returns { skills, queries }.
  * Each skill: { name, path, domains[], prompt? }.
@@ -143,10 +165,14 @@ export function lookbackPhrase(value) {
  * window is chosen, an explicit instruction is appended so the skill overrides
  * its default timeframe consistently.
  */
-export function composePrompt(skill, entity, lookback) {
+export function composePrompt(skill, entity, lookback, fleet) {
     let prompt = skill.prompt || UTILITY_SKILL_PROMPTS[skill.name] || `Use the ${skill.name} skill`;
+    const fleetCfg = fleet ? FLEET_SCOPE[skill.name] : null;
     if (skill.prompt && skill.prompt.includes("{entity}")) {
-        prompt = skill.prompt.replaceAll("{entity}", (entity || "").trim() || "{entity}");
+        // Fleet-wide replaces {entity} with a whole-fleet phrase; otherwise the
+        // analyst's target (or the literal {entity} placeholder when still blank).
+        const sub = fleetCfg ? fleetCfg.phrase : ((entity || "").trim() || "{entity}");
+        prompt = skill.prompt.replaceAll("{entity}", sub);
     } else if (entity && entity.trim()) {
         prompt = `${prompt} — target: ${entity.trim()}`;
     }
@@ -212,6 +238,7 @@ export async function loadCanvasData(repoRoot) {
             domains: s.domains || [],
             prompt: s.prompt || null,
             hasEntity: needsEntity(s),
+            fleet: FLEET_SCOPE[s.name] ? { label: FLEET_SCOPE[s.name].label } : null,
             launchPrompt: composePrompt(s, ""),
             // Query count per domain overlap for a light "coverage" signal.
         }))

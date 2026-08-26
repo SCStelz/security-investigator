@@ -93,6 +93,11 @@ export function renderPage() {
   .entity { flex: 1; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border);
     background: var(--panel2); color: var(--text); font-size: 12px; display: none; }
   .entity.show { display: block; }
+  .entity.dim { opacity: .45; }
+  .fleetck { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); cursor: pointer; margin-top: 4px; user-select: none; }
+  .fleetck:hover { color: var(--text); }
+  .fleetck input { accent-color: var(--accent, #388bfd); cursor: pointer; margin: 0; }
+  .fleetck.on { color: var(--accent2, #6fb2ff); font-weight: 600; }
   .lookback { padding: 6px 6px; border-radius: 7px; border: 1px solid var(--border);
     background: var(--panel2); color: var(--text); font-size: 11.5px; cursor: pointer; max-width: 130px; }
   .lookback:hover { border-color: var(--accent, #388bfd); }
@@ -370,10 +375,14 @@ function renderGrid() {
     const card = document.createElement("div");
     card.className = "card";
     const chips = s.domains.map(d => '<span class="chip">' + (ICONS[d] || "") + ' ' + d + '</span>').join("");
+    const fleetHtml = s.fleet
+      ? '<label class="fleetck"><input type="checkbox" class="fleetbox" /> 🌐 Fleet-wide (' + s.fleet.label + ')</label>'
+      : '';
     card.innerHTML =
       '<div class="top"><span class="ic">' + skillIcon(s) + '</span><span class="nm">' + s.name + '</span></div>' +
       '<div class="desc">' + skillDesc(s) + '</div>' +
       '<div class="chips">' + chips + '</div>' +
+      fleetHtml +
       '<input class="entity" placeholder="' + (s.hasEntity ? "entity (UPN / IP / device / #)…" : "optional target…") + '" />' +
       '<div class="row"><select class="lookback" title="Lookback window">' + lookbackOptionsHTML() + '</select>' +
       '<button class="btn run">▶ Run</button>' +
@@ -381,10 +390,25 @@ function renderGrid() {
     const entity = card.querySelector(".entity");
     const lookback = card.querySelector(".lookback");
     const runBtn = card.querySelector(".run");
+    const fleetBox = card.querySelector(".fleetbox");
     if (s.hasEntity) entity.classList.add("show");
+    if (fleetBox) {
+      // Fleet-wide overrides the per-entity target: disable + clear the entity
+      // input so it's clear the sweep covers everything, and drop the "entity
+      // required" gate on Run.
+      fleetBox.onchange = () => {
+        const on = fleetBox.checked;
+        fleetBox.closest(".fleetck").classList.toggle("on", on);
+        entity.disabled = on;
+        entity.classList.toggle("dim", on);
+        if (on) entity.value = "";
+        entity.placeholder = on ? "Fleet-wide — " + s.fleet.label : "entity (UPN / IP / device / #)…";
+      };
+    }
     runBtn.onclick = () => {
-      if (s.hasEntity && !entity.value.trim()) { entity.classList.add("show"); entity.focus(); toast("Enter an entity to investigate"); return; }
-      run(s.name, entity.value.trim(), "", lookback.value);
+      const fleet = !!(fleetBox && fleetBox.checked);
+      if (s.hasEntity && !fleet && !entity.value.trim()) { entity.classList.add("show"); entity.focus(); toast("Enter an entity, or check Fleet-wide"); return; }
+      run(s.name, entity.value.trim(), "", lookback.value, fleet);
     };
     grid.appendChild(card);
   }
@@ -396,11 +420,11 @@ function renderGrid() {
 // write the host chat composer without submitting a turn, so the "tailor before
 // send" step lives here in the canvas; Send is what actually injects the turn.
 let PENDING = null;
-async function run(name, entity, prompt, lookback) {
+async function run(name, entity, prompt, lookback, fleet) {
   try {
     const res = await fetch("/api/compose", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ skill: name || "", entity: entity || "", prompt: prompt || "", lookback: lookback || "" }),
+      body: JSON.stringify({ skill: name || "", entity: entity || "", prompt: prompt || "", lookback: lookback || "", fleet: fleet === true }),
     });
     const j = await res.json();
     if (j.ok) openCompose(j.skill, j.entity || "", j.prompt);
