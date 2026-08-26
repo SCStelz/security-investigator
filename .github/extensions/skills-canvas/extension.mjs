@@ -11,7 +11,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { joinSession, createCanvas } from "@github/copilot-sdk/extension";
 import { renderPage } from "./ui.mjs";
-import { loadCanvasData, composePrompt, lookbackPhrase } from "./manifest.mjs";
+import { loadCanvasData, composePrompt, lookbackPhrase, outputPhrase } from "./manifest.mjs";
 import { renderMarkdown, htmlReportPage } from "./md.mjs";
 import {
     loadFindings,
@@ -118,7 +118,7 @@ async function launchSkill(name, entity, promptOverride, lookback) {
 // the text so the canvas can show an editable preview the analyst tailors
 // before submitting). Keeping the lookback-injection logic here means the
 // preview and the eventual send stay identical.
-async function composeFor(name, entity, promptOverride, lookback, fleet) {
+async function composeFor(name, entity, promptOverride, lookback, fleet, output) {
     if (!cache) cache = await loadCanvasData(REPO_ROOT);
     const skill = (cache.skills || []).find((s) => s.name === name);
     // A tailored, agent-authored prompt (or an auto-derived context prompt) is
@@ -128,13 +128,15 @@ async function composeFor(name, entity, promptOverride, lookback, fleet) {
     // sub-skills (e.g. scope-drift-detection/spn) launch by prompt even when
     // they aren't surfaced as a standalone card.
     const override = (promptOverride || "").trim();
-    let prompt = override || (skill ? composePrompt(skill, entity, lookback, fleet) : "");
-    // composePrompt already injects the lookback for card launches. For a verbatim
-    // override (Findings follow-up) that carries its own timeframe, only append the
-    // window when one was explicitly chosen alongside the override.
+    let prompt = override || (skill ? composePrompt(skill, entity, lookback, fleet, output) : "");
+    // composePrompt already injects the lookback + output mode for card launches.
+    // For a verbatim override (Findings follow-up) that carries its own framing,
+    // only append the window / output directive when explicitly chosen alongside it.
     if (override) {
         const phrase = lookbackPhrase(lookback);
         if (phrase) prompt = `${prompt} — use a lookback window of ${phrase}`;
+        const outPhrase = outputPhrase(output);
+        if (outPhrase) prompt = `${prompt} — ${outPhrase}`;
     }
     if (!prompt) return { error: `Unknown skill: ${name}` };
     return { skill: name, prompt: withRecordDirective(prompt) };
@@ -228,7 +230,7 @@ async function handle(req, res) {
                 if (!entity) { json(res, 200, { ok: false, error: "empty entity" }); return; }
                 skill = routeEntity(entity);
             }
-            const composed = await composeFor(skill, entity, override, body.lookback || "", body.fleet === true);
+            const composed = await composeFor(skill, entity, override, body.lookback || "", body.fleet === true, body.output || "");
             if (composed.error) { json(res, 200, { ok: false, error: composed.error }); return; }
             json(res, 200, { ok: true, skill: composed.skill || skill, entity, prompt: composed.prompt });
             return;

@@ -159,13 +159,35 @@ export function lookbackPhrase(value) {
 }
 
 /**
+ * Output-format modes offered on every skill launch. Inline is the default and
+ * injects nothing — the skills already return an inline chat summary, matching
+ * the lookback "empty = no injection" convention. Markdown appends a directive
+ * so the skill also writes a saved report file; this pairs with the record_finding
+ * directive, which asks for `reports` links in the posted finding.
+ */
+export const OUTPUT_MODES = [
+    { value: "inline", label: "💬 Inline", phrase: "" },
+    {
+        value: "markdown",
+        label: "📄 Markdown report",
+        phrase: "in addition to a concise inline summary, generate a full Markdown report file, save it under the session's reports folder, and share the saved file path",
+    },
+];
+
+/** Directive phrase for an output mode, or "" for the default (inline). */
+export function outputPhrase(value) {
+    const opt = OUTPUT_MODES.find((o) => o.value === (value || "").trim());
+    return opt && opt.phrase ? opt.phrase : "";
+}
+
+/**
  * Compose the chat prompt for a skill card click. Substitutes {entity} when an
  * entity value is supplied; falls back to a generic "use this skill" prompt for
  * utility skills that carry no canned prompt in the manifest. When a lookback
  * window is chosen, an explicit instruction is appended so the skill overrides
  * its default timeframe consistently.
  */
-export function composePrompt(skill, entity, lookback, fleet) {
+export function composePrompt(skill, entity, lookback, fleet, output) {
     let prompt = skill.prompt || UTILITY_SKILL_PROMPTS[skill.name] || `Use the ${skill.name} skill`;
     const fleetCfg = fleet ? FLEET_SCOPE[skill.name] : null;
     if (skill.prompt && skill.prompt.includes("{entity}")) {
@@ -178,6 +200,8 @@ export function composePrompt(skill, entity, lookback, fleet) {
     }
     const phrase = lookbackPhrase(lookback);
     if (phrase) prompt = `${prompt} — use a lookback window of ${phrase}`;
+    const outPhrase = outputPhrase(output);
+    if (outPhrase) prompt = `${prompt} — ${outPhrase}`;
     return prompt;
 }
 
@@ -268,5 +292,6 @@ export async function loadCanvasData(repoRoot) {
         queryTotal: manifest.queries.length,
         tenant,
         lookbackOptions: LOOKBACK_OPTIONS,
+        outputModes: OUTPUT_MODES,
     };
 }

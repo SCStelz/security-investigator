@@ -88,7 +88,7 @@ export function renderPage() {
   .card .desc { color: var(--muted); font-size: 12px; min-height: 32px; }
   .card .chips { display: flex; flex-wrap: wrap; gap: 5px; }
   .chip { background: var(--chip); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; font-size: 10.5px; color: var(--muted); text-transform: capitalize; }
-  .card .row { display: flex; gap: 7px; align-items: center; margin-top: 2px; }
+  .card .row { display: flex; gap: 7px; align-items: center; margin-top: 2px; flex-wrap: wrap; }
   .card .status { margin-left: auto; font-size: 11px; color: var(--muted); }
   .entity { flex: 1; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border);
     background: var(--panel2); color: var(--text); font-size: 12px; display: none; }
@@ -101,6 +101,9 @@ export function renderPage() {
   .lookback { padding: 6px 6px; border-radius: 7px; border: 1px solid var(--border);
     background: var(--panel2); color: var(--text); font-size: 11.5px; cursor: pointer; max-width: 130px; }
   .lookback:hover { border-color: var(--accent, #388bfd); }
+  .output { padding: 6px 6px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--panel2); color: var(--text); font-size: 11.5px; cursor: pointer; max-width: 150px; }
+  .output:hover { border-color: var(--accent, #388bfd); }
 
   footer { border-top: 1px solid var(--border); padding: 12px 16px; background: var(--panel2);
     display: flex; align-items: center; gap: 10px; }
@@ -238,6 +241,7 @@ export function renderPage() {
             <p>15-minute broad scan across 7 domains → prioritized dashboard. Recommended starting point.</p>
           </div>
           <select class="lookback" id="tpLookback" title="Lookback window"></select>
+          <select class="output" id="tpOutput" title="Output format"></select>
           <button class="btn" data-skill="threat-pulse">▶ Run Threat Pulse</button>
         </div>
         <div class="grid" id="grid"></div>
@@ -257,6 +261,7 @@ export function renderPage() {
     <label>Entity quick-launch</label>
     <input id="quick" placeholder="Paste a UPN / IP / hash / device / incident #…" />
     <select class="lookback" id="quickLookback" title="Lookback window"></select>
+    <select class="output" id="quickOutput" title="Output format"></select>
     <button class="btn" id="quickgo">Go →</button>
   </footer>
 </div>
@@ -318,6 +323,14 @@ function lookbackOptionsHTML() {
 }
 function fillLookback(el) { if (el) el.innerHTML = lookbackOptionsHTML(); }
 
+// Output-mode <option> markup from the single source of truth (DATA.outputModes).
+// Inline is the default (first entry); Markdown augments the prompt to also save a report file.
+function outputOptionsHTML() {
+  const opts = (DATA && DATA.outputModes) || [{ value: "inline", label: "💬 Inline" }];
+  return opts.map(o => '<option value="' + o.value + '">' + o.label + '</option>').join("");
+}
+function fillOutput(el) { if (el) el.innerHTML = outputOptionsHTML(); }
+
 async function load() {
   const res = await fetch("/api/data");
   DATA = await res.json();
@@ -327,6 +340,8 @@ async function load() {
   document.getElementById("feature").style.display = DATA.skills.some(s => s.name === "threat-pulse") ? "flex" : "none";
   fillLookback(document.getElementById("tpLookback"));
   fillLookback(document.getElementById("quickLookback"));
+  fillOutput(document.getElementById("tpOutput"));
+  fillOutput(document.getElementById("quickOutput"));
   renderDomains();
   renderRecent(DATA.recent || []);
   renderGrid();
@@ -385,10 +400,12 @@ function renderGrid() {
       fleetHtml +
       '<input class="entity" placeholder="' + (s.hasEntity ? "entity (UPN / IP / device / #)…" : "optional target…") + '" />' +
       '<div class="row"><select class="lookback" title="Lookback window">' + lookbackOptionsHTML() + '</select>' +
+      '<select class="output" title="Output format">' + outputOptionsHTML() + '</select>' +
       '<button class="btn run">▶ Run</button>' +
       '<span class="status"></span></div>';
     const entity = card.querySelector(".entity");
     const lookback = card.querySelector(".lookback");
+    const output = card.querySelector(".output");
     const runBtn = card.querySelector(".run");
     const fleetBox = card.querySelector(".fleetbox");
     if (s.hasEntity) entity.classList.add("show");
@@ -408,7 +425,7 @@ function renderGrid() {
     runBtn.onclick = () => {
       const fleet = !!(fleetBox && fleetBox.checked);
       if (s.hasEntity && !fleet && !entity.value.trim()) { entity.classList.add("show"); entity.focus(); toast("Enter an entity, or check Fleet-wide"); return; }
-      run(s.name, entity.value.trim(), "", lookback.value, fleet);
+      run(s.name, entity.value.trim(), "", lookback.value, fleet, output.value);
     };
     grid.appendChild(card);
   }
@@ -420,11 +437,11 @@ function renderGrid() {
 // write the host chat composer without submitting a turn, so the "tailor before
 // send" step lives here in the canvas; Send is what actually injects the turn.
 let PENDING = null;
-async function run(name, entity, prompt, lookback, fleet) {
+async function run(name, entity, prompt, lookback, fleet, output) {
   try {
     const res = await fetch("/api/compose", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ skill: name || "", entity: entity || "", prompt: prompt || "", lookback: lookback || "", fleet: fleet === true }),
+      body: JSON.stringify({ skill: name || "", entity: entity || "", prompt: prompt || "", lookback: lookback || "", fleet: fleet === true, output: output || "" }),
     });
     const j = await res.json();
     if (j.ok) openCompose(j.skill, j.entity || "", j.prompt);
@@ -478,14 +495,15 @@ document.getElementById("composeText").addEventListener("keydown", (e) => {
 document.getElementById("search").addEventListener("input", (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); });
 document.getElementById("refresh").onclick = () => { toast("Reloading manifest…"); load(); };
 document.getElementById("feature").addEventListener("click", (e) => {
-  if (e.target.dataset.skill) run("threat-pulse", "", "", (document.getElementById("tpLookback") || {}).value || "");
+  if (e.target.dataset.skill) run("threat-pulse", "", "", (document.getElementById("tpLookback") || {}).value || "", false, (document.getElementById("tpOutput") || {}).value || "");
 });
 document.getElementById("quickgo").onclick = () => {
   const v = document.getElementById("quick").value.trim();
   if (!v) { toast("Paste an entity first"); return; }
   const lb = (document.getElementById("quickLookback") || {}).value || "";
+  const out = (document.getElementById("quickOutput") || {}).value || "";
   // Route the entity to a skill and open the editable preview (no auto-submit).
-  run("", v, "", lb);
+  run("", v, "", lb, false, out);
 };
 document.getElementById("quick").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("quickgo").click(); });
 
