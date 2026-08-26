@@ -128,7 +128,17 @@ export function renderPage() {
   /* Findings */
   .findhead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .findhead .roll { display: flex; gap: 6px; flex-wrap: wrap; }
-  .sev-pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); }
+  .sev-pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
+    cursor: pointer; user-select: none; transition: opacity .12s, box-shadow .12s, transform .06s; text-transform: capitalize; }
+  .sev-pill:hover { transform: translateY(-1px); }
+  .sev-pill.active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px currentColor; }
+  .sev-pill.dim { opacity: .4; }
+  .sev-pill.dim:hover { opacity: .75; }
+  .sev-all { font-size: 11px; padding: 2px 10px; border-radius: 999px; cursor: pointer; user-select: none;
+    background: var(--chip); border: 1px solid var(--border); color: var(--muted); transition: opacity .12s; }
+  .sev-all:hover { color: var(--text); border-color: var(--accent, #388bfd); }
+  .sev-all.active { color: var(--text); border-color: var(--accent, #388bfd); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--accent, #388bfd); }
+  .sev-all.dim { opacity: .55; }
   .sev-critical { background: #3a1420; border-color: #f85149; color: #ffb3bd; }
   .sev-high { background: #3a2416; border-color: #f0883e; color: #ffcaa0; }
   .sev-medium { background: #3a3416; border-color: #d29922; color: #f2d98a; }
@@ -510,6 +520,7 @@ document.getElementById("quick").addEventListener("keydown", (e) => { if (e.key 
 // ---- Findings tab ----
 let FINDINGS = { findings: [], summary: { total: 0, bySeverity: {} } };
 let currentView = "skills";
+let sevFilter = null; // null = show all; otherwise a severity string
 const SEV_ORDER = ["critical", "high", "medium", "low", "info", "clean"];
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -538,21 +549,44 @@ async function loadFindings() {
 function renderRoll() {
   const host = document.getElementById("findRoll");
   const by = (FINDINGS.summary && FINDINGS.summary.counts) || {};
-  const parts = SEV_ORDER.filter(s => by[s]).map(s =>
-    '<span class="sev-pill sev-' + s + '">' + by[s] + ' ' + s + '</span>');
-  host.innerHTML = parts.join("") || '';
+  const active = sevFilter;
+  const total = SEV_ORDER.reduce((n, s) => n + (by[s] || 0), 0);
+  // "All" clears the filter; each severity pill toggles filtering to that severity.
+  // When a filter is active, non-matching pills dim so the active one stands out.
+  const all = '<span class="sev-all' + (active ? "" : " active") + '" data-sev="" title="Show all findings">All ' + total + '</span>';
+  const parts = SEV_ORDER.filter(s => by[s]).map(s => {
+    const cls = active ? (active === s ? " active" : " dim") : "";
+    return '<span class="sev-pill sev-' + s + cls + '" data-sev="' + s + '" title="Filter to ' + s + ' findings">' + by[s] + ' ' + s + '</span>';
+  });
+  host.innerHTML = all + parts.join("");
+  host.querySelectorAll("[data-sev]").forEach(el => {
+    el.onclick = () => {
+      const sev = el.getAttribute("data-sev");
+      // Toggle off if the already-active severity is clicked again.
+      sevFilter = (!sev || sev === sevFilter) ? null : sev;
+      renderFindings();
+    };
+  });
 }
 
 function renderFindings() {
   renderRoll();
   const host = document.getElementById("findings");
-  const list = FINDINGS.findings || [];
-  if (!list.length) {
+  const all = FINDINGS.findings || [];
+  const list = sevFilter ? all.filter(f => (f.severity || "info").toLowerCase() === sevFilter) : all;
+  if (!all.length) {
     host.innerHTML =
       '<div class="empty-find"><div class="em">🛰️</div>' +
       '<p>No findings recorded yet.</p>' +
       '<p style="font-size:12px">Run a skill, then the agent pushes its result here via the ' +
       '<code>record_finding</code> action — with one-click follow-up hunts.</p></div>';
+    return;
+  }
+  if (!list.length) {
+    host.innerHTML =
+      '<div class="empty-find"><div class="em">🔍</div>' +
+      '<p>No <b>' + esc(sevFilter) + '</b> findings.</p>' +
+      '<p style="font-size:12px">Click <b>All</b> above to clear the filter.</p></div>';
     return;
   }
   host.innerHTML = "";
@@ -646,6 +680,7 @@ document.getElementById("findClear").onclick = async () => {
   try {
     const res = await fetch("/api/findings/clear", { method: "POST" });
     FINDINGS = await res.json();
+    sevFilter = null;
     document.getElementById("findCount").textContent = 0;
     document.getElementById("findCount").classList.add("zero");
     renderFindings();
