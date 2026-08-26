@@ -88,6 +88,9 @@ export function renderPage() {
   .card .desc { color: var(--muted); font-size: 12px; min-height: 32px; }
   .card .chips { display: flex; flex-wrap: wrap; gap: 5px; }
   .chip { background: var(--chip); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; font-size: 10.5px; color: var(--muted); text-transform: capitalize; }
+  .chip.alt { text-transform: none; color: #cfe2ff; }
+  .qpath { font-size: 10.5px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: right; opacity: .8; }
   .card .row { display: flex; gap: 7px; align-items: center; margin-top: 2px; flex-wrap: wrap; }
   .card .status { margin-left: auto; font-size: 11px; color: var(--muted); }
   .entity { flex: 1; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border);
@@ -124,6 +127,7 @@ export function renderPage() {
   .tab .badge { display: inline-block; margin-left: 6px; background: var(--hi); color: #fff; border-radius: 999px;
     font-size: 10.5px; padding: 0 6px; line-height: 16px; min-width: 16px; text-align: center; }
   .tab .badge.zero { background: var(--chip); color: var(--muted); }
+  #queryCount { background: var(--chip); color: var(--muted); }
 
   /* Findings */
   .findhead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -227,7 +231,7 @@ export function renderPage() {
   <div class="body">
     <aside class="rail">
       <h2>Search</h2>
-      <input class="search" id="search" placeholder="Filter skills…" />
+      <input class="search" id="search" placeholder="Filter skills &amp; queries…" />
       <h2>Filter by domain</h2>
       <div id="domains"></div>
       <div class="recent">
@@ -240,6 +244,7 @@ export function renderPage() {
       <div id="errbanner"></div>
       <div class="tabs">
         <div class="tab on" id="tab-skills" data-view="skills">🚀 Skills</div>
+        <div class="tab" id="tab-queries" data-view="queries">🔎 Queries <span class="badge" id="queryCount">0</span></div>
         <div class="tab" id="tab-findings" data-view="findings">📌 Findings <span class="badge zero" id="findCount">0</span></div>
       </div>
 
@@ -263,6 +268,10 @@ export function renderPage() {
           <button class="btn ghost" id="findClear" style="margin-left:auto">Clear all</button>
         </div>
         <div id="findings"></div>
+      </div>
+
+      <div id="queriesView" style="display:none">
+        <div class="grid" id="queryGrid"></div>
       </div>
     </main>
   </div>
@@ -313,7 +322,7 @@ export function renderPage() {
 
 <script>
 const ICONS = ${JSON.stringify(domainIconsForClient())};
-let DATA = { skills: [], domains: [], tenant: {} };
+let DATA = { skills: [], domains: [], queries: [], tenant: {} };
 let activeDomains = new Set();
 let searchTerm = "";
 
@@ -355,6 +364,8 @@ async function load() {
   renderDomains();
   renderRecent(DATA.recent || []);
   renderGrid();
+  document.getElementById("queryCount").textContent = (DATA.queries || []).length;
+  renderQueries();
 }
 
 function renderDomains() {
@@ -365,7 +376,7 @@ function renderDomains() {
     el.className = "domain" + (activeDomains.has(d.id) ? " on" : "");
     el.innerHTML = '<span class="ic">' + d.icon + '</span><span class="nm">' + d.id +
       '</span><span class="ct">' + d.skillCount + ' · ' + d.queryCount + 'q</span>';
-    el.onclick = () => { activeDomains.has(d.id) ? activeDomains.delete(d.id) : activeDomains.add(d.id); renderDomains(); renderGrid(); };
+    el.onclick = () => { activeDomains.has(d.id) ? activeDomains.delete(d.id) : activeDomains.add(d.id); renderDomains(); renderGrid(); renderQueries(); };
     host.appendChild(el);
   }
 }
@@ -502,7 +513,7 @@ document.getElementById("composeText").addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); sendCompose(); }
 });
 
-document.getElementById("search").addEventListener("input", (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); });
+document.getElementById("search").addEventListener("input", (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); renderQueries(); });
 document.getElementById("refresh").onclick = () => { toast("Reloading manifest…"); load(); };
 document.getElementById("feature").addEventListener("click", (e) => {
   if (e.target.dataset.skill) run("threat-pulse", "", "", (document.getElementById("tpLookback") || {}).value || "", false, (document.getElementById("tpOutput") || {}).value || "");
@@ -529,9 +540,12 @@ function switchView(view) {
   currentView = view;
   document.getElementById("skillsView").style.display = view === "skills" ? "" : "none";
   document.getElementById("findingsView").style.display = view === "findings" ? "" : "none";
+  document.getElementById("queriesView").style.display = view === "queries" ? "" : "none";
   document.getElementById("tab-skills").classList.toggle("on", view === "skills");
   document.getElementById("tab-findings").classList.toggle("on", view === "findings");
+  document.getElementById("tab-queries").classList.toggle("on", view === "queries");
   if (view === "findings") renderFindings();
+  if (view === "queries") renderQueries();
 }
 
 async function loadFindings() {
@@ -656,6 +670,53 @@ async function dismissFinding(id) {
 
 document.getElementById("tab-skills").onclick = () => switchView("skills");
 document.getElementById("tab-findings").onclick = () => switchView("findings");
+document.getElementById("tab-queries").onclick = () => switchView("queries");
+
+// ---- Queries tab ----
+// Reuses the shared domain filter + search box, and the report modal for viewing.
+function visibleQueries() {
+  return (DATA.queries || []).filter(q => {
+    if (activeDomains.size && !q.domains.some(d => activeDomains.has(d))) return false;
+    if (searchTerm) {
+      const hay = (q.title + " " + (q.description || "") + " " + (q.domains || []).join(" ") +
+        " " + (q.mitre || []).join(" ") + " " + (q.tables || []).join(" ")).toLowerCase();
+      if (!hay.includes(searchTerm)) return false;
+    }
+    return true;
+  });
+}
+
+function renderQueries() {
+  const grid = document.getElementById("queryGrid");
+  if (!grid) return;
+  const qs = visibleQueries();
+  if (!qs.length) {
+    grid.innerHTML = '<div class="empty-find" style="grid-column:1/-1"><div class="em">🔎</div>' +
+      '<p>No queries match this filter.</p>' +
+      '<p style="font-size:12px">Clear the domain filter or search to see all ' +
+      ((DATA.queries || []).length) + ' queries.</p></div>';
+    return;
+  }
+  grid.innerHTML = "";
+  for (const q of qs) {
+    const card = document.createElement("div");
+    card.className = "card";
+    const icon = ICONS[(q.domains || [])[0]] || "🔎";
+    const chips = (q.domains || []).map(d => '<span class="chip">' + (ICONS[d] || "") + ' ' + d + '</span>').join("");
+    const meta = [];
+    if ((q.mitre || []).length) meta.push('<span class="chip alt" title="' + esc((q.mitre || []).join(", ")) + '">🎯 ' + q.mitre.length + ' MITRE</span>');
+    if ((q.tables || []).length) meta.push('<span class="chip alt" title="' + esc((q.tables || []).join(", ")) + '">🗂 ' + q.tables.length + ' tables</span>');
+    const desc = q.description ? esc(q.description) : '<span style="opacity:.6">No summary available.</span>';
+    card.innerHTML =
+      '<div class="top"><span class="ic">' + icon + '</span><span class="nm">' + esc(q.title) + '</span></div>' +
+      '<div class="desc">' + desc + '</div>' +
+      '<div class="chips">' + chips + meta.join("") + '</div>' +
+      '<div class="row"><button class="btn open">📄 Open</button>' +
+      '<span class="qpath" title="' + esc(q.path) + '">' + esc(q.path) + '</span></div>';
+    card.querySelector(".open").onclick = () => openReport(q.path, q.title);
+    grid.appendChild(card);
+  }
+}
 
 // ---- Report preview modal ----
 function openReport(pathRel, label) {

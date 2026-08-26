@@ -245,7 +245,90 @@ async function resolveTenant(repoRoot) {
     return { name: `${tenantId.slice(0, 8)}…`, tenantId };
 }
 
-/** Load everything the canvas UI needs: skills, query stats, tenant context. */
+/** Strip light Markdown (links, emphasis, code, headings) down to plain text. */
+function stripMd(s) {
+    return String(s || "")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // [text](url) -> text
+        .replace(/[*`_#>]+/g, "")                 // bold/italic/code/heading/quote marks
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+/**
+ * Extract a short one-line description + table list from a query .md file.
+ * Description sourcing (v1): first sentence of the "## Executive Summary"
+ * section; falls back to the "**Keywords:**" header line, then empty.
+ */
+export function parseQueryDoc(text) {
+    const lines = String(text || "").split(/\r?\n/);
+
+    // Tables from the standardized header line, e.g. "**Tables:** A, B, C".
+    let tables = [];
+    for (const l of lines.slice(0, 40)) {
+        const m = /^\*\*Tables:\*\*\s*(.+)$/.exec(l.trim());
+        if (m) { tables = m[1].split(",").map((s) => s.trim()).filter(Boolean); break; }
+    }
+
+    // Description: first paragraph under the Executive Summary heading.
+    let desc = "";
+    const idx = lines.findIndex((l) => /^#{2,}\s+Executive Summary\b/i.test(l.trim()));
+    if (idx >= 0) {
+        const buf = [];
+        for (let i = idx + 1; i < lines.length; i++) {
+            const t = lines[i].trim();
+            if (/^#{1,6}\s/.test(t)) break;                 // next heading ends the section
+            if (/^---+$/.test(t)) { if (buf.length) break; else continue; }
+            if (!t) { if (buf.length) break; else continue; } // blank after content = end of first para
+            buf.push(t);
+        }
+        desc = buf.join(" ");
+    }
+    if (!desc) {
+        for (const l of lines.slice(0, 40)) {
+            const m = /^\*\*Keywords:\*\*\s*(.+)$/.exec(l.trim());
+            if (m) { desc = m[1].trim(); break; }
+        }
+    }
+
+    desc = stripMd(desc);
+    const firstSentence = (desc.split(/(?<=\.)\s+/)[0] || desc).trim();
+    if (firstSentence.length > 240) desc = firstSentence.slice(0, 237).trimEnd() + "…";
+    else desc = firstSentence;
+
+    return { description: desc, tables };
+}
+
+/**
+ * Enrich the manifest's query entries with a description + table list read from
+ * each file. Files missing on disk are still listed (without a description).
+ */
+async function loadQueries(repoRoot, manifestQueries) {
+    const out = [];
+    for (const q of manifestQueries || []) {
+        let meta = { description: "", tables: [] };
+        try {
+            meta = parseQueryDoc(await readFile(path.join(repoRoot, q.path), "utf8"));
+        } catch {
+            // Listed in the manifest but unreadable — surface it anyway.
+        }
+        out.push({
+            title: q.title || (q.path.split("/").pop() || "").replace(/\.md$/i, ""),
+            path: q.path,
+            domains: q.domains || [],
+            mitre: q.mitre || [],
+            tables: meta.tables,
+            description: meta.description,
+        });
+    }
+    out.sort(
+        (a, b) =>
+            (a.domains[0] || "").localeCompare(b.domains[0] || "") ||
+            a.title.localeCompare(b.title)
+    );
+    return out;
+}
+
+/** Load everything the canvas UI needs: skills, queries, tenant context. */
 export async function loadCanvasData(repoRoot) {
     const manifestPath = path.join(repoRoot, ".github", "manifests", "discovery-manifest.yaml");
     let manifest = { skills: [], queries: [] };
@@ -284,11 +367,13 @@ export async function loadCanvasData(repoRoot) {
     }));
 
     const tenant = await resolveTenant(repoRoot);
+    const queries = await loadQueries(repoRoot, manifest.queries);
 
     return {
         error: null,
         skills,
         domains,
+        queries,
         queryTotal: manifest.queries.length,
         tenant,
         lookbackOptions: LOOKBACK_OPTIONS,
