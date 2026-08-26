@@ -79,6 +79,26 @@ function json(res, code, obj) {
     res.end(JSON.stringify(obj));
 }
 
+// Closing directive appended to every Mission Control launch so the agent posts
+// its results back to the Findings tab when done. This lives in the launched
+// prompt (NOT in copilot-instructions.md) so the behavior is scoped strictly to
+// canvas-initiated runs — a hand-typed chat investigation is unaffected. It also
+// nudges the agent to author fully tailored, threat-pulse-style follow-up prompts.
+const RECORD_FINDING_DIRECTIVE = [
+    "",
+    "---",
+    "When this investigation is complete, post the results to Mission Control by invoking the `record_finding` canvas action so they appear in the Findings tab. Include: the `severity`, a 1–3 sentence `summary`, key `metrics` chips, any discovered `entities` worth chasing (each with a `type`), the `domains` touched, and `reports` links for any generated report files. For each recommended follow-up, author a fully tailored, ready-to-run `prompt` (threat-pulse drill-down style) that embeds THIS finding's specific evidence, entities, and correlations — do not leave it generic. Record a finding even when the result is clean or informational.",
+].join("\n");
+
+// Append the record-finding directive exactly once. Idempotent: the compose
+// modal path runs composeFor twice (preview via /api/compose, then send via
+// /api/run with the edited text as an override), so we skip when the token is
+// already present to avoid a duplicated directive.
+function withRecordDirective(prompt) {
+    if (!prompt || prompt.includes("record_finding")) return prompt;
+    return prompt + "\n" + RECORD_FINDING_DIRECTIVE;
+}
+
 async function launchSkill(name, entity, promptOverride, lookback) {
     const composed = await composeFor(name, entity, promptOverride, lookback);
     if (composed.error) return { ok: false, error: composed.error };
@@ -117,7 +137,7 @@ async function composeFor(name, entity, promptOverride, lookback) {
         if (phrase) prompt = `${prompt} — use a lookback window of ${phrase}`;
     }
     if (!prompt) return { error: `Unknown skill: ${name}` };
-    return { skill: name, prompt };
+    return { skill: name, prompt: withRecordDirective(prompt) };
 }
 
 /** Names of launchable skills — used to validate auto-recommended follow-ups. */
