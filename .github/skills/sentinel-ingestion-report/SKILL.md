@@ -1,6 +1,8 @@
 ---
 name: sentinel-ingestion-report
 description: 'Sentinel Ingestion Report — YAML-driven PowerShell pipeline gathers all data via az monitor/az rest/Graph API, writes a deterministic scratchpad, LLM renders the report. Covers table-level volume breakdown, tier classification (Analytics/Basic/Data Lake), SecurityEvent/Syslog/CommonSecurityLog deep dives, ingestion anomaly detection (24h and WoW), analytic rule inventory via REST API, rule health via SentinelHealth, detection coverage cross-reference, tier migration candidates with DL-eligibility lookup, license benefit analysis (DfS P2 500MB/server/day, M365 E5 data grant). Inline chat and markdown file output.'
+threat_pulse_domains: [cloud, admin]
+drill_down_prompt: 'Run a Sentinel ingestion report — data volume, table tiers, ingestion anomalies, analytic rule health, and cost optimization'
 ---
 
 # Sentinel Ingestion Analysis Report — Instructions

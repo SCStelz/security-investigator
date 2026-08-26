@@ -72,3 +72,6 @@ prompts/
 # Local agent instructions (personal, never publish)
 AGENTS.md
 CLAUDE.md
+
+# Mission Control canvas — runtime findings ledger (session-local)
+.github/extensions/skills-canvas/state/

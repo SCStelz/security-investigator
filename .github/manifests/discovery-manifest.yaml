@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-08-16T21:02:40Z'
+generated: '2026-08-26T17:53:45Z'
 valid_domains:
 - admin
 - cloud
@@ -125,6 +125,11 @@ skills:
   prompt: Analyze user behavioral drift for {entity} — sign-in pattern changes, app usage shifts
 - name: sentinel-ingestion-report
   path: .github/skills/sentinel-ingestion-report/SKILL.md
+  domains:
+  - cloud
+  - admin
+  prompt: Run a Sentinel ingestion report — data volume, table tiers, ingestion anomalies, analytic rule health, and cost
+    optimization
 - name: svg-dashboard
   path: .github/skills/svg-dashboard/SKILL.md
 - name: threat-intel-campaign
