@@ -463,6 +463,22 @@ This project also runs great in the **[GitHub Copilot app](https://github.com/fe
 - **Parallel, isolated sessions** — each session is its own git worktree + branch, so concurrent investigations don't step on each other.
 - **Background agents** — long-running hunts and report generation can run in the background while you keep working.
 
+### 🎛️ Mission Control (Canvas extension)
+
+The app also supports **[Canvas extensions](https://docs.github.com/en/copilot/how-tos/github-copilot-app/working-with-canvas-extensions)** — interactive panels that render beside the chat, where both you and the agent act on the same surface. This repo ships one: **Mission Control**, a launchable dashboard for the whole framework. It self-registers from [`.github/extensions/skills-canvas/`](.github/extensions/skills-canvas/) — no build step, no install.
+
+Just start a session and prompt:
+
+> 💬 **"Start Mission Control"**
+
+The panel opens with three tabs:
+
+- **🗂️ Skills** — every investigation skill as a launchable card. Filter by domain, search, and one-click launch — with optional fleet-wide scope and inline/markdown report toggles.
+- **📋 Queries** — all KQL query files, domain-filtered. Open any to read the markdown or hand it to the agent as context for a targeted hunt.
+- **📊 Findings** — when the agent finishes an investigation it records the result back into the canvas (severity, entities, evidence, and tailored one-click follow-ups). Click a severity pill to filter.
+
+The human launches work; the agent reports back to the same surface — a control plane for investigations, not just a UI.
+
 ### ⚠️ Caveats & differences vs VS Code
 
 The app behaves slightly differently from VS Code. The most important difference: **each session is a fresh git worktree**, and gitignored local files (`config.json`, `.env`, MCP config) do **not** exist in a newly created worktree — they live only in your main checkout. You need a small **post-checkout step** to copy them into each session, otherwise the first query fails with a missing-config error.
