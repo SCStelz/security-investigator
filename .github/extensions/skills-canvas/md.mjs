@@ -8,6 +8,16 @@ function escapeHtml(s) {
     return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
+// GitHub-compatible heading anchor slug. MUST match scripts/generate_tocs.py
+// heading_to_anchor() exactly so TOC links (#anchor) resolve to our heading IDs:
+// lowercase, strip all but [a-z0-9 -], spaces -> hyphens, no dedupe/collapse.
+function slugify(raw) {
+    return String(raw)
+        .toLowerCase()
+        .replace(/[^a-z0-9 -]/g, "")
+        .replace(/ /g, "-");
+}
+
 // Inline: code spans first (protected), then links, bold, italic.
 function inline(text) {
     const codes = [];
@@ -18,7 +28,9 @@ function inline(text) {
     s = escapeHtml(s);
     s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, t, href) => {
         const safe = /^(https?:|mailto:|#|\/)/i.test(href) ? href : "#";
-        return '<a href="' + safe + '" target="_blank" rel="noopener">' + t + "</a>";
+        // In-page fragment links must scroll within the report, not open a new tab.
+        const attrs = safe.charAt(0) === "#" ? "" : ' target="_blank" rel="noopener"';
+        return '<a href="' + safe + '"' + attrs + ">" + t + "</a>";
     });
     s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
@@ -97,7 +109,8 @@ export function renderMarkdown(md) {
         if (h) {
             closeList();
             const lvl = h[1].length;
-            out.push("<h" + lvl + ">" + inline(h[2].trim()) + "</h" + lvl + ">");
+            const text = h[2].trim();
+            out.push("<h" + lvl + ' id="' + escapeHtml(slugify(text)) + '">' + inline(text) + "</h" + lvl + ">");
             i++;
             continue;
         }
