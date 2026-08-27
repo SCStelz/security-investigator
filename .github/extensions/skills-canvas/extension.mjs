@@ -87,7 +87,7 @@ function json(res, code, obj) {
 const RECORD_FINDING_DIRECTIVE = [
     "",
     "---",
-    "When this investigation is complete, post the results to Mission Control by invoking the `record_finding` canvas action so they appear in the Findings tab. Include: the `severity`, a 1–3 sentence `summary`, key `metrics` chips, any discovered `entities` worth chasing (each with a `type`), the `domains` touched, and `reports` links for any generated report files. For each recommended follow-up, author a fully tailored, ready-to-run `prompt` (threat-pulse drill-down style) that embeds THIS finding's specific evidence, entities, and correlations — do not leave it generic. Record a finding even when the result is clean or informational.",
+    "When the investigation is done, post it to Mission Control's Findings tab via the `record_finding` canvas action, following its input schema (required: `skill`, `title`, `severity`; the severity enum uses `info`/`clean`, not `informational`). For each `recommended` follow-up, author a tailored, ready-to-run drill-down `prompt` that embeds this finding's specific evidence — not a generic template. Always record, even a clean or informational result.",
 ].join("\n");
 
 // Append the record-finding directive exactly once. Idempotent: the compose
