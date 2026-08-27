@@ -106,7 +106,11 @@ async function launchSkill(name, entity, promptOverride, lookback) {
     try {
         await sessionRef.send({ prompt: composed.prompt });
         await sessionRef.log(`🛰️ Mission Control launched: ${name}${entity ? ` (${entity})` : ""}`, { ephemeral: true });
-        recordRun(name, entity);
+        // Only record entries that are safely re-launchable from the "Recently
+        // launched" list. Clicking a recent item calls run(name) with no prompt,
+        // which resolves only for real skill cards. Ad-hoc query-context launches
+        // (labels like "🔎 2 queries") would compose to "Unknown skill", so skip them.
+        if ((await knownSkillNames()).has(name)) recordRun(name, entity);
         return { ok: true, recent: recentPayload() };
     } catch (err) {
         return { ok: false, error: err.message };
