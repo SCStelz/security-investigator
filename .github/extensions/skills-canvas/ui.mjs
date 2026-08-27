@@ -92,7 +92,20 @@ export function renderPage() {
   .qpath { font-size: 10.5px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: right; opacity: .8; }
   .card .row { display: flex; gap: 7px; align-items: center; margin-top: 2px; flex-wrap: wrap; }
+  .card .row.skrow { flex-wrap: nowrap; }
+  .skrow .lookback, .skrow .output { flex: 1 1 0; min-width: 0; max-width: none; }
+  .skrow .btn.open { padding: 8px 9px; flex: 0 0 auto; }
+  .skrow .run { flex: 0 0 auto; }
+  .skrow .status:empty { display: none; }
   .card .status { margin-left: auto; font-size: 11px; color: var(--muted); }
+  .btn.qsel.on { background: var(--hi); color: #fff; border-color: var(--hi); }
+  .qbar { position: sticky; bottom: 8px; margin-top: 12px; display: flex; align-items: center; gap: 10px;
+    background: var(--panel2); border: 1px solid var(--hi); border-radius: 10px; padding: 9px 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.35); z-index: 5; }
+  .qbar .qbar-n { font-weight: 640; font-size: 12.5px; color: var(--text); white-space: nowrap; }
+  .qbar .qbar-paths { flex: 1; font-size: 10.5px; color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .entity { flex: 1; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border);
     background: var(--panel2); color: var(--text); font-size: 12px; display: none; }
   .entity.show { display: block; }
@@ -272,6 +285,7 @@ export function renderPage() {
 
       <div id="queriesView" style="display:none">
         <div class="grid" id="queryGrid"></div>
+        <div class="qbar" id="qbar" style="display:none"></div>
       </div>
     </main>
   </div>
@@ -420,14 +434,17 @@ function renderGrid() {
       '<div class="chips">' + chips + '</div>' +
       fleetHtml +
       '<input class="entity" placeholder="' + (s.hasEntity ? "entity (UPN / IP / device / #)…" : "optional target…") + '" />' +
-      '<div class="row"><select class="lookback" title="Lookback window">' + lookbackOptionsHTML() + '</select>' +
+      '<div class="row skrow"><select class="lookback" title="Lookback window">' + lookbackOptionsHTML() + '</select>' +
       '<select class="output" title="Output format">' + outputOptionsHTML() + '</select>' +
+      (s.path ? '<button class="btn ghost open" title="Open SKILL.md">📄</button>' : '') +
       '<button class="btn run">▶ Run</button>' +
       '<span class="status"></span></div>';
     const entity = card.querySelector(".entity");
     const lookback = card.querySelector(".lookback");
     const output = card.querySelector(".output");
     const runBtn = card.querySelector(".run");
+    const openBtn = card.querySelector(".open");
+    if (openBtn) openBtn.onclick = () => openReport(s.path, s.name);
     const fleetBox = card.querySelector(".fleetbox");
     if (s.hasEntity) entity.classList.add("show");
     if (fleetBox) {
@@ -686,6 +703,51 @@ function visibleQueries() {
   });
 }
 
+// ---- Queries tab: multi-select + "run with query files as context" ----
+// The canvas SDK has no file-attachment channel (sessionRef.send takes only a
+// prompt string), so selected query files are handed off by embedding their
+// repo-relative paths in the composed prompt and instructing the agent to read
+// them. This mirrors how skills reference their own SKILL.md by path.
+let querySel = new Map(); // path -> title
+function toggleQuerySel(path, title) {
+  if (querySel.has(path)) querySel.delete(path); else querySel.set(path, title);
+  renderQueries();
+}
+function clearQuerySel() { querySel.clear(); renderQueries(); }
+function updateQueryBar() {
+  const bar = document.getElementById("qbar");
+  if (!bar) return;
+  if (!querySel.size) { bar.style.display = "none"; bar.innerHTML = ""; return; }
+  bar.style.display = "";
+  bar.innerHTML =
+    '<span class="qbar-n">' + querySel.size + ' selected</span>' +
+    '<span class="qbar-paths" title="' + esc([...querySel.keys()].join(", ")) + '">' +
+      [...querySel.values()].map(esc).join(" · ") + '</span>' +
+    '<button class="btn ghost" id="qbarClear">Clear</button>' +
+    '<button class="btn" id="qbarRun">▶ Run with context</button>';
+  bar.querySelector("#qbarClear").onclick = clearQuerySel;
+  bar.querySelector("#qbarRun").onclick = runQueries;
+}
+async function runQueries() {
+  if (!querySel.size) return;
+  const list = [...querySel.entries()]
+    .map(([p, t]) => "- " + p + (t ? " — " + t : "")).join("\\n");
+  const starter =
+    '[Describe what you want to hunt for or ask — e.g. "Hunt for OpenClaw shadow-AI usage in the last 30 days"]\\n\\n' +
+    "Reference the following query file(s) for additional context — read them and adapt or run the relevant KQL as needed:\\n" +
+    list;
+  const label = "🔎 " + querySel.size + " quer" + (querySel.size === 1 ? "y" : "ies");
+  try {
+    const res = await fetch("/api/compose", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ skill: "", entity: "", prompt: starter }),
+    });
+    const j = await res.json();
+    if (j.ok) openCompose(label, "", j.prompt);
+    else toast("⚠️ " + (j.error || "could not compose prompt"));
+  } catch (e) { toast("⚠️ " + e.message); }
+}
+
 function renderQueries() {
   const grid = document.getElementById("queryGrid");
   if (!grid) return;
@@ -695,6 +757,7 @@ function renderQueries() {
       '<p>No queries match this filter.</p>' +
       '<p style="font-size:12px">Clear the domain filter or search to see all ' +
       ((DATA.queries || []).length) + ' queries.</p></div>';
+    updateQueryBar();
     return;
   }
   grid.innerHTML = "";
@@ -707,15 +770,19 @@ function renderQueries() {
     if ((q.mitre || []).length) meta.push('<span class="chip alt" title="' + esc((q.mitre || []).join(", ")) + '">🎯 ' + q.mitre.length + ' MITRE</span>');
     if ((q.tables || []).length) meta.push('<span class="chip alt" title="' + esc((q.tables || []).join(", ")) + '">🗂 ' + q.tables.length + ' tables</span>');
     const desc = q.description ? esc(q.description) : '<span style="opacity:.6">No summary available.</span>';
+    const sel = querySel.has(q.path);
     card.innerHTML =
       '<div class="top"><span class="ic">' + icon + '</span><span class="nm">' + esc(q.title) + '</span></div>' +
       '<div class="desc">' + desc + '</div>' +
       '<div class="chips">' + chips + meta.join("") + '</div>' +
       '<div class="row"><button class="btn open">📄 Open</button>' +
+      '<button class="btn ghost qsel' + (sel ? " on" : "") + '">' + (sel ? "✓ Added" : "＋ Select") + '</button>' +
       '<span class="qpath" title="' + esc(q.path) + '">' + esc(q.path) + '</span></div>';
     card.querySelector(".open").onclick = () => openReport(q.path, q.title);
+    card.querySelector(".qsel").onclick = () => toggleQuerySel(q.path, q.title);
     grid.appendChild(card);
   }
+  updateQueryBar();
 }
 
 // ---- Report preview modal ----

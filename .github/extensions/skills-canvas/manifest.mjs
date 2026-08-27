@@ -342,6 +342,7 @@ export async function loadCanvasData(repoRoot) {
     const skills = manifest.skills
         .map((s) => ({
             name: s.name,
+            path: s.path || null,
             domains: s.domains || [],
             prompt: s.prompt || null,
             hasEntity: needsEntity(s),
