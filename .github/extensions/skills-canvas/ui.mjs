@@ -664,7 +664,6 @@ function renderFindings() {
       b.onclick = () => {
         const r = (f.recommended || [])[Number(b.dataset.ri)] || {};
         run(r.skill, r.entity || "", r.prompt || "");
-        switchView("skills");
       };
     });
     card.querySelectorAll(".rep").forEach(b => {
