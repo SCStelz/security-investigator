@@ -723,6 +723,14 @@ Two memory tiers are relevant:
 
 **Quickstart:** Open a template from `notes/memory/examples/`, then ask Copilot in chat to *"create this as a memory file at `/memories/...`, replacing placeholders with my tenant values."* Copilot uses its `memory` tool to write it directly — no AppData path navigation needed.
 
+**🎛️ From Mission Control (Copilot app):** The **Mission Control** canvas surfaces the whole memory loop as one-click actions in its **Findings** tab — no manual path navigation or prompt-writing:
+
+- **⚙️ Set memory file** — names your tenant context-memory file (under `.copilot/memories/repo/`) and saves it to `config.json`. The memory features work on first run with a sensible per-tenant default even before you customize it.
+- **🧠 Use memory** — prepends a directive to every investigation you launch, telling the agent to review the context-memory file and apply its documented ground truth (known-good IPs, automation fingerprints, account classifications, false-positive rules) *before* rendering a verdict.
+- **🧠 Compact to memory** — hands the agent a propose-only prompt (via the [`context-memory-review`](/.github/skills/context-memory-review/SKILL.md) skill) that distills accumulated findings into candidate ADD / MODIFY / FLAG changes for the memory file, for human approval. Offered again before you clear findings, so evidence is preserved.
+
+Together these close the loop: findings recorded in the canvas → compacted into tenant memory → applied automatically on the next investigation.
+
 > ⚠️ **Memory = trusted input.** Anything in `notes/memory/repo/` becomes authoritative instructions for Copilot in every future chat (with MCP tool access to Sentinel, Graph, Azure). Review diffs from forks/PRs before restoring, never paste secrets, and if your workspace is cloud-synced, confirm the destination is acceptable for security context. See [`notes/memory/README.md`](notes/memory/README.md#%EF%B8%8F-security-memory-is-trusted-input) for the full threat model.
 
 ---
