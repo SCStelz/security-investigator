@@ -87,7 +87,7 @@ function json(res, code, obj) {
 const RECORD_FINDING_DIRECTIVE = [
     "",
     "---",
-    "When the investigation is done, post it to Mission Control's Findings tab via the `record_finding` canvas action, following its input schema (required: `skill`, `title`, `severity`; the severity enum uses `info`/`clean`, not `informational`). For each `recommended` follow-up, author a tailored, ready-to-run drill-down `prompt` that embeds this finding's specific evidence — not a generic template. Always record, even a clean or informational result.",
+    "When the investigation is done, post it to Mission Control's Findings tab via the `record_finding` canvas action, following its input schema. Required: `skill`, `title`, `severity` (enum uses `info`/`clean`, never `informational`). Also ALWAYS include a `summary` — 1-3 sentences describing what was found — so the finding is never title-only. Prefer adding `metrics` chips and any `entities` worth chasing. For every `recommended` follow-up, provide the full object: `skill`, and both a one-line `reason` (shown under the button) and a tailored, ready-to-run `prompt` that embeds THIS finding's specific evidence — never a bare skill name or generic template. Always record, even a clean or informational result.",
 ].join("\n");
 
 // Append the record-finding directive exactly once. Idempotent: the compose
@@ -321,7 +321,7 @@ sessionRef = await joinSession({
                     // closes the hunt -> findings -> next-hunt loop.
                     name: "record_finding",
                     description:
-                        "Record a finding/result from a completed investigation so it appears in the Mission Control Findings tab. Call this after finishing a skill run. Supply a severity, short summary, key metrics, any discovered entities worth chasing, and recommended follow-up skills. For each follow-up, author a fully tailored, ready-to-run `prompt` (threat-pulse drill-down style) that embeds the specific evidence, entity, and correlation from THIS finding — do not leave it to a generic template.",
+                        "Record a finding/result from a completed investigation so it appears in the Mission Control Findings tab. Call this after finishing a skill run. ALWAYS supply a `summary` (1-3 sentence description of what was found) in addition to the required `skill`/`title`/`severity` — never record a title-only finding. Also supply key `metrics`, any discovered `entities` worth chasing, and `recommended` follow-ups. For each follow-up, provide both a one-line `reason` (shown under the button) and a fully tailored, ready-to-run `prompt` (threat-pulse drill-down style) that embeds the specific evidence, entity, and correlation from THIS finding — do not leave it to a generic template or a bare skill name.",
                     inputSchema: {
                         type: "object",
                         properties: {
