@@ -529,3 +529,10 @@ To investigate what the JavaScript gateway actually *does*, you must rely on:
 | Network destinations | `api.telegram.org`, `chatgpt.com`, `auth.openai.com` | `clawhub.com`, `moltbook.com` |
 | Persistence | Scheduled Task + Startup folder (user-configured) | May add additional persistence |
 | Process integrity | `node.exe` with signed Node.js binary | May use renamed/unsigned binaries |
+
+---
+
+## Related
+
+- **`queries/endpoint/local_ai_agent_discovery.md`** — fleet-wide local AI agent inventory and posture via `AgentsInfo` (`Platform == "LocalAgents"`) and the exposure graph. Start there to see whether OpenClaw (or another self-hosted runtime) is present, then use this file's process/network/file/CDC queries for the deep dive. Query 6 (Recently Removed / Uninstalled Local Agents) pairs directly with this hunt.
+- **`.github/skills/ai-agent-posture/SKILL.md`** — posture assessment for *cloud* agents (Copilot Studio, Agent Builder, Foundry) via the same `AgentsInfo` table.

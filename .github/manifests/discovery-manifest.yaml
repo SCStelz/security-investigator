@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-08-26T17:53:45Z'
+generated: '2026-08-28T04:55:44Z'
 valid_domains:
 - admin
 - cloud
@@ -408,6 +408,18 @@ queries:
   - TA0006
   - TA0007
   - TA0001
+- title: Local AI Agent Discovery — Hunting & Posture Queries
+  path: queries/endpoint/local_ai_agent_discovery.md
+  domains:
+  - endpoint
+  - exposure
+  mitre:
+  - T1059
+  - T1204
+  - T1072
+  - T1082
+  - TA0002
+  - TA0007
 - title: OpenClaw Shadow AI Agent — Threat Hunting Queries
   path: queries/endpoint/openclaw_shadow_ai_hunting.md
   domains:
