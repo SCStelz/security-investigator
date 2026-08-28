@@ -60,7 +60,12 @@ function renderTable(rows) {
 }
 
 export function renderMarkdown(md) {
-    const lines = String(md).replace(/\r\n/g, "\n").split("\n");
+    // Strip leading YAML frontmatter (--- ... ---) and HTML comments
+    // (e.g. <!-- cd-metadata ... -->) so neither renders as visible text —
+    // matches how VSCode's markdown preview hides them.
+    const lines = String(md).replace(/\r\n/g, "\n")
+        .replace(/^\uFEFF?\s*---\n[\s\S]*?\n---[ \t]*(?:\n|$)/, "")
+        .replace(/<!--[\s\S]*?-->/g, "").split("\n");
     const out = [];
     let i = 0;
     let listType = null; // 'ul' | 'ol'
