@@ -44,6 +44,19 @@ export function renderPage() {
   .refresh:hover { color: var(--text); border-color: var(--accent2); }
 
   .body { display: grid; grid-template-columns: 240px 1fr; overflow: hidden; }
+  .body.rail-collapsed { grid-template-columns: 34px 1fr; }
+  .rail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .rail-head h2 { margin: 4px 0 8px; }
+  .rail-toggle {
+    background: var(--chip); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 6px; padding: 1px 7px; cursor: pointer; font-size: 13px; line-height: 1.4;
+    flex: none;
+  }
+  .rail-toggle:hover { color: var(--text); border-color: var(--accent2); }
+  .body.rail-collapsed .rail { padding: 12px 4px; overflow: hidden; }
+  .body.rail-collapsed .rail > *:not(.rail-head) { display: none; }
+  .body.rail-collapsed .rail-head { justify-content: center; }
+  .body.rail-collapsed .rail-head h2 { display: none; }
   .rail { border-right: 1px solid var(--border); padding: 14px; overflow-y: auto; background: var(--panel2); }
   .rail h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 4px 0 8px; }
   .search { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
@@ -295,7 +308,10 @@ export function renderPage() {
 
   <div class="body">
     <aside class="rail">
-      <h2>Search</h2>
+      <div class="rail-head">
+        <h2>Search</h2>
+        <button class="rail-toggle" id="railToggle" title="Collapse search panel">⟨</button>
+      </div>
       <input class="search" id="search" placeholder="Filter skills &amp; queries…" />
       <h2>Filter by domain</h2>
       <div id="domains"></div>
@@ -776,6 +792,24 @@ document.getElementById("memFileInput").addEventListener("keydown", (e) => { if 
 
 document.getElementById("search").addEventListener("input", (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); renderQueries(); });
 document.getElementById("refresh").onclick = () => { toast("Reloading manifest…"); load(); };
+
+// --- Collapsible left rail (search / domain filter) ---
+var railToggle = document.getElementById("railToggle");
+function applyRailState(collapsed) {
+  var body = document.querySelector(".body");
+  if (!body) return;
+  if (collapsed) body.classList.add("rail-collapsed"); else body.classList.remove("rail-collapsed");
+  railToggle.textContent = collapsed ? "\u27E9" : "\u27E8";
+  railToggle.title = collapsed ? "Show search panel" : "Collapse search panel";
+}
+var railCollapsed = false;
+try { railCollapsed = localStorage.getItem("mc.railCollapsed") === "1"; } catch (e) {}
+applyRailState(railCollapsed);
+railToggle.addEventListener("click", function () {
+  railCollapsed = !railCollapsed;
+  try { localStorage.setItem("mc.railCollapsed", railCollapsed ? "1" : "0"); } catch (e) {}
+  applyRailState(railCollapsed);
+});
 document.getElementById("feature").addEventListener("click", (e) => {
   if (e.target.dataset.skill) run("threat-pulse", "", "", (document.getElementById("tpLookback") || {}).value || "", false, (document.getElementById("tpOutput") || {}).value || "");
 });
