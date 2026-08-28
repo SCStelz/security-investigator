@@ -479,6 +479,14 @@ The panel opens with three tabs:
 
 The human launches work; the agent reports back to the same surface — a control plane for investigations, not just a UI.
 
+![Mission Control — Skills tab: every investigation skill as a launchable card, filterable by domain, with a highlighted Threat Pulse starting point.](docs/images/mission-control-skills.png)
+
+*Skills tab — launch any investigation with optional fleet-wide scope and inline/markdown output. The left rail filters skills and queries by domain; the entity quick-launch bar routes a UPN / IP / hash / device / incident to the right investigation.*
+
+![Mission Control — Findings tab: agent-reported investigation results with severity, evidence chips, linked reports, and recommended one-click follow-ups.](docs/images/mission-control-findings.png)
+
+*Findings tab — the agent reports each result back to the canvas: summary, evidence chips, linked reports, and tailored one-click follow-ups (e.g. drill into a flagged CVE, user, or incident).*
+
 ### ⚠️ Caveats & differences vs VS Code
 
 The app behaves slightly differently from VS Code. The most important difference: **each session is a fresh git worktree**, and gitignored local files (`config.json`, `.env`, MCP config) do **not** exist in a newly created worktree — they live only in your main checkout. You need a small **post-checkout step** to copy them into each session, otherwise the first query fails with a missing-config error.
