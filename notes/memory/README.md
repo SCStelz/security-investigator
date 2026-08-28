@@ -116,3 +116,19 @@ Copilot reads the repo files (which it now has access to in this workspace), ext
 
 **Why the constraint:** trigger files share a ~200-line auto-load budget across every workspace and every chat. A 30-line trigger packed with IPs and account lists eats budget that other triggers (other tenants, other workspaces) need. Stable identifiers (tenant GUID, workspace GUID, domain suffix) almost never change, are highly distinctive, and are enough to make Copilot pull the repo file — which is the actual source of truth for the volatile facts.
 
+---
+
+## 🎛️ Mission Control integration (GitHub Copilot app)
+
+If you run this repo in the **GitHub Copilot app**, the **Mission Control** canvas (`.github/extensions/skills-canvas/`) exposes the memory loop as one-click actions in its **Findings** tab — no chat prompts to hand-write. These operate on the **CLI/app memory store** (`%USERPROFILE%\.copilot\memories\repo\`), i.e. the same `cli-repo` tier the sync script mirrors with `-IncludeCopilotCli`.
+
+| Action | What it does | Relationship to this workflow |
+|---|---|---|
+| **⚙️ Set memory file** | Writes a `memory_file` name into `config.json` (defaults to a per-tenant `<name>-context.md` on first run). | Names *which* repo memory file the other two actions target. The extension never reads the file — it only references it by name. |
+| **🧠 Use memory** | Prepends a review directive to every investigation you launch, telling the agent to read the named context-memory file and apply its ground truth *before* rendering a verdict. | A **per-launch alternative to the auto-loaded user-memory trigger rule** above. Handy when the trigger isn't set up — e.g. a fresh worktree that never restored user memory. Both can coexist. |
+| **🧠 Compact to memory** | Hands the agent a propose-only prompt (via the [`context-memory-review`](../../.github/skills/context-memory-review/SKILL.md) skill) that distills accumulated findings into candidate ADD / MODIFY / FLAG changes for the memory file, for human approval. | Automates the "keep the repo memory file current" step. It **proposes only** — you still review and apply, then run the sync script to back the change up here. |
+
+**End-to-end loop:** record findings in the canvas → **🧠 Compact to memory** proposes updates → you approve/apply into `.copilot/memories/repo/<file>.md` → `sync-repo-memory.ps1 -IncludeCopilotCli` backs it up into `notes/memory/repo/` → **🧠 Use memory** (or the trigger rule) applies it on the next investigation.
+
+> The **🧠 Use memory** directive and the **user-memory trigger rule** solve the same problem (making Copilot actually consult repo memory) from two angles: the trigger rule is passive and global (auto-loaded in every chat), while **Use memory** is explicit and per-launch. In the non-interactive app/CLI context — where repo memory does *not* auto-load — the explicit directive is often the more reliable path.
+
