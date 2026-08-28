@@ -208,10 +208,11 @@ export function renderPage() {
   .modal-head .x:hover { color: var(--hi); }
   .modal iframe { border: 0; width: 100%; height: 100%; background: #0d1117; flex: 1; }
   /* Compose / tailor-before-send modal */
-  .modal-box.compose { height: auto; max-height: 88vh; width: min(760px, 96vw); }
-  .compose-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+  .modal-box.compose { height: auto; max-height: 92vh; width: min(760px, 96vw);
+    resize: both; overflow: auto; min-width: 420px; min-height: 320px; max-width: 96vw; }
+  .compose-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; overflow: auto; flex: 1 1 auto; min-height: 0; }
   .compose-hint { color: var(--muted); font-size: 12px; margin: 0; }
-  .compose-ta { width: 100%; box-sizing: border-box; min-height: 200px; resize: vertical; background: #0b0f16;
+  .compose-ta { width: 100%; box-sizing: border-box; min-height: 200px; flex: 1 1 auto; resize: vertical; background: #0b0f16;
     color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 12px 13px;
     font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; outline: none; }
   .compose-ta:focus { border-color: var(--accent2); }
