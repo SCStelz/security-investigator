@@ -1,6 +1,6 @@
 ---
 name: context-memory-review
-description: "Weekly review of an investigation tenant-context memory file against the most recent SOC scan reports (e.g. Threat Pulse). Surfaces candidate ADD / MODIFY / FLAG changes to the context file as a propose-only review document for human approval — it NEVER edits the context file, commits, or opens a PR. Trigger on 'review my context file', 'review tenant context', 'propose context updates', 'what should I add to my context memory'."
+description: "Weekly review of an investigation tenant-context memory file against the most recent SOC scan reports (e.g. Threat Pulse) and the Mission Control findings log. Surfaces candidate ADD / MODIFY / FLAG changes to the context file as a propose-only review document for human approval — it NEVER edits the context file, commits, or opens a PR. Trigger on 'review my context file', 'review tenant context', 'propose context updates', 'compact findings to memory', 'what should I add to my context memory'."
 ---
 
 # Context Memory Review — Instructions
@@ -14,10 +14,16 @@ personnel, and documented false-positive rules). Scan automations (e.g. the dail
 that file to render accurate verdicts.
 
 Over a week of scans, drill-down investigations validate **new** ground truth — new IPs, new personas,
-new FP classes, new device classes — that is not yet captured in the context file. This skill reads the
-last *N* days of scan reports, compares them against the current context file, and produces a
-**propose-only review document**: a list of discrete, human-reviewable candidate changes (ADD / MODIFY /
-FLAG) with section anchors, proposed text, supporting evidence, recurrence counts, and confidence.
+new FP classes, new device classes — that is not yet captured in the context file. This skill reads two
+evidence sources — the last *N* days of scan reports **and** the Mission Control findings log
+(`state/findings.json`, the structured record of analyst-triggered skill drill-downs) — compares them
+against the current context file, and produces a **propose-only review document**: a list of discrete,
+human-reviewable candidate changes (ADD / MODIFY / FLAG) with section anchors, proposed text, supporting
+evidence, recurrence counts, and confidence.
+
+> **Memory file location.** In this project the context file is a relative filename under
+> `.copilot/memories/repo/` (Copilot's own repo-memory folder, gitignored). The invoking prompt may pass
+> just the basename; resolve it under that folder. The file is environment-specific and never committed.
 
 **This skill is the first half of a deliberate two-phase, human-in-the-loop workflow:**
 
@@ -69,11 +75,16 @@ proceed with the defaults shown.
 
 | Input | Meaning | Default |
 |-------|---------|---------|
-| `context_file` | Absolute path to the tenant-context memory file to review | (must be provided) |
-| `reports_dir` | Directory (or glob) holding the scan reports to review | (must be provided) |
+| `context_file` | Relative filename (under `.copilot/memories/repo/`) or absolute path to the tenant-context memory file to review | (must be provided) |
+| `reports_dir` | Directory (or glob) holding the scan reports to review | `reports/` |
 | `reports_glob` | Filename pattern for the reports of interest | `*.md` |
+| `findings_file` | Mission Control findings log (structured analyst drill-down records) | `.github/extensions/skills-canvas/state/findings.json` |
 | `lookback_days` | How far back to include reports (by filename date or mtime) | `7` |
 | `output_dir` | Where to write the review document (must be gitignored) | `reports/context-reviews` |
+
+> At least one of `reports_dir` or `findings_file` must yield evidence. When launched from Mission
+> Control's **Compact to memory** button, `findings_file` is the primary source and reports are
+> supplementary.
 
 ---
 
@@ -87,8 +98,8 @@ proceed with the defaults shown.
    Note any `validated YYYY-MM-DD` provenance stamps.
 2. **Enumerate the reports in window.** List files in `reports_dir` matching `reports_glob`, select those
    whose date (from filename `YYYYMMDD` if present, else file mtime) falls within `lookback_days`. Sort
-   oldest→newest. If zero reports are in window, STOP and report "no reports in window — nothing to
-   review" (a normal quiet-week outcome, not a failure).
+   oldest→newest. If zero reports are in window **and** the findings log is empty, STOP and report
+   "no reports or findings in window — nothing to review" (a normal quiet-week outcome, not a failure).
 3. **Read each in-window report.** For large reports, read in ranges. Extract structured signal:
    - Concrete entities that appeared with a verdict: IPs, UPNs/accounts, device/host names, OAuth apps,
      incident IDs, CVEs.
@@ -98,6 +109,13 @@ proceed with the defaults shown.
    - Any **contradiction**: a drill-down that concluded the opposite of an existing context entry.
    - Note in each report whether the context file was successfully loaded/applied during that scan (the
      reports state this) — echoes only count as echoes if context was actually applied.
+4. **Read the Mission Control findings log** (`findings_file`, JSON). Each finding is a structured record
+   the analyst produced by triggering a skill drill-down from the canvas — treat these as **first-party
+   validation** (they are the product of an actual investigation, not a scan echo). For each finding
+   extract: `title`, `description`, `severity`, the originating `skill`, any entity/IP/UPN referenced in
+   the text, and the timestamp. Findings whose evidence duplicates a scan report are the *same* first-party
+   signal — correlate, don't double-count. A finding that merely restates an existing context entry with
+   no new evidence is still an echo (feedback-loop guard applies equally here).
 
 ### Phase 1 — Correlate across the week
 
@@ -160,7 +178,7 @@ Use this structure:
 # Context Memory Review — <today's date>
 
 **Context file reviewed:** <context_file>
-**Reports reviewed:** <N> file(s) over <lookback_days>d (<earliest date> → <latest date>)
+**Evidence reviewed:** <N> report(s) over <lookback_days>d (<earliest> → <latest>) + <K> Mission Control finding(s)
 **Proposed changes:** <A> ADD · <M> MODIFY · <F> FLAG
 **Confidence mix:** <High count> High · <Medium count> Medium · <Low count> Low
 
@@ -168,10 +186,11 @@ Use this structure:
 > session and say e.g. "apply items P1, P3, P7" — those edits will be made surgically with a
 > validated-date stamp. Review each item's evidence before approving.
 
-## Reports in this review window
-| Date | File | Context applied during scan? |
-|------|------|------------------------------|
-| ... | ... | yes / no |
+## Evidence in this review window
+| Source | Date | Ref | First-party? |
+|--------|------|-----|--------------|
+| report | ... | <file> | yes / echo |
+| finding | ... | <title / skill> | yes / echo |
 
 ## Proposed changes
 

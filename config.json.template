@@ -13,6 +13,8 @@
   "vpnapi_token": null,
   "shodan_token": null,
   "output_dir": "reports",
+  "memory_file": null,
+  "__memory_file_comment": "Optional: relative filename of this tenant's context-memory file under .copilot/memories/repo/ (e.g. 'contoso-lab.md'). Mission Control's 'Use memory' checkbox and 'Compact to memory' button reference it by name; Copilot resolves it via its memory access. Leave null to disable those features.",
   "sit_mapping": {
     "__comment": "Optional: SIT GUID-to-Name mapping for data-security-analysis skill. Resolved via Get-DlpSensitiveInformationType. Skill auto-populates after first PowerShell resolution.",
     "EXAMPLE-GUID-0000-0000-000000000000": "Example Custom SIT Name"

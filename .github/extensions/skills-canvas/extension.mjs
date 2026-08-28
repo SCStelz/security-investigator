@@ -7,7 +7,7 @@
 
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { joinSession, createCanvas } from "@github/copilot-sdk/extension";
 import { renderPage } from "./ui.mjs";
@@ -77,6 +77,56 @@ async function readBody(req) {
 function json(res, code, obj) {
     res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" });
     res.end(JSON.stringify(obj));
+}
+
+// Persist a tenant memory filename into config.json (and the matched
+// config.json.<tenant> variant, so it survives the copy-based tenant switch).
+// Enables first-run setup from the canvas without hand-editing JSON. config.json
+// is gitignored + local, so this is not a tenant/resource state change.
+async function setMemoryFile(rawFile) {
+    let name = String(rawFile || "").trim();
+    if (!name) return { ok: false, error: "Filename is empty" };
+    name = name.split(/[\\/]/).pop(); // basename only — no path traversal
+    if (!/^[A-Za-z0-9._-]+$/.test(name)) {
+        return { ok: false, error: "Use letters, numbers, dot, dash, underscore only" };
+    }
+    if (!/\.md$/i.test(name)) name += ".md";
+
+    const cfgPath = path.join(REPO_ROOT, "config.json");
+    let cfg;
+    try {
+        cfg = JSON.parse(await readFile(cfgPath, "utf8"));
+    } catch {
+        return { ok: false, error: "config.json not found — copy config.json.template to config.json first" };
+    }
+    cfg.memory_file = name;
+    await writeFile(cfgPath, JSON.stringify(cfg, null, 2) + "\n", "utf8");
+
+    const written = ["config.json"];
+    try {
+        const tenantId = cfg.tenant_id || null;
+        if (tenantId && !/^YOUR_/.test(tenantId)) {
+            for (const f of await readdir(REPO_ROOT)) {
+                const m = /^config\.json\.([A-Za-z0-9_-]+)$/.exec(f);
+                if (!m || m[1] === "template") continue;
+                const vp = path.join(REPO_ROOT, f);
+                try {
+                    const variant = JSON.parse(await readFile(vp, "utf8"));
+                    if (variant.tenant_id === tenantId) {
+                        variant.memory_file = name;
+                        await writeFile(vp, JSON.stringify(variant, null, 2) + "\n", "utf8");
+                        written.push(f);
+                    }
+                } catch {
+                    /* ignore unreadable variant */
+                }
+            }
+        }
+    } catch {
+        /* ignore */
+    }
+    cache = null; // force /api/data to re-read config on next load
+    return { ok: true, memoryFile: name, written };
 }
 
 // Closing directive appended to every Mission Control launch so the agent posts
@@ -268,6 +318,10 @@ async function handle(req, res) {
         if (req.method === "POST" && url.pathname === "/api/findings/clear") {
             await clearFindings(REPO_ROOT);
             json(res, 200, { ok: true, ...(await findingsPayload()) });
+            return;
+        }
+        if (req.method === "POST" && url.pathname === "/api/memory-file") {
+            json(res, 200, await setMemoryFile((await readBody(req)).file));
             return;
         }
         if (req.method === "GET" && url.pathname === "/api/report") {

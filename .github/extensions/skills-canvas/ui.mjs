@@ -259,6 +259,26 @@ export function renderPage() {
   table.lst .rsz:hover { background: var(--accent2); opacity: .55; }
   .lst-actions { display: flex; gap: 6px; }
   .lst-actions .btn { padding: 4px 8px; font-size: 11.5px; }
+
+  /* Memory checkbox + confirm dialog */
+  .memck { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; color: var(--muted);
+    font-size: 12px; cursor: pointer; user-select: none; }
+  .memck input { accent-color: var(--accent); cursor: pointer; }
+  .memck.disabled { opacity: .4; cursor: not-allowed; }
+  .memck.disabled input { cursor: not-allowed; }
+  .btn.danger { background: #3a1620; color: #ffb3c1; border: 1px solid #7d2436; }
+  .btn.danger:hover { background: #4d1a29; color: #ffd6de; border-color: #a5324a; }
+  .modal-box.confirm { height: auto; max-height: 88vh; width: min(460px, 94vw); }
+  .confirm-body { padding: 16px 18px 18px; }
+  .confirm-body p { margin: 0 0 16px; color: var(--text); font-size: 13px; line-height: 1.5; }
+  .confirm-actions { display: flex; gap: 8px; align-items: center; }
+  .confirm-actions .grow { margin-right: auto; }
+  .confirm-body code { background: var(--panel2, rgba(127,127,127,.15)); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .memfile-input { width: 100%; box-sizing: border-box; margin: 0 0 14px; padding: 9px 11px; font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); background: var(--panel, #10151c);
+    border: 1px solid var(--border, #2a3441); border-radius: 6px; outline: none; }
+  .memfile-input:focus { border-color: var(--accent); }
+  .confirm-actions .grow#memFileMeta { font-size: 12px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -315,7 +335,9 @@ export function renderPage() {
       <div id="findingsView" style="display:none">
         <div class="findhead">
           <div class="roll" id="findRoll"></div>
-          <button class="btn ghost" id="findClear" style="margin-left:auto">Clear all</button>
+          <button class="btn ghost" id="memSet" style="margin-left:auto" title="Set the tenant context-memory filename">⚙️</button>
+          <button class="btn ghost" id="findCompact" title="Compact findings into your tenant context-memory file (propose-only review)">🧠 Compact to memory</button>
+          <button class="btn ghost" id="findClear">Clear all</button>
         </div>
         <div id="findings"></div>
       </div>
@@ -370,10 +392,51 @@ export function renderPage() {
       <p class="compose-hint">This is a starting point — edit it however you like, then send it to chat. Nothing is submitted until you click <b>Send</b>.</p>
       <textarea class="compose-ta" id="composeText" spellcheck="false"></textarea>
       <div class="compose-actions">
+        <label class="memck" id="memWrap" title="Prepend a directive to review this tenant's context-memory file before investigating">
+          <input type="checkbox" id="memChk" /> <span>🧠 Use memory</span>
+        </label>
         <span class="grow" id="composeMeta"></span>
         <button class="btn ghost" id="composeCancel">Cancel</button>
         <button class="btn ghost" id="composeCopy">⧉ Copy</button>
         <button class="btn" id="composeSend">▶ Send to chat</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="confirmModal">
+  <div class="modal-box confirm">
+    <div class="modal-head">
+      <span class="mt" id="confirmTitle">Confirm</span>
+      <span class="spacer"></span>
+      <span class="x" id="confirmClose" title="Close">×</span>
+    </div>
+    <div class="confirm-body">
+      <p id="confirmMsg"></p>
+      <div class="confirm-actions">
+        <span class="grow"></span>
+        <button class="btn ghost" id="confirmCancel">Cancel</button>
+        <button class="btn ghost" id="confirmAlt" style="display:none"></button>
+        <button class="btn danger" id="confirmOk">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="memFileModal">
+  <div class="modal-box confirm">
+    <div class="modal-head">
+      <span class="mt">Tenant memory file</span>
+      <span class="spacer"></span>
+      <span class="x" id="memFileClose" title="Close">×</span>
+    </div>
+    <div class="confirm-body">
+      <p>Names the context-memory file under <code>.copilot/memories/repo/</code>. Saved to <code>config.json</code> — no manual editing needed.</p>
+      <input type="text" id="memFileInput" class="memfile-input" spellcheck="false" autocomplete="off" placeholder="tenant-context.md" />
+      <div class="confirm-actions">
+        <span class="grow" id="memFileMeta"></span>
+        <button class="btn ghost" id="memFileCancel">Cancel</button>
+        <button class="btn" id="memFileSave">Save</button>
       </div>
     </div>
   </div>
@@ -538,6 +601,8 @@ function openCompose(skill, entity, promptText) {
   const ta = document.getElementById("composeText");
   ta.value = promptText || "";
   document.getElementById("composeMeta").textContent = "";
+  syncMemUI();
+  applyMem();
   document.getElementById("composeModal").classList.add("on");
   setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 30);
 }
@@ -574,6 +639,125 @@ document.getElementById("composeModal").addEventListener("click", (e) => { if (e
 document.getElementById("composeText").addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); sendCompose(); }
 });
+
+// --- Memory directive (Use memory checkbox) ---
+function memFile() { return (DATA.tenant && DATA.tenant.memoryFile) ? DATA.tenant.memoryFile : ""; }
+function memConfigured() { return !!(DATA.tenant && DATA.tenant.memoryFileConfigured); }
+function memEnabled() { try { return localStorage.getItem("mc.useMemory") !== "0"; } catch (e) { return true; } }
+function memBlock(file) {
+  var d = "🧠 Before investigating and before rendering any verdict, review your tenant context-memory file '" + file + "' (under .copilot/memories/repo/) and apply its documented ground truth — known-good IPs, automation/orchestration fingerprints, account classifications, and documented false-positive rules. Cite it explicitly when a signal matches a documented pattern.";
+  return "<!-- use-memory -->\\n" + d + "\\n<!-- /use-memory -->";
+}
+function applyMem() {
+  var ta = document.getElementById("composeText");
+  if (!ta) return;
+  var stripped = ta.value.replace(/<!-- use-memory -->[\\s\\S]*?<!-- \\/use-memory -->\\n*/g, "").replace(/^\\s+/, "");
+  var chk = document.getElementById("memChk");
+  if (chk && chk.checked && memFile()) ta.value = memBlock(memFile()) + "\\n\\n" + stripped;
+  else ta.value = stripped;
+}
+function syncMemUI() {
+  var wrap = document.getElementById("memWrap");
+  var chk = document.getElementById("memChk");
+  if (!wrap || !chk) return;
+  var has = !!memFile();
+  wrap.classList.toggle("disabled", !has);
+  chk.disabled = !has;
+  chk.checked = has && memEnabled();
+  wrap.title = has
+    ? ("Prepend a directive to review " + memFile() + " before investigating" + (memConfigured() ? "" : " (default name — click ⚙ in Findings to set)"))
+    : "Set a memory file (⚙ in Findings) to enable";
+}
+document.getElementById("memChk").addEventListener("change", function () {
+  try { localStorage.setItem("mc.useMemory", this.checked ? "1" : "0"); } catch (e) {}
+  applyMem();
+  document.getElementById("composeText").focus();
+});
+
+// --- Confirm dialog (generic) ---
+let CONFIRM_CB = null, CONFIRM_ALT_CB = null;
+function openConfirm(opts) {
+  document.getElementById("confirmTitle").textContent = opts.title || "Confirm";
+  document.getElementById("confirmMsg").textContent = opts.message || "";
+  var ok = document.getElementById("confirmOk");
+  ok.textContent = opts.okLabel || "Confirm";
+  ok.className = "btn " + (opts.okClass || "danger");
+  CONFIRM_CB = opts.onOk || null;
+  var alt = document.getElementById("confirmAlt");
+  if (opts.altLabel) {
+    alt.textContent = opts.altLabel;
+    alt.style.display = "";
+    CONFIRM_ALT_CB = opts.onAlt || null;
+  } else { alt.style.display = "none"; CONFIRM_ALT_CB = null; }
+  document.getElementById("confirmModal").classList.add("on");
+}
+function closeConfirm() { document.getElementById("confirmModal").classList.remove("on"); CONFIRM_CB = null; CONFIRM_ALT_CB = null; }
+document.getElementById("confirmCancel").onclick = closeConfirm;
+document.getElementById("confirmClose").onclick = closeConfirm;
+document.getElementById("confirmOk").onclick = function () { var cb = CONFIRM_CB; closeConfirm(); if (cb) cb(); };
+document.getElementById("confirmAlt").onclick = function () { var cb = CONFIRM_ALT_CB; closeConfirm(); if (cb) cb(); };
+document.getElementById("confirmModal").addEventListener("click", (e) => { if (e.target.id === "confirmModal") closeConfirm(); });
+
+// --- Compact findings to memory ---
+function compactToMemory() {
+  var file = memFile();
+  if (!file) { toast("Set a memory file (⚙) to enable"); return; }
+  var n = (FINDINGS.findings || []).length;
+  if (n === 0) { toast("No findings to compact"); return; }
+  var p = "";
+  p += "Run the context-memory-review skill (.github/skills/context-memory-review/SKILL.md) to compact accumulated investigation evidence into the tenant context-memory file '" + file + "' (under .copilot/memories/repo/).\\n\\n";
+  p += "Evidence sources to review:\\n";
+  p += "1. Current memory file '" + file + "' (if it exists).\\n";
+  p += "2. Mission Control findings at .github/extensions/skills-canvas/state/findings.json (" + n + " recorded finding(s) — first-party, each from an actual skill drill-down).\\n";
+  p += "3. Recent markdown reports under reports/.\\n\\n";
+  p += "Produce a PROPOSE-ONLY review document for human approval: list candidate ADD / MODIFY / FLAG changes with the supporting evidence for each. Do NOT edit the memory file, and do NOT commit — applying approved changes is a separate manual step. Honor the feedback-loop guard and keep all tenant PII local (never in committed docs).";
+  openCompose("context-memory-review", "", p);
+}
+function syncCompactBtn() {
+  var b = document.getElementById("findCompact");
+  if (!b) return;
+  var has = !!memFile();
+  var n = (FINDINGS.findings || []).length;
+  b.disabled = !has || n === 0;
+  b.title = !has ? "Set a memory file (⚙) to enable" : (n === 0 ? "No findings to compact" : "Compact findings + reports into " + memFile() + (memConfigured() ? "" : " (default name — click ⚙ to customize)"));
+}
+document.getElementById("findCompact").onclick = compactToMemory;
+
+// --- Memory file setter (⚙) — writes config.json server-side, no manual JSON ---
+function openMemFile() {
+  var inp = document.getElementById("memFileInput");
+  inp.value = memFile() || "";
+  document.getElementById("memFileMeta").textContent = memConfigured() ? "Currently set in config.json" : "Currently using a default name";
+  document.getElementById("memFileModal").classList.add("on");
+  setTimeout(function () { inp.focus(); inp.select(); }, 30);
+}
+function closeMemFile() { document.getElementById("memFileModal").classList.remove("on"); }
+async function saveMemFile() {
+  var name = document.getElementById("memFileInput").value.trim();
+  var meta = document.getElementById("memFileMeta");
+  if (!name) { meta.textContent = "Enter a filename"; return; }
+  try {
+    var res = await fetch("/api/memory-file", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file: name }),
+    });
+    var j = await res.json();
+    if (!j.ok) { meta.textContent = "⚠️ " + (j.error || "save failed"); return; }
+    DATA.tenant = DATA.tenant || {};
+    DATA.tenant.memoryFile = j.memoryFile;
+    DATA.tenant.memoryFileConfigured = true;
+    closeMemFile();
+    syncMemUI();
+    syncCompactBtn();
+    toast("Memory file set to " + j.memoryFile);
+  } catch (e) { meta.textContent = "⚠️ " + e.message; }
+}
+document.getElementById("memSet").onclick = openMemFile;
+document.getElementById("memFileSave").onclick = saveMemFile;
+document.getElementById("memFileCancel").onclick = closeMemFile;
+document.getElementById("memFileClose").onclick = closeMemFile;
+document.getElementById("memFileModal").addEventListener("click", (e) => { if (e.target.id === "memFileModal") closeMemFile(); });
+document.getElementById("memFileInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveMemFile(); } });
 
 document.getElementById("search").addEventListener("input", (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); renderQueries(); });
 document.getElementById("refresh").onclick = () => { toast("Reloading manifest…"); load(); };
@@ -619,6 +803,7 @@ async function loadFindings() {
   const badge = document.getElementById("findCount");
   badge.textContent = n;
   badge.classList.toggle("zero", n === 0);
+  syncCompactBtn();
   if (currentView === "findings") renderFindings();
 }
 
@@ -646,6 +831,7 @@ function renderRoll() {
 }
 
 function renderFindings() {
+  syncCompactBtn();
   renderRoll();
   const host = document.getElementById("findings");
   const all = FINDINGS.findings || [];
@@ -1041,18 +1227,32 @@ document.getElementById("reportClose").onclick = closeReport;
 document.getElementById("reportModal").addEventListener("click", (e) => {
   if (e.target.id === "reportModal") closeReport();
 });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeReport(); closeCompose(); } });
-document.getElementById("findClear").onclick = async () => {
-  if (!(FINDINGS.findings || []).length) { toast("Nothing to clear"); return; }
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeReport(); closeCompose(); closeConfirm(); closeMemFile(); } });
+async function doClearFindings() {
   try {
     const res = await fetch("/api/findings/clear", { method: "POST" });
     FINDINGS = await res.json();
     sevFilter = null;
     document.getElementById("findCount").textContent = 0;
     document.getElementById("findCount").classList.add("zero");
+    syncCompactBtn();
     renderFindings();
     toast("Findings cleared");
   } catch (e) { toast("⚠️ " + e.message); }
+}
+document.getElementById("findClear").onclick = () => {
+  const n = (FINDINGS.findings || []).length;
+  if (!n) { toast("Nothing to clear"); return; }
+  const hasMem = !!memFile();
+  openConfirm({
+    title: "Clear all findings?",
+    message: "This permanently removes all " + n + " recorded finding(s) and can't be undone." + (hasMem ? " Consider compacting them into memory first." : ""),
+    okLabel: "Clear anyway",
+    okClass: "danger",
+    onOk: doClearFindings,
+    altLabel: hasMem ? "🧠 Compact to memory first" : "",
+    onAlt: hasMem ? compactToMemory : null,
+  });
 };
 
 loadFindings();

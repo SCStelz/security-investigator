@@ -217,13 +217,15 @@ export function needsEntity(skill) {
  */
 async function resolveTenant(repoRoot) {
     let tenantId = null;
+    let cfgMemory = "";
     try {
         const cfg = JSON.parse(await readFile(path.join(repoRoot, "config.json"), "utf8"));
         tenantId = cfg.tenant_id || null;
+        cfgMemory = memoryFileOf(cfg);
     } catch {
-        return { name: "no config.json", tenantId: null };
+        return withMemory("no config.json", null, cfgMemory);
     }
-    if (!tenantId || /^YOUR_/.test(tenantId)) return { name: "unconfigured", tenantId };
+    if (!tenantId || /^YOUR_/.test(tenantId)) return withMemory("unconfigured", tenantId, cfgMemory);
 
     try {
         const entries = await readdir(repoRoot);
@@ -233,7 +235,7 @@ async function resolveTenant(repoRoot) {
             try {
                 const variant = JSON.parse(await readFile(path.join(repoRoot, file), "utf8"));
                 if (variant.tenant_id === tenantId) {
-                    return { name: m[1], tenantId };
+                    return withMemory(m[1], tenantId, cfgMemory);
                 }
             } catch {
                 /* ignore unreadable variant */
@@ -242,7 +244,43 @@ async function resolveTenant(repoRoot) {
     } catch {
         /* ignore */
     }
-    return { name: `${tenantId.slice(0, 8)}…`, tenantId };
+    return withMemory(`${tenantId.slice(0, 8)}…`, tenantId, cfgMemory);
+}
+
+/**
+ * Assemble the tenant payload with an EFFECTIVE memory filename. When config.json
+ * has no `memory_file`, fall back to a per-tenant default (`<name>-context.md`) so
+ * the memory features work on first run without hand-editing JSON. `memoryFileConfigured`
+ * tells the UI whether the name is user-set (persisted) or a derived default.
+ */
+function withMemory(name, tenantId, cfgMemory) {
+    return {
+        name,
+        tenantId,
+        memoryFile: cfgMemory || deriveDefaultMemoryFile(name),
+        memoryFileConfigured: !!cfgMemory,
+    };
+}
+
+/** Seed a friendly per-tenant default filename; generic when the label isn't clean. */
+function deriveDefaultMemoryFile(name) {
+    const clean = String(name || "").trim().toLowerCase();
+    const reserved = new Set(["unconfigured", "no config.json"]);
+    if (!reserved.has(clean) && /^[a-z0-9_-]+$/.test(clean)) return clean + "-context.md";
+    return "tenant-context.md";
+}
+
+/**
+ * Extract the tenant context-memory filename from a parsed config. It is a bare
+ * relative filename resolved under .copilot/memories/repo/ by Copilot's own
+ * memory access — the extension never reads the file, it only names it in the
+ * injected directive. Guards against the template placeholder and stray paths.
+ */
+function memoryFileOf(cfg) {
+    const raw = String((cfg && cfg.memory_file) || "").trim();
+    if (!raw || /^YOUR_/.test(raw)) return "";
+    // Keep just the basename — the directive always points at .copilot/memories/repo/.
+    return raw.split(/[\\/]/).pop();
 }
 
 /** Strip light Markdown (links, emphasis, code, headings) down to plain text. */
