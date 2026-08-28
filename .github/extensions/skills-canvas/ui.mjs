@@ -646,13 +646,15 @@ function memFile() { return (DATA.tenant && DATA.tenant.memoryFile) ? DATA.tenan
 function memConfigured() { return !!(DATA.tenant && DATA.tenant.memoryFileConfigured); }
 function memEnabled() { try { return localStorage.getItem("mc.useMemory") !== "0"; } catch (e) { return true; } }
 function memBlock(file) {
-  var d = "🧠 Before investigating and before rendering any verdict, review your tenant context-memory file '" + file + "' (under .copilot/memories/repo/) and apply its documented ground truth — known-good IPs, automation/orchestration fingerprints, account classifications, and documented false-positive rules. Cite it explicitly when a signal matches a documented pattern.";
-  return "<!-- use-memory -->\\n" + d + "\\n<!-- /use-memory -->";
+  return "🧠 Before investigating and before rendering any verdict, review your tenant context-memory file '" + file + "' (under .copilot/memories/repo/) and apply its documented ground truth — known-good IPs, automation/orchestration fingerprints, account classifications, and documented false-positive rules. Cite it explicitly when a signal matches a documented pattern.";
 }
 function applyMem() {
   var ta = document.getElementById("composeText");
   if (!ta) return;
-  var stripped = ta.value.replace(/<!-- use-memory -->[\\s\\S]*?<!-- \\/use-memory -->\\n*/g, "").replace(/^\\s+/, "");
+  var stripped = ta.value
+    .replace(/<!-- use-memory -->[\\s\\S]*?<!-- \\/use-memory -->\\n*/g, "")
+    .replace(/^🧠 Before investigating[\\s\\S]*?documented pattern\\.\\n*/, "")
+    .replace(/^\\s+/, "");
   var chk = document.getElementById("memChk");
   if (chk && chk.checked && memFile()) ta.value = memBlock(memFile()) + "\\n\\n" + stripped;
   else ta.value = stripped;
