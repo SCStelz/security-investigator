@@ -230,6 +230,35 @@ export function renderPage() {
   .empty-find { color: var(--muted); text-align: center; padding: 40px 20px; }
   .empty-find .em { font-size: 34px; }
   .empty-find code { background: var(--chip); padding: 1px 6px; border-radius: 5px; color: #cfe2ff; }
+
+  /* View toggle + list/grid tables */
+  .viewbar { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+  .viewbar .vlabel { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { background: var(--panel2); color: var(--muted); border: none; padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--accent); color: #04121f; font-weight: 640; }
+  .seg button:not(.on):hover { color: var(--text); background: var(--panel); }
+
+  table.lst { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.lst th, table.lst td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+  table.lst thead th { position: sticky; top: 0; background: var(--panel2); color: var(--muted);
+    font-weight: 640; font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; user-select: none; z-index: 3; }
+  table.lst th { position: relative; }
+  table.lst th.sortable { cursor: pointer; }
+  table.lst th.sortable:hover { color: var(--text); }
+  table.lst th .sort-ind { opacity: .45; margin-left: 5px; font-size: 9px; }
+  table.lst th.sorted { color: var(--text); }
+  table.lst th.sorted .sort-ind { opacity: 1; color: var(--accent); }
+  table.lst tbody tr:hover { background: var(--panel); }
+  table.lst td.nm { font-weight: 620; color: var(--text); }
+  table.lst td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--muted); }
+  table.lst .cellchips { display: flex; gap: 4px; flex-wrap: nowrap; overflow: hidden; }
+  table.lst .rsz { position: absolute; top: 0; right: 0; width: 7px; height: 100%; cursor: col-resize; }
+  table.lst .rsz:hover { background: var(--accent2); opacity: .55; }
+  .lst-actions { display: flex; gap: 6px; }
+  .lst-actions .btn { padding: 4px 8px; font-size: 11.5px; }
 </style>
 </head>
 <body>
@@ -272,7 +301,15 @@ export function renderPage() {
           <select class="output" id="tpOutput" title="Output format"></select>
           <button class="btn" data-skill="threat-pulse">▶ Run Threat Pulse</button>
         </div>
+        <div class="viewbar">
+          <span class="vlabel">View</span>
+          <div class="seg" id="skillsViewToggle">
+            <button data-mode="cards" class="on">⊞ Cards</button>
+            <button data-mode="list">▤ List</button>
+          </div>
+        </div>
         <div class="grid" id="grid"></div>
+        <div id="skillsTable" style="display:none"></div>
       </div>
 
       <div id="findingsView" style="display:none">
@@ -284,7 +321,15 @@ export function renderPage() {
       </div>
 
       <div id="queriesView" style="display:none">
+        <div class="viewbar">
+          <span class="vlabel">View</span>
+          <div class="seg" id="queriesViewToggle">
+            <button data-mode="cards" class="on">⊞ Cards</button>
+            <button data-mode="list">▤ List</button>
+          </div>
+        </div>
         <div class="grid" id="queryGrid"></div>
+        <div id="queriesTable" style="display:none"></div>
         <div class="qbar" id="qbar" style="display:none"></div>
       </div>
     </main>
@@ -417,7 +462,7 @@ function visibleSkills() {
   });
 }
 
-function renderGrid() {
+function renderSkillCards() {
   const grid = document.getElementById("grid");
   grid.innerHTML = "";
   const skills = visibleSkills().filter(s => s.name !== "threat-pulse");
@@ -747,7 +792,7 @@ async function runQueries() {
   } catch (e) { toast("⚠️ " + e.message); }
 }
 
-function renderQueries() {
+function renderQueryCards() {
   const grid = document.getElementById("queryGrid");
   if (!grid) return;
   const qs = visibleQueries();
@@ -783,6 +828,201 @@ function renderQueries() {
   }
   updateQueryBar();
 }
+
+// ---- List/grid view: sortable + resizable tables ----
+// Both tabs can switch between the existing card grid and a dense table with
+// per-column sorting + drag-to-resize columns. Tables are built with DOM APIs
+// (not innerHTML template strings) to avoid the outer-template-literal newline
+// trap and to keep event wiring simple. View mode, sort, and column widths
+// persist in localStorage so the analyst's layout survives reloads.
+let skillsMode = "cards";
+let queriesMode = "cards";
+try { skillsMode = localStorage.getItem("mc.view.skills") || "cards"; } catch (e) {}
+try { queriesMode = localStorage.getItem("mc.view.queries") || "cards"; } catch (e) {}
+let skillSort = { key: "name", dir: 1 };
+let querySort = { key: "title", dir: 1 };
+
+function loadColW(k) { try { return JSON.parse(localStorage.getItem("mc.colw." + k) || "{}"); } catch (e) { return {}; } }
+function saveColW(k, m) { try { localStorage.setItem("mc.colw." + k, JSON.stringify(m)); } catch (e) {} }
+
+function chipCell(domains) {
+  const inner = (domains || []).map(d => '<span class="chip">' + (ICONS[d] || "") + " " + esc(d) + "</span>").join("");
+  return '<div class="cellchips">' + inner + "</div>";
+}
+
+function startColResize(e, colgroup, ci, storeKey, colKey) {
+  e.preventDefault(); e.stopPropagation();
+  const col = colgroup.children[ci];
+  const startX = e.clientX;
+  const startW = col.getBoundingClientRect().width;
+  function move(ev) { col.style.width = Math.max(56, startW + (ev.clientX - startX)) + "px"; }
+  function up() {
+    document.removeEventListener("mousemove", move);
+    document.removeEventListener("mouseup", up);
+    const m = loadColW(storeKey); m[colKey] = Math.round(col.getBoundingClientRect().width); saveColW(storeKey, m);
+  }
+  document.addEventListener("mousemove", move);
+  document.addEventListener("mouseup", up);
+}
+
+function buildTable(host, cfg) {
+  host.innerHTML = "";
+  const saved = loadColW(cfg.storeKey);
+  const table = document.createElement("table");
+  table.className = "lst";
+  const colgroup = document.createElement("colgroup");
+  cfg.cols.forEach(c => {
+    const col = document.createElement("col");
+    const w = saved[c.key] != null ? saved[c.key] : c.w;
+    if (w != null) col.style.width = (typeof w === "number" ? w + "px" : w);
+    colgroup.appendChild(col);
+  });
+  table.appendChild(colgroup);
+
+  const thead = document.createElement("thead");
+  const htr = document.createElement("tr");
+  cfg.cols.forEach((c, ci) => {
+    const th = document.createElement("th");
+    if (c.align) th.style.textAlign = c.align;
+    const lbl = document.createElement("span"); lbl.textContent = c.label; th.appendChild(lbl);
+    if (c.sortable) {
+      th.className = "sortable" + (cfg.sort.key === c.key ? " sorted" : "");
+      const ind = document.createElement("span"); ind.className = "sort-ind";
+      ind.textContent = cfg.sort.key === c.key ? (cfg.sort.dir > 0 ? "▲" : "▼") : "↕";
+      th.appendChild(ind);
+      th.addEventListener("click", (e) => {
+        if (e.target.classList.contains("rsz")) return;
+        if (cfg.sort.key === c.key) cfg.sort.dir = -cfg.sort.dir; else { cfg.sort.key = c.key; cfg.sort.dir = 1; }
+        cfg.onsort();
+      });
+    }
+    if (ci < cfg.cols.length - 1) {
+      const rsz = document.createElement("span"); rsz.className = "rsz";
+      rsz.addEventListener("mousedown", (e) => startColResize(e, colgroup, ci, cfg.storeKey, c.key));
+      th.appendChild(rsz);
+    }
+    htr.appendChild(th);
+  });
+  thead.appendChild(htr); table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  const rows = (cfg.rows || []).slice();
+  const sc = cfg.cols.find(c => c.key === cfg.sort.key);
+  if (sc && sc.sortVal) {
+    rows.sort((a, b) => {
+      const va = sc.sortVal(a), vb = sc.sortVal(b);
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * cfg.sort.dir;
+      return String(va).localeCompare(String(vb), undefined, { numeric: true }) * cfg.sort.dir;
+    });
+  }
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td"); td.colSpan = cfg.cols.length;
+    td.style.color = "var(--muted)"; td.style.padding = "18px"; td.textContent = cfg.empty || "Nothing to show.";
+    tr.appendChild(td); tbody.appendChild(tr);
+  }
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+    cfg.cols.forEach(c => {
+      const td = document.createElement("td");
+      if (c.align) td.style.textAlign = c.align;
+      if (c.cls) td.className = c.cls;
+      if (c.title) td.title = c.title(r);
+      if (c.build) c.build(td, r);
+      else td.innerHTML = c.html ? c.html(r) : "";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  host.appendChild(table);
+}
+
+function actionBtn(label, cls, on) {
+  const b = document.createElement("button");
+  b.className = "btn " + (cls || "");
+  b.textContent = label;
+  b.addEventListener("click", on);
+  return b;
+}
+
+function renderSkillsTable() {
+  const host = document.getElementById("skillsTable");
+  if (!host) return;
+  const rows = visibleSkills().filter(s => s.name !== "threat-pulse");
+  buildTable(host, {
+    storeKey: "skills", sort: skillSort, onsort: renderGrid, rows,
+    empty: "No skills match the current filter.",
+    cols: [
+      { key: "icon", label: "", w: 34, html: s => '<span style="font-size:16px">' + skillIcon(s) + "</span>" },
+      { key: "name", label: "Skill", w: 210, sortable: true, cls: "nm", sortVal: s => (s.name || "").toLowerCase(), html: s => esc(s.name) },
+      { key: "desc", label: "Description", w: 460, sortable: true, sortVal: s => skillDesc(s).replace(/<[^>]*>/g, "").toLowerCase(), html: s => '<span style="color:var(--muted)">' + esc(skillDesc(s).replace(/<[^>]*>/g, "")) + "</span>", title: s => skillDesc(s).replace(/<[^>]*>/g, "") },
+      { key: "domains", label: "Domains", w: 170, sortable: true, sortVal: s => (s.domains || []).join(","), html: s => chipCell(s.domains), title: s => (s.domains || []).join(", ") },
+      { key: "actions", label: "", w: 150, build: (td, s) => {
+          const wrap = document.createElement("div"); wrap.className = "lst-actions";
+          if (s.path) wrap.appendChild(actionBtn("📄", "ghost", () => openReport(s.path, s.name)));
+          wrap.appendChild(actionBtn("▶ Run", "", () => run(s.name, "", "", "", false, "")));
+          td.appendChild(wrap);
+        } },
+    ],
+  });
+}
+
+function renderQueriesTable() {
+  const host = document.getElementById("queriesTable");
+  if (!host) return;
+  const rows = visibleQueries();
+  buildTable(host, {
+    storeKey: "queries", sort: querySort, onsort: renderQueries, rows,
+    empty: "No queries match this filter.",
+    cols: [
+      { key: "icon", label: "", w: 34, html: q => '<span style="font-size:15px">' + (ICONS[(q.domains || [])[0]] || "🔎") + "</span>" },
+      { key: "title", label: "Query", w: 250, sortable: true, cls: "nm", sortVal: q => (q.title || "").toLowerCase(), html: q => esc(q.title) },
+      { key: "domains", label: "Domains", w: 150, sortable: true, sortVal: q => (q.domains || []).join(","), html: q => chipCell(q.domains), title: q => (q.domains || []).join(", ") },
+      { key: "mitre", label: "MITRE", w: 82, align: "center", sortable: true, sortVal: q => (q.mitre || []).length, html: q => (q.mitre || []).length ? '<span class="chip alt">' + (q.mitre || []).length + "</span>" : '<span style="opacity:.4">—</span>', title: q => (q.mitre || []).join(", ") },
+      { key: "tables", label: "Tables", w: 82, align: "center", sortable: true, sortVal: q => (q.tables || []).length, html: q => (q.tables || []).length ? '<span class="chip alt">' + (q.tables || []).length + "</span>" : '<span style="opacity:.4">—</span>', title: q => (q.tables || []).join(", ") },
+      { key: "path", label: "Path", w: 260, sortable: true, cls: "mono", sortVal: q => (q.path || "").toLowerCase(), html: q => esc(q.path), title: q => q.path },
+      { key: "actions", label: "", w: 160, build: (td, q) => {
+          const wrap = document.createElement("div"); wrap.className = "lst-actions";
+          wrap.appendChild(actionBtn("📄 Open", "", () => openReport(q.path, q.title)));
+          const sel = querySel.has(q.path);
+          wrap.appendChild(actionBtn(sel ? "✓ Added" : "＋ Select", "ghost qsel" + (sel ? " on" : ""), () => toggleQuerySel(q.path, q.title)));
+          td.appendChild(wrap);
+        } },
+    ],
+  });
+  updateQueryBar();
+}
+
+// Dispatchers keep the original names used across load()/search/domain filters,
+// so switching between card and list view is transparent to every caller.
+function renderGrid() {
+  const cards = document.getElementById("grid");
+  const tbl = document.getElementById("skillsTable");
+  const list = skillsMode === "list";
+  if (cards) cards.style.display = list ? "none" : "";
+  if (tbl) tbl.style.display = list ? "" : "none";
+  syncViewToggle("skills");
+  if (list) renderSkillsTable(); else renderSkillCards();
+}
+function renderQueries() {
+  const cards = document.getElementById("queryGrid");
+  const tbl = document.getElementById("queriesTable");
+  const list = queriesMode === "list";
+  if (cards) cards.style.display = list ? "none" : "";
+  if (tbl) tbl.style.display = list ? "" : "none";
+  syncViewToggle("queries");
+  if (list) renderQueriesTable(); else renderQueryCards();
+}
+function syncViewToggle(which) {
+  const id = which === "skills" ? "skillsViewToggle" : "queriesViewToggle";
+  const mode = which === "skills" ? skillsMode : queriesMode;
+  document.querySelectorAll("#" + id + " button").forEach(b => b.classList.toggle("on", b.dataset.mode === mode));
+}
+function setSkillsMode(m) { skillsMode = m; try { localStorage.setItem("mc.view.skills", m); } catch (e) {} renderGrid(); }
+function setQueriesMode(m) { queriesMode = m; try { localStorage.setItem("mc.view.queries", m); } catch (e) {} renderQueries(); }
+document.querySelectorAll("#skillsViewToggle button").forEach(b => b.addEventListener("click", () => setSkillsMode(b.dataset.mode)));
+document.querySelectorAll("#queriesViewToggle button").forEach(b => b.addEventListener("click", () => setQueriesMode(b.dataset.mode)));
 
 // ---- Report preview modal ----
 function openReport(pathRel, label) {
