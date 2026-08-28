@@ -257,6 +257,7 @@ export function renderPage() {
   table.lst .cellchips { display: flex; gap: 4px; flex-wrap: nowrap; overflow: hidden; }
   table.lst .rsz { position: absolute; top: 0; right: 0; width: 7px; height: 100%; cursor: col-resize; }
   table.lst .rsz:hover { background: var(--accent2); opacity: .55; }
+  table.lst td.ic-cell { overflow: visible; text-overflow: clip; text-align: center; padding-left: 6px; padding-right: 4px; line-height: 1; }
   .lst-actions { display: flex; gap: 6px; }
   .lst-actions .btn { padding: 4px 8px; font-size: 11.5px; }
 
@@ -1140,7 +1141,7 @@ function renderSkillsTable() {
     storeKey: "skills", sort: skillSort, onsort: renderGrid, rows,
     empty: "No skills match the current filter.",
     cols: [
-      { key: "icon", label: "", w: 34, html: s => '<span style="font-size:16px">' + skillIcon(s) + "</span>" },
+      { key: "icon", label: "", w: 34, cls: "ic-cell", html: s => '<span style="font-size:16px">' + skillIcon(s) + "</span>" },
       { key: "name", label: "Skill", w: 210, sortable: true, cls: "nm", sortVal: s => (s.name || "").toLowerCase(), html: s => esc(s.name) },
       { key: "desc", label: "Description", w: 460, sortable: true, sortVal: s => skillDesc(s).replace(/<[^>]*>/g, "").toLowerCase(), html: s => '<span style="color:var(--muted)">' + esc(skillDesc(s).replace(/<[^>]*>/g, "")) + "</span>", title: s => skillDesc(s).replace(/<[^>]*>/g, "") },
       { key: "domains", label: "Domains", w: 170, sortable: true, sortVal: s => (s.domains || []).join(","), html: s => chipCell(s.domains), title: s => (s.domains || []).join(", ") },
@@ -1162,7 +1163,7 @@ function renderQueriesTable() {
     storeKey: "queries", sort: querySort, onsort: renderQueries, rows,
     empty: "No queries match this filter.",
     cols: [
-      { key: "icon", label: "", w: 34, html: q => '<span style="font-size:15px">' + (ICONS[(q.domains || [])[0]] || "🔎") + "</span>" },
+      { key: "icon", label: "", w: 34, cls: "ic-cell", html: q => '<span style="font-size:15px">' + (ICONS[(q.domains || [])[0]] || "🔎") + "</span>" },
       { key: "title", label: "Query", w: 250, sortable: true, cls: "nm", sortVal: q => (q.title || "").toLowerCase(), html: q => esc(q.title) },
       { key: "domains", label: "Domains", w: 150, sortable: true, sortVal: q => (q.domains || []).join(","), html: q => chipCell(q.domains), title: q => (q.domains || []).join(", ") },
       { key: "mitre", label: "MITRE", w: 82, align: "center", sortable: true, sortVal: q => (q.mitre || []).length, html: q => (q.mitre || []).length ? '<span class="chip alt">' + (q.mitre || []).length + "</span>" : '<span style="opacity:.4">—</span>', title: q => (q.mitre || []).join(", ") },
