@@ -19,6 +19,42 @@ function slugify(raw) {
 }
 
 // Inline: code spans first (protected), then links, bold, italic.
+// _base is the repo-relative path of the file being rendered (set by
+// renderMarkdown); used to resolve relative links like ../../email/foo.md.
+let _base = "";
+
+// Resolve a link href found in a markdown file into an href the preview can
+// open. Relative/repo-relative .md paths become /api/report?path=... so they
+// open in the same preview iframe; http(s)/mailto/#fragment are left as-is.
+// Returns { href, inPlace } or null when the link can't be routed.
+function resolveHref(href) {
+    const hashAt = href.indexOf("#");
+    const frag = hashAt >= 0 ? href.slice(hashAt) : "";
+    let pathPart = hashAt >= 0 ? href.slice(0, hashAt) : href;
+    if (/^(https?:|mailto:)/i.test(href)) return { href: href, inPlace: false };
+    if (pathPart === "" && frag) return { href: frag, inPlace: true }; // pure in-page anchor
+    let repoRel = null;
+    if (/^\.\.?\//.test(pathPart)) {
+        // relative to the current file's directory
+        const norm = _base.replace(/\\/g, "/");
+        const baseDir = norm.includes("/") ? norm.slice(0, norm.lastIndexOf("/")) : "";
+        const parts = baseDir ? baseDir.split("/") : [];
+        for (const seg of pathPart.split("/")) {
+            if (seg === "" || seg === ".") continue;
+            if (seg === "..") { if (parts.length) parts.pop(); }
+            else parts.push(seg);
+        }
+        repoRel = parts.join("/");
+    } else if (/^\/?(queries|\.github|docs|scripts)\//.test(pathPart) && /\.(md|markdown)$/i.test(pathPart)) {
+        // repo-root-relative path (with or without a leading slash)
+        repoRel = pathPart.replace(/^\/+/, "");
+    }
+    if (repoRel && /\.(md|markdown)$/i.test(repoRel)) {
+        return { href: "/api/report?path=" + encodeURIComponent(repoRel) + frag, inPlace: true };
+    }
+    return null;
+}
+
 function inline(text) {
     const codes = [];
     let s = text.replace(/`([^`]+)`/g, (_, c) => {
@@ -27,10 +63,17 @@ function inline(text) {
     });
     s = escapeHtml(s);
     s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, t, href) => {
-        const safe = /^(https?:|mailto:|#|\/)/i.test(href) ? href : "#";
-        // In-page fragment links must scroll within the report, not open a new tab.
-        const attrs = safe.charAt(0) === "#" ? "" : ' target="_blank" rel="noopener"';
-        return '<a href="' + safe + '"' + attrs + ">" + t + "</a>";
+        const r = resolveHref(href);
+        if (!r) return '<a href="#">' + t + "</a>";
+        const attrs = r.inPlace ? "" : ' target="_blank" rel="noopener"';
+        return '<a href="' + r.href + '"' + attrs + ">" + t + "</a>";
+    });
+    // Autolink bare repo-relative markdown paths (e.g. "Companion files:
+    // queries/.../foo.md") so they open in the preview iframe. The negative
+    // lookbehind skips paths already inside a tag/attribute or a longer path.
+    s = s.replace(/(?<!["'>=/])((?:queries|\.github)\/[A-Za-z0-9._/-]+\.md)(#[A-Za-z0-9_-]+)?/g, (_, p, frag) => {
+        const href = "/api/report?path=" + encodeURIComponent(p) + (frag || "");
+        return '<a href="' + href + '">' + p + (frag || "") + "</a>";
     });
     s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
@@ -59,7 +102,8 @@ function renderTable(rows) {
     return html;
 }
 
-export function renderMarkdown(md) {
+export function renderMarkdown(md, basePath) {
+    _base = basePath || "";
     // Strip leading YAML frontmatter (--- ... ---) and HTML comments
     // (e.g. <!-- cd-metadata ... -->) so neither renders as visible text —
     // matches how VSCode's markdown preview hides them.
@@ -206,7 +250,7 @@ export function htmlReportPage(title, bodyHtml) {
   * { box-sizing: border-box; }
   body { margin: 0; background: #0d1117; color: #c9d1d9;
     font: 14px/1.6 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 34px 80px; }
+  .wrap { max-width: none; margin: 0; padding: 28px 34px 80px; }
   h1, h2, h3, h4, h5, h6 { color: #e6edf3; line-height: 1.25; margin: 1.4em 0 .5em; font-weight: 640; }
   h1 { font-size: 26px; border-bottom: 1px solid #21262d; padding-bottom: .3em; }
   h2 { font-size: 21px; border-bottom: 1px solid #21262d; padding-bottom: .3em; }

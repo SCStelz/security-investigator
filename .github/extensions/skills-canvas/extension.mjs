@@ -237,7 +237,7 @@ async function serveReport(rel, raw, res) {
     // Markdown -> rendered HTML page (unless ?raw=1 for the source).
     if ((ext === ".md" || ext === ".markdown") && !raw) {
         const title = path.basename(abs);
-        const html = htmlReportPage(title, renderMarkdown(data.toString("utf8")));
+        const html = htmlReportPage(title, renderMarkdown(data.toString("utf8"), clean.replace(/\\/g, "/")));
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
         res.end(html);
         return;

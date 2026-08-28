@@ -195,7 +195,8 @@ export function renderPage() {
     align-items: center; justify-content: center; padding: 24px; }
   .modal.on { display: flex; }
   .modal-box { background: #0d1117; border: 1px solid var(--border); border-radius: 14px; width: min(1000px, 96vw);
-    height: min(88vh, 100%); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 70px rgba(0,0,0,.6); }
+    height: min(88vh, 100%); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 70px rgba(0,0,0,.6);
+    resize: both; min-width: 460px; min-height: 300px; max-width: 96vw; max-height: 96vh; }
   .modal-head { display: flex; align-items: center; gap: 10px; padding: 11px 15px; border-bottom: 1px solid var(--border);
     background: var(--panel); }
   .modal-head .mt { font-weight: 620; font-size: 13.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -270,7 +271,7 @@ export function renderPage() {
   .memck.disabled input { cursor: not-allowed; }
   .btn.danger { background: #3a1620; color: #ffb3c1; border: 1px solid #7d2436; }
   .btn.danger:hover { background: #4d1a29; color: #ffd6de; border-color: #a5324a; }
-  .modal-box.confirm { height: auto; max-height: 88vh; width: min(460px, 94vw); }
+  .modal-box.confirm { height: auto; max-height: 88vh; width: min(460px, 94vw); resize: none; min-width: 0; min-height: 0; }
   .confirm-body { padding: 16px 18px 18px; }
   .confirm-body p { margin: 0 0 16px; color: var(--text); font-size: 13px; line-height: 1.5; }
   .confirm-actions { display: flex; gap: 8px; align-items: center; }
@@ -637,7 +638,17 @@ document.getElementById("composeCopy").onclick = async () => {
   try { await navigator.clipboard.writeText(text); document.getElementById("composeMeta").textContent = "Copied to clipboard"; }
   catch { toast("⚠️ Copy failed"); }
 };
-document.getElementById("composeModal").addEventListener("click", (e) => { if (e.target.id === "composeModal") closeCompose(); });
+// Close a modal on backdrop click only when the mousedown ALSO started on the
+// backdrop — prevents a resize drag that starts inside the box and releases on
+// the overlay from being treated as an outside click.
+function bindBackdropClose(modalId, closeFn) {
+  var el = document.getElementById(modalId);
+  if (!el) return;
+  var downOnSelf = false;
+  el.addEventListener("mousedown", function (e) { downOnSelf = (e.target === el); });
+  el.addEventListener("click", function (e) { var ok = (e.target === el && downOnSelf); downOnSelf = false; if (ok) closeFn(); });
+}
+bindBackdropClose("composeModal", closeCompose);
 document.getElementById("composeText").addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); sendCompose(); }
 });
@@ -700,7 +711,7 @@ document.getElementById("confirmCancel").onclick = closeConfirm;
 document.getElementById("confirmClose").onclick = closeConfirm;
 document.getElementById("confirmOk").onclick = function () { var cb = CONFIRM_CB; closeConfirm(); if (cb) cb(); };
 document.getElementById("confirmAlt").onclick = function () { var cb = CONFIRM_ALT_CB; closeConfirm(); if (cb) cb(); };
-document.getElementById("confirmModal").addEventListener("click", (e) => { if (e.target.id === "confirmModal") closeConfirm(); });
+bindBackdropClose("confirmModal", closeConfirm);
 
 // --- Compact findings to memory ---
 function compactToMemory() {
@@ -760,7 +771,7 @@ document.getElementById("memSet").onclick = openMemFile;
 document.getElementById("memFileSave").onclick = saveMemFile;
 document.getElementById("memFileCancel").onclick = closeMemFile;
 document.getElementById("memFileClose").onclick = closeMemFile;
-document.getElementById("memFileModal").addEventListener("click", (e) => { if (e.target.id === "memFileModal") closeMemFile(); });
+bindBackdropClose("memFileModal", closeMemFile);
 document.getElementById("memFileInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveMemFile(); } });
 
 document.getElementById("search").addEventListener("input", (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); renderQueries(); });
@@ -1228,9 +1239,7 @@ function closeReport() {
   document.getElementById("reportFrame").src = "about:blank";
 }
 document.getElementById("reportClose").onclick = closeReport;
-document.getElementById("reportModal").addEventListener("click", (e) => {
-  if (e.target.id === "reportModal") closeReport();
-});
+bindBackdropClose("reportModal", closeReport);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeReport(); closeCompose(); closeConfirm(); closeMemFile(); } });
 async function doClearFindings() {
   try {
