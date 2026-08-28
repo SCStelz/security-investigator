@@ -43,8 +43,13 @@ export function renderPage() {
   }
   .refresh:hover { color: var(--text); border-color: var(--accent2); }
 
-  .body { display: grid; grid-template-columns: 240px 1fr; overflow: hidden; }
+  .body { display: grid; grid-template-columns: var(--rail-w, 240px) 1fr; overflow: hidden; position: relative; }
   .body.rail-collapsed { grid-template-columns: 34px 1fr; }
+  .rail-resize { position: absolute; top: 0; bottom: 0; left: var(--rail-w, 240px); width: 7px; margin-left: -3px;
+    cursor: col-resize; z-index: 8; }
+  .rail-resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: transparent; transition: background .12s; }
+  .rail-resize:hover::after, .rail-resize.dragging::after { background: var(--accent2); }
+  .body.rail-collapsed .rail-resize { display: none; }
   .rail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .rail-head h2 { margin: 4px 0 8px; }
   .rail-toggle {
@@ -184,9 +189,28 @@ export function renderPage() {
   .finding.b-low { border-left-color: #388bfd; }
   .finding.b-info { border-left-color: #388bfd; }
   .finding.b-clean { border-left-color: #3fb950; }
+
+  /* Slim timeline gutter to the left of each finding card */
+  .finding-row { display: flex; gap: 10px; align-items: stretch; }
+  .ftime { flex: none; width: 58px; position: relative; text-align: right;
+    padding: 13px 12px 0 0; color: var(--muted); font-size: 11px; line-height: 1.3; }
+  .ftime .ft-day { display: block; color: var(--text); font-weight: 600; }
+  .ftime .ft-time { display: block; font-size: 10.5px; opacity: .85; }
+  .ftime::before { content: ""; position: absolute; top: 6px; bottom: 0; right: 0; width: 2px; background: var(--border); }
+  .ftime::after { content: ""; position: absolute; top: 16px; right: -4px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--panel2); border: 2px solid var(--accent2); }
+  .finding-row:last-child .ftime::before { bottom: auto; height: 14px; }
+  .ftime.b-critical::after { border-color: #f85149; }
+  .ftime.b-high::after { border-color: #f0883e; }
+  .ftime.b-medium::after { border-color: #d29922; }
+  .ftime.b-low::after, .ftime.b-info::after { border-color: #388bfd; }
+  .ftime.b-clean::after { border-color: #3fb950; }
   .finding .fh { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
   .finding .ftitle { font-weight: 640; font-size: 14px; }
   .finding .fmeta { color: var(--muted); font-size: 11.5px; margin-left: auto; }
+  .finding .frun { background: #14243a; color: #cfe2ff; border: 1px solid var(--accent2); border-radius: 7px;
+    padding: 1px 8px; font-size: 11px; cursor: pointer; line-height: 1.55; }
+  .finding .frun:hover { background: #1c3352; border-color: var(--accent); }
   .finding .fskill { font-size: 11px; color: var(--accent); background: #14243a; border: 1px solid var(--accent2);
     border-radius: 6px; padding: 1px 7px; }
   .finding .fsum { color: #c9d6e8; font-size: 12.5px; margin: 8px 0; }
@@ -320,6 +344,7 @@ export function renderPage() {
         <div id="recent"><div class="empty">Nothing launched yet.</div></div>
       </div>
     </aside>
+    <div class="rail-resize" id="railResize" title="Drag to resize"></div>
 
     <main class="main">
       <div id="errbanner"></div>
@@ -810,6 +835,40 @@ railToggle.addEventListener("click", function () {
   try { localStorage.setItem("mc.railCollapsed", railCollapsed ? "1" : "0"); } catch (e) {}
   applyRailState(railCollapsed);
 });
+
+// --- Resizable left rail (drag the divider) ---
+var RAIL_MIN = 170, RAIL_MAX = 460;
+var railW = 240;
+try { var _rw = parseInt(localStorage.getItem("mc.railWidth"), 10); if (_rw >= RAIL_MIN && _rw <= RAIL_MAX) railW = _rw; } catch (e) {}
+function setRailWidth(px) {
+  railW = Math.max(RAIL_MIN, Math.min(RAIL_MAX, Math.round(px)));
+  var body = document.querySelector(".body");
+  if (body) body.style.setProperty("--rail-w", railW + "px");
+}
+setRailWidth(railW);
+(function () {
+  var handle = document.getElementById("railResize");
+  if (!handle) return;
+  var dragging = false;
+  handle.addEventListener("mousedown", function (e) {
+    if (railCollapsed) return;
+    dragging = true; handle.classList.add("dragging");
+    document.body.style.userSelect = "none"; document.body.style.cursor = "col-resize";
+    e.preventDefault();
+  });
+  window.addEventListener("mousemove", function (e) {
+    if (!dragging) return;
+    var body = document.querySelector(".body");
+    var left = body ? body.getBoundingClientRect().left : 0;
+    setRailWidth(e.clientX - left);
+  });
+  window.addEventListener("mouseup", function () {
+    if (!dragging) return;
+    dragging = false; handle.classList.remove("dragging");
+    document.body.style.userSelect = ""; document.body.style.cursor = "";
+    try { localStorage.setItem("mc.railWidth", String(railW)); } catch (e) {}
+  });
+})();
 document.getElementById("feature").addEventListener("click", (e) => {
   if (e.target.dataset.skill) run("threat-pulse", "", "", (document.getElementById("tpLookback") || {}).value || "", false, (document.getElementById("tpOutput") || {}).value || "");
 });
@@ -932,6 +991,7 @@ function renderFindings() {
       '<span class="dismiss" title="Dismiss">×</span>' +
       '<div class="fh"><span class="ftitle">' + esc(f.title) + '</span>' +
       '<span class="fskill">' + esc(f.skill) + '</span>' +
+      '<button class="frun" title="Compose an editable prompt seeded with this finding">▶ Investigate</button>' +
       '<span class="fmeta">' + esc(f.scope || "") + (f.ago ? ' · ' + esc(f.ago) : "") + '</span></div>' +
       (f.summary ? '<div class="fsum">' + esc(f.summary) + '</div>' : "") +
       (metrics ? '<div class="fchips">' + metrics + '</div>' : "") +
@@ -949,8 +1009,71 @@ function renderFindings() {
     card.querySelectorAll(".rep").forEach(b => {
       b.onclick = () => openReport(b.dataset.path, b.dataset.label);
     });
-    host.appendChild(card);
+    card.querySelector(".frun").onclick = () => runFinding(f);
+
+    const row = document.createElement("div");
+    row.className = "finding-row";
+    const tcol = document.createElement("div");
+    tcol.className = "ftime b-" + sev;
+    if (f.ts) {
+      const st = fmtStamp(f.ts);
+      tcol.innerHTML = '<span class="ft-day">' + esc(st.day) + '</span><span class="ft-time">' + esc(st.time) + '</span>';
+      tcol.title = new Date(f.ts).toLocaleString() + (f.ago ? " · " + f.ago : "");
+    } else {
+      tcol.innerHTML = '<span class="ft-day">—</span>';
+    }
+    row.appendChild(tcol);
+    row.appendChild(card);
+    host.appendChild(row);
   }
+}
+
+// Short absolute stamp for the findings timeline gutter (e.g. "Aug 28" / "3:52 PM").
+function fmtStamp(ts) {
+  const d = new Date(ts);
+  return {
+    day: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    time: d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
+  };
+}
+
+// Compose an editable, freeform prompt seeded with a finding's context, then open
+// the tailor-before-send modal — mirrors the Queries "Run with context" flow so an
+// analyst can pick a finding and drive an ad-hoc follow-up investigation.
+function runFinding(f) {
+  const lines = [];
+  lines.push("- Title: " + (f.title || ""));
+  if (f.severity) lines.push("- Severity: " + f.severity);
+  if (f.skill) lines.push("- Source skill: " + f.skill);
+  if (f.scope) lines.push("- Scope: " + f.scope);
+  if (f.ts) lines.push("- Recorded: " + new Date(f.ts).toLocaleString());
+  if (f.summary) lines.push("- Summary: " + f.summary);
+  const ents = (f.entities || []).map(e => e.type + ": " + e.value);
+  if (ents.length) lines.push("- Entities: " + ents.join(", "));
+  const reps = (f.reports || []).filter(r => r && r.path)
+    .map(r => "- " + r.path + (r.label ? " \u2014 " + r.label : ""));
+  let starter =
+    '[Describe how you want to investigate or act on this finding \u2014 e.g. "Confirm remediation held and check for lateral movement"]\\n\\n' +
+    "Context \u2014 investigation finding recorded in Mission Control:\\n" +
+    lines.join("\\n");
+  if (reps.length) starter += "\\n\\nReference report file(s) \u2014 read them for full detail:\\n" + reps.join("\\n");
+  const t = f.title || "Finding";
+  const label = "\uD83C\uDFAF " + (t.length > 42 ? t.slice(0, 42) + "\u2026" : t);
+  composeStarter(label, starter);
+}
+
+// POST a freeform starter to /api/compose (applies memory directive etc.) and open
+// the editable compose modal. Shared by runFinding and the Queries "Run with context".
+async function composeStarter(label, starter) {
+  try {
+    const res = await fetch("/api/compose", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ skill: "", entity: "", prompt: starter }),
+    });
+    const j = await res.json();
+    if (j.ok) openCompose(label, "", j.prompt);
+    else toast("\u26A0\uFE0F " + (j.error || "could not compose prompt"));
+  } catch (e) { toast("\u26A0\uFE0F " + e.message); }
 }
 
 async function dismissFinding(id) {
