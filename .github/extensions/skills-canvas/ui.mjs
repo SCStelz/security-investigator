@@ -366,6 +366,15 @@ export function renderPage() {
     border: 1px solid var(--border, #2a3441); border-radius: 6px; outline: none; }
   .memfile-input:focus { border-color: var(--accent); }
   .confirm-actions .grow#memFileMeta { font-size: 12px; color: var(--muted); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn:disabled:hover { background: var(--accent); }
+  .btn.danger:disabled:hover { background: #3a1620; color: #ffb3c1; border-color: #7d2436; }
+  /* Prune findings dialog */
+  .prune-lbl { margin: 0 0 7px; font-size: 12.5px; color: var(--muted); }
+  .prune-lbl .prune-hint { font-size: 11px; opacity: .7; }
+  .prune-age { display: block; width: auto; margin: 0 0 14px; }
+  .prune-sevs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
+  .prune-preview { margin: 0 0 14px; font-size: 12.5px; color: var(--text); font-weight: 550; }
 </style>
 </head>
 <body>
@@ -428,7 +437,7 @@ export function renderPage() {
           <div class="roll" id="findRoll"></div>
           <button class="btn ghost" id="memSet" style="margin-left:auto" title="Set the tenant context-memory filename">⚙️</button>
           <button class="btn ghost" id="findCompact" title="Compact findings into your tenant context-memory file (propose-only review)">🧠 Compact to memory</button>
-          <button class="btn ghost" id="findClear">Clear all</button>
+          <button class="btn ghost" id="findClear" title="Prune findings by age and severity">Clear ▾</button>
         </div>
         <div id="findings"></div>
       </div>
@@ -530,6 +539,34 @@ export function renderPage() {
         <span class="grow" id="memFileMeta"></span>
         <button class="btn ghost" id="memFileCancel">Cancel</button>
         <button class="btn" id="memFileSave">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="pruneModal">
+  <div class="modal-box confirm">
+    <div class="modal-head">
+      <span class="mt">Prune findings</span>
+      <span class="spacer"></span>
+      <span class="x" id="pruneClose" title="Close">×</span>
+    </div>
+    <div class="confirm-body">
+      <p class="prune-lbl">Remove findings older than</p>
+      <select class="lookback prune-age" id="pruneAge" title="Age threshold">
+        <option value="0">Any age (all)</option>
+        <option value="1">1 day</option>
+        <option value="7">7 days</option>
+        <option value="30">30 days</option>
+        <option value="90">90 days</option>
+      </select>
+      <p class="prune-lbl">…that match severity <span class="prune-hint">(click to toggle)</span></p>
+      <div class="prune-sevs" id="pruneSevs"></div>
+      <p class="prune-preview" id="prunePreview"></p>
+      <div class="confirm-actions">
+        <span class="grow"></span>
+        <button class="btn ghost" id="pruneCancel">Cancel</button>
+        <button class="btn danger" id="pruneOk">Clear</button>
       </div>
     </div>
   </div>
@@ -1651,32 +1688,85 @@ function closeReport() {
 document.getElementById("reportClose").onclick = closeReport;
 bindBackdropClose("reportModal", closeReport);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeReport(); closeCompose(); closeConfirm(); closeMemFile(); } });
-async function doClearFindings() {
+// --- Prune findings dialog (age + severity) ---
+let pruneSel = new Set(SEV_ORDER); // selected severities to prune; all by default
+function pruneMatchCount() {
+  const days = Number(document.getElementById("pruneAge").value) || 0;
+  const cutoff = days > 0 ? Date.now() - days * 86400000 : 0;
+  const useSev = pruneSel.size > 0 && pruneSel.size < SEV_ORDER.length;
+  let n = 0;
+  for (const f of (FINDINGS.findings || [])) {
+    const sev = (f.severity || "info").toLowerCase();
+    if (useSev && !pruneSel.has(sev)) continue;
+    if (pruneSel.size === 0) continue;
+    if (cutoff && !((Number(f.ts) || 0) < cutoff)) continue;
+    n++;
+  }
+  return n;
+}
+function renderPruneSevs() {
+  const by = (FINDINGS.summary && FINDINGS.summary.counts) || {};
+  const host = document.getElementById("pruneSevs");
+  host.innerHTML = SEV_ORDER.map(function (s) {
+    const on = pruneSel.has(s);
+    return '<span class="sev-pill sev-' + s + (on ? "" : " dim") + '" data-sev="' + s + '">' + (by[s] || 0) + " " + s + "</span>";
+  }).join("");
+  host.querySelectorAll(".sev-pill").forEach(function (p) {
+    p.onclick = function () {
+      const s = p.getAttribute("data-sev");
+      if (pruneSel.has(s)) pruneSel.delete(s); else pruneSel.add(s);
+      renderPruneSevs();
+      updatePrunePreview();
+    };
+  });
+}
+function updatePrunePreview() {
+  const n = pruneMatchCount();
+  const m = (FINDINGS.findings || []).length;
+  const el = document.getElementById("prunePreview");
+  el.textContent = n ? ("Will remove " + n + " of " + m + " finding" + (m === 1 ? "" : "s") + ".") : "No findings match — nothing will be removed.";
+  const ok = document.getElementById("pruneOk");
+  ok.textContent = n ? ("Clear " + n) : "Clear";
+  ok.disabled = !n;
+}
+function openPrune() {
+  const m = (FINDINGS.findings || []).length;
+  if (!m) { toast("Nothing to clear"); return; }
+  pruneSel = new Set(SEV_ORDER);
+  document.getElementById("pruneAge").value = "0";
+  renderPruneSevs();
+  updatePrunePreview();
+  document.getElementById("pruneModal").classList.add("on");
+}
+function closePrune() { document.getElementById("pruneModal").classList.remove("on"); }
+async function doPrune() {
+  const days = Number(document.getElementById("pruneAge").value) || 0;
+  const sevs = [...pruneSel];
+  const body = { olderThanDays: days, severities: sevs.length === SEV_ORDER.length ? [] : sevs };
   try {
-    const res = await fetch("/api/findings/clear", { method: "POST" });
+    const res = await fetch("/api/findings/prune", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
     FINDINGS = await res.json();
     sevFilter = null;
-    document.getElementById("findCount").textContent = 0;
-    document.getElementById("findCount").classList.add("zero");
+    const t = FINDINGS.summary ? FINDINGS.summary.total : (FINDINGS.findings || []).length;
+    const cnt = document.getElementById("findCount");
+    cnt.textContent = t;
+    cnt.classList.toggle("zero", !t);
     syncCompactBtn();
     renderFindings();
-    toast("Findings cleared");
+    closePrune();
+    toast("Findings pruned");
   } catch (e) { toast("⚠️ " + e.message); }
 }
-document.getElementById("findClear").onclick = () => {
-  const n = (FINDINGS.findings || []).length;
-  if (!n) { toast("Nothing to clear"); return; }
-  const hasMem = !!memFile();
-  openConfirm({
-    title: "Clear all findings?",
-    message: "This permanently removes all " + n + " recorded finding(s) and can't be undone." + (hasMem ? " Consider compacting them into memory first." : ""),
-    okLabel: "Clear anyway",
-    okClass: "danger",
-    onOk: doClearFindings,
-    altLabel: hasMem ? "🧠 Compact to memory first" : "",
-    onAlt: hasMem ? compactToMemory : null,
-  });
-};
+document.getElementById("pruneAge").onchange = updatePrunePreview;
+document.getElementById("pruneClose").onclick = closePrune;
+document.getElementById("pruneCancel").onclick = closePrune;
+document.getElementById("pruneOk").onclick = function () { if (!this.disabled) doPrune(); };
+bindBackdropClose("pruneModal", closePrune);
+document.getElementById("findClear").onclick = openPrune;
 
 loadFindings();
 setInterval(loadFindings, 5000);

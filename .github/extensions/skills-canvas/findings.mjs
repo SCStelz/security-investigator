@@ -220,6 +220,28 @@ export async function clearFindings(repoRoot) {
     return [];
 }
 
+/**
+ * Prune findings by age and/or severity. A finding is removed when it matches
+ * ALL active criteria (logical AND). Criteria are "active" only when supplied:
+ *   - olderThanDays > 0 → removes findings whose ts is older than the cutoff
+ *   - severities non-empty → restricts removal to those severities
+ * With no criteria (0 days, empty severities) this clears the whole ledger,
+ * matching the old "clear all" behavior. Returns the remaining array.
+ */
+export async function pruneFindings(repoRoot, { olderThanDays = 0, severities = [] } = {}) {
+    const days = Number(olderThanDays) || 0;
+    const cutoff = days > 0 ? Date.now() - days * 86400000 : 0;
+    const sevSet = new Set((Array.isArray(severities) ? severities : []).map(normalizeSeverity));
+    const useSev = sevSet.size > 0;
+    const kept = (await loadFindings(repoRoot)).filter((f) => {
+        const sevMatch = !useSev || sevSet.has(normalizeSeverity(f.severity));
+        const ageMatch = !cutoff || (Number(f.ts) || 0) < cutoff;
+        return !(sevMatch && ageMatch); // keep everything that isn't a full match
+    });
+    await saveFindings(repoRoot, kept);
+    return kept;
+}
+
 /** Small severity rollup for the tab badge / header. */
 export function summarize(findings) {
     const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0, clean: 0 };

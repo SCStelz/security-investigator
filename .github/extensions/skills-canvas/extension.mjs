@@ -18,6 +18,7 @@ import {
     addFinding,
     dismissFinding,
     clearFindings,
+    pruneFindings,
     summarize,
 } from "./findings.mjs";
 
@@ -317,6 +318,15 @@ async function handle(req, res) {
         }
         if (req.method === "POST" && url.pathname === "/api/findings/clear") {
             await clearFindings(REPO_ROOT);
+            json(res, 200, { ok: true, ...(await findingsPayload()) });
+            return;
+        }
+        if (req.method === "POST" && url.pathname === "/api/findings/prune") {
+            const body = await readBody(req);
+            await pruneFindings(REPO_ROOT, {
+                olderThanDays: body.olderThanDays,
+                severities: body.severities,
+            });
             json(res, 200, { ok: true, ...(await findingsPayload()) });
             return;
         }
