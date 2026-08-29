@@ -726,7 +726,7 @@ Two memory tiers are relevant:
 **🎛️ From Mission Control (Copilot app):** The **Mission Control** canvas surfaces the whole memory loop as one-click actions in its **Findings** tab — no manual path navigation or prompt-writing:
 
 - **⚙️ Set memory file** — names your tenant context-memory file (under `.copilot/memories/repo/`) and saves it to `config.json`. The memory features work on first run with a sensible per-tenant default even before you customize it.
-- **🧠 Use memory** — prepends a directive to every investigation you launch, telling the agent to review the context-memory file and apply its documented ground truth (known-good IPs, automation fingerprints, account classifications, false-positive rules) *before* rendering a verdict.
+- **🧠 Use memory** — prepends a directive to every investigation you launch, telling the agent to consult the context-memory file — searching it for the task's specific entities rather than reading it in full — and apply its documented ground truth (known-good IPs, automation fingerprints, account classifications, false-positive rules) *before* rendering a verdict.
 - **🧠 Compact to memory** — hands the agent a propose-only prompt (via the [`context-memory-review`](/.github/skills/context-memory-review/SKILL.md) skill) that distills accumulated findings into candidate ADD / MODIFY / FLAG changes for the memory file, for human approval. Offered again before you clear findings, so evidence is preserved.
 
 Together these close the loop: findings recorded in the canvas → compacted into tenant memory → applied automatically on the next investigation.

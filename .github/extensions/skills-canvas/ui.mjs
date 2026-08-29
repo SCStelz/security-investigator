@@ -781,7 +781,7 @@ function memFile() { return (DATA.tenant && DATA.tenant.memoryFile) ? DATA.tenan
 function memConfigured() { return !!(DATA.tenant && DATA.tenant.memoryFileConfigured); }
 function memEnabled() { try { return localStorage.getItem("mc.useMemory") !== "0"; } catch (e) { return true; } }
 function memBlock(file) {
-  return "🧠 Before investigating and before rendering any verdict, review your tenant context-memory file '" + file + "' (under .copilot/memories/repo/) and apply its documented ground truth — known-good IPs, automation/orchestration fingerprints, account classifications, and documented false-positive rules. Cite it explicitly when a signal matches a documented pattern.";
+  return "🧠 Before investigating and before rendering any verdict, consult your tenant context-memory file '" + file + "' (under ~/.copilot/memories/repo/). Don't read it in full — first skim its section headers, then search it for the specific entities in this task (IPs, UPNs, hostnames, domains, file hashes, app/SPN names) and read only the matching sections. Apply the documented ground truth you find — known-good IPs, automation/orchestration fingerprints, account classifications, and false-positive rules — and cite it explicitly when a signal matches a documented pattern.";
 }
 function applyMem() {
   var ta = document.getElementById("composeText");
