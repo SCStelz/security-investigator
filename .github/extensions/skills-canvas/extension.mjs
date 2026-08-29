@@ -138,7 +138,7 @@ async function setMemoryFile(rawFile) {
 const RECORD_FINDING_DIRECTIVE = [
     "",
     "---",
-    "When done, record the result to Mission Control's Findings tab via the `record_finding` action. Required: `skill`, `title`, `severity` (use `info`/`clean`, not `informational`). Always add a 1-3 sentence `summary`, plus `metrics` and `entities` where relevant. Give each `recommended` follow-up a `skill`, a one-line `reason`, and a tailored `prompt` carrying this finding's evidence — never a bare skill name. Always record, even clean results.",
+    "When done, record the result to Mission Control's Findings tab via the `record_finding` action. Required: `skill`, `title`, `severity` (use `info`/`clean`, not `informational`). Always add a 1-3 sentence `summary`, plus `metrics` and `entities` where relevant. If you wrote a markdown report, include its repo-relative path in `reports` so it's linked from the finding. Give each `recommended` follow-up a `skill`, a one-line `reason`, and a tailored `prompt` carrying this finding's evidence — never a bare skill name. Always record, even clean results.",
 ].join("\n");
 
 // Append the record-finding directive exactly once. Idempotent: the compose
