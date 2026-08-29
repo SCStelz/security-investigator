@@ -305,7 +305,8 @@ export function renderPage() {
   .rec button { background: #14243a; color: #cfe2ff; border: 1px solid var(--accent2); border-radius: 8px;
     padding: 5px 10px; font-size: 12px; cursor: pointer; }
   .rec button:hover { background: #1c3352; }
-  .rec .why { color: var(--muted); font-size: 11px; }
+  .rec .why { color: var(--muted); font-size: 11px; cursor: help; max-width: 560px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .rec .tuned { color: #7ee787; font-size: 11px; margin-left: 4px; cursor: help; }
   .finding .dismiss { position: absolute; top: 10px; right: 12px; color: #5c6b83; cursor: pointer; font-size: 15px; line-height: 1; }
   .finding .dismiss:hover { color: var(--hi); }
@@ -1097,7 +1098,8 @@ function renderFindings() {
 
     const recs = (f.recommended || []).map((r, i) => {
       const label = r.skill + (r.entity ? ' → ' + r.entity : '');
-      const why = r.reason ? '<span class="why">' + esc(r.reason) + '</span>' : '';
+      // Visible reason is clamped to 2 lines; hovering shows the full summary text.
+      const why = r.reason ? '<span class="why" title="' + esc(r.reason) + '">' + esc(r.reason) + '</span>' : '';
       const tailored = r.prompt && r.prompt.trim();
       // Hover title previews the exact prompt that will be sent to chat.
       const tip = tailored ? esc(r.prompt) : 'Generic prompt composed from the manifest';

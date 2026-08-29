@@ -193,7 +193,7 @@ export async function addFinding(repoRoot, input, knownSkillNames) {
         ? supplied.slice(0, 6).map((r) => ({
               skill: String(r.skill || "").slice(0, 80),
               entity: r.entity ? String(r.entity).slice(0, 200) : "",
-              reason: String(r.reason || "").slice(0, 160),
+              reason: String(r.reason || "").slice(0, 1000),
               // Agent-authored tailored drill-down prompt (threat-pulse style).
               // Sent verbatim when the analyst clicks the follow-up; falls back
               // to the skill's generic manifest prompt only when absent.
