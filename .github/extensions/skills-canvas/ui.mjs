@@ -206,6 +206,10 @@ export function renderPage() {
   /* Findings */
   .findhead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .findhead .roll { display: flex; gap: 6px; flex-wrap: wrap; }
+  .findhead .findsearch { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: #0d1626; color: var(--text); font-size: 12.5px; font-family: inherit; width: 220px; outline: none; }
+  .findhead .findsearch:focus { border-color: var(--accent2); }
+  .findhead .findsearch::placeholder { color: #5c6b83; }
   .sev-pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
     cursor: pointer; user-select: none; transition: opacity .12s, box-shadow .12s, transform .06s; text-transform: capitalize; }
   .sev-pill:hover { transform: translateY(-1px); }
@@ -436,6 +440,7 @@ export function renderPage() {
       <div id="findingsView" style="display:none">
         <div class="findhead">
           <div class="roll" id="findRoll"></div>
+          <input class="findsearch" id="findSearch" placeholder="Search findings…" />
           <button class="btn ghost" id="memSet" style="margin-left:auto" title="Set the tenant context-memory filename">⚙️</button>
           <button class="btn ghost" id="findCompact" title="Compact findings into your tenant context-memory file (propose-only review)">🧠 Compact to memory</button>
           <button class="btn ghost" id="findClear" title="Prune findings by age and severity">Clear ▾</button>
@@ -1006,6 +1011,7 @@ document.getElementById("quick").addEventListener("keydown", (e) => { if (e.key 
 let FINDINGS = { findings: [], summary: { total: 0, bySeverity: {} } };
 let currentView = "skills";
 let sevFilter = null; // null = show all; otherwise a severity string
+let findSearch = ""; // findings tab free-text filter (lowercased)
 const SEV_ORDER = ["critical", "high", "medium", "low", "info", "clean"];
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -1058,12 +1064,25 @@ function renderRoll() {
   });
 }
 
+// Build a lowercased searchable string covering every visible field of a finding
+// so the findings-tab search box matches titles, entities, metrics, and follow-ups.
+function findingHay(f) {
+  const parts = [f.title, f.skill, f.scope, f.summary, f.severity];
+  (f.entities || []).forEach(e => { parts.push(e.type); parts.push(e.value); });
+  (f.metrics || []).forEach(m => { parts.push(m.label); parts.push(m.value); });
+  (f.domains || []).forEach(d => parts.push(d));
+  (f.reports || []).forEach(r => { parts.push(r.label); parts.push(r.path); });
+  (f.recommended || []).forEach(r => { parts.push(r.skill); parts.push(r.entity); parts.push(r.reason); parts.push(r.prompt); });
+  return parts.filter(Boolean).join(" ").toLowerCase();
+}
+
 function renderFindings() {
   syncCompactBtn();
   renderRoll();
   const host = document.getElementById("findings");
   const all = FINDINGS.findings || [];
-  const list = sevFilter ? all.filter(f => (f.severity || "info").toLowerCase() === sevFilter) : all;
+  const sevList = sevFilter ? all.filter(f => (f.severity || "info").toLowerCase() === sevFilter) : all;
+  const list = findSearch ? sevList.filter(f => findingHay(f).includes(findSearch)) : sevList;
   if (!all.length) {
     host.innerHTML =
       '<div class="empty-find"><div class="em">🛰️</div>' +
@@ -1073,10 +1092,13 @@ function renderFindings() {
     return;
   }
   if (!list.length) {
+    const bits = [];
+    if (sevFilter) bits.push('<b>' + esc(sevFilter) + '</b>');
+    if (findSearch) bits.push('matching <b>' + esc(findSearch) + '</b>');
     host.innerHTML =
       '<div class="empty-find"><div class="em">🔍</div>' +
-      '<p>No <b>' + esc(sevFilter) + '</b> findings.</p>' +
-      '<p style="font-size:12px">Click <b>All</b> above to clear the filter.</p></div>';
+      '<p>No ' + (bits.length ? bits.join(" findings ") : "") + ' findings.</p>' +
+      '<p style="font-size:12px">Clear the search or click <b>All</b> above to see everything.</p></div>';
     return;
   }
   host.innerHTML = "";
@@ -1769,6 +1791,7 @@ document.getElementById("pruneCancel").onclick = closePrune;
 document.getElementById("pruneOk").onclick = function () { if (!this.disabled) doPrune(); };
 bindBackdropClose("pruneModal", closePrune);
 document.getElementById("findClear").onclick = openPrune;
+document.getElementById("findSearch").addEventListener("input", (e) => { findSearch = e.target.value.trim().toLowerCase(); renderFindings(); });
 
 loadFindings();
 setInterval(loadFindings, 5000);
