@@ -843,7 +843,7 @@ function compactToMemory() {
   var n = (FINDINGS.findings || []).length;
   if (n === 0) { toast("No findings to compact"); return; }
   var p = "";
-  p += "Run the context-memory-review skill (.github/skills/context-memory-review/SKILL.md) to compact accumulated investigation evidence into the tenant context-memory file '" + file + "' (under .copilot/memories/repo/).\\n\\n";
+  p += "Run the context-memory-review skill (.github/skills/context-memory-review/SKILL.md) to compact accumulated investigation evidence into the tenant context-memory file '" + file + "' (under ~/.copilot/memories/repo/).\\n\\n";
   p += "Evidence sources to review:\\n";
   p += "1. Current memory file '" + file + "' (if it exists).\\n";
   p += "2. Mission Control findings at .github/extensions/skills-canvas/state/findings.json (" + n + " recorded finding(s) — first-party, each from an actual skill drill-down).\\n";
