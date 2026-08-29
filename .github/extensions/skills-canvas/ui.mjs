@@ -415,7 +415,7 @@ export function renderPage() {
           <span class="big">🔴</span>
           <div class="txt">
             <h3>Threat Pulse</h3>
-            <p>15-minute broad scan across 7 domains → prioritized dashboard. Recommended starting point.</p>
+            <p>5-minute broad scan across 7 domains → prioritized dashboard. Recommended starting point.</p>
           </div>
           <select class="lookback" id="tpLookback" title="Lookback window"></select>
           <select class="output" id="tpOutput" title="Output format"></select>
