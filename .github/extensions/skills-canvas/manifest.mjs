@@ -144,12 +144,12 @@ export function parseManifest(text) {
  * skills own that tool decision; the phrase here just states the window clearly.
  */
 export const LOOKBACK_OPTIONS = [
-    { value: "", label: "Default window" },
-    { value: "24h", label: "Last 24 hours", phrase: "the last 24 hours" },
-    { value: "7d", label: "Last 7 days", phrase: "the last 7 days" },
-    { value: "14d", label: "Last 14 days", phrase: "the last 14 days" },
-    { value: "30d", label: "Last 30 days", phrase: "the last 30 days" },
-    { value: "90d", label: "Last 90 days", phrase: "the last 90 days" },
+    { value: "", label: "Default" },
+    { value: "24h", label: "24h", phrase: "the last 24 hours" },
+    { value: "7d", label: "7d", phrase: "the last 7 days" },
+    { value: "14d", label: "14d", phrase: "the last 14 days" },
+    { value: "30d", label: "30d", phrase: "the last 30 days" },
+    { value: "90d", label: "90d", phrase: "the last 90 days" },
 ];
 
 /** Human phrase for a lookback value, or "" when it's the default/unknown. */
@@ -169,7 +169,7 @@ export const OUTPUT_MODES = [
     { value: "inline", label: "💬 Inline", phrase: "" },
     {
         value: "markdown",
-        label: "📄 Markdown report",
+        label: "📄 Markdown",
         phrase: "in addition to a concise inline summary, generate a full Markdown report file, save it under the session's reports folder, and share the saved file path",
     },
 ];

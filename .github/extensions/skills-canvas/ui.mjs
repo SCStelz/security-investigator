@@ -43,9 +43,9 @@ export function renderPage() {
   }
   .refresh:hover { color: var(--text); border-color: var(--accent2); }
 
-  .body { display: grid; grid-template-columns: var(--rail-w, 240px) 1fr; overflow: hidden; position: relative; }
+  .body { display: grid; grid-template-columns: var(--rail-w, 200px) 1fr; overflow: hidden; position: relative; }
   .body.rail-collapsed { grid-template-columns: 34px 1fr; }
-  .rail-resize { position: absolute; top: 0; bottom: 0; left: var(--rail-w, 240px); width: 7px; margin-left: -3px;
+  .rail-resize { position: absolute; top: 0; bottom: 0; left: var(--rail-w, 200px); width: 7px; margin-left: -3px;
     cursor: col-resize; z-index: 8; }
   .rail-resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: transparent; transition: background .12s; }
   .rail-resize:hover::after, .rail-resize.dragging::after { background: var(--accent2); }
@@ -103,6 +103,14 @@ export function renderPage() {
   .card .top { display: flex; align-items: flex-start; gap: 9px; }
   .card .ic { font-size: 18px; line-height: 1; margin-top: 1px; }
   .card .nm { font-weight: 620; font-size: 13.5px; word-break: break-word; }
+  .fav-btn { margin-left: auto; background: none; border: none; cursor: pointer;
+    font-size: 15px; line-height: 1; padding: 0 2px; filter: grayscale(1) opacity(.3);
+    transition: filter .12s; align-self: flex-start; }
+  .fav-btn:hover { filter: grayscale(.15) opacity(.9); }
+  .fav-btn.on { filter: none; }
+  .fav-btn.lst { font-size: 13px; margin: 0; padding: 0; }
+  .domain.fav-row { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .domain.fav-row.on { background: #2a2410; outline: 1px solid #f5c518; }
   .card .desc { color: var(--muted); font-size: 12px; min-height: 32px; }
   .card .chips { display: flex; flex-wrap: wrap; gap: 5px; }
   .chip { background: var(--chip); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; font-size: 10.5px; color: var(--muted); text-transform: capitalize; }
@@ -332,8 +340,12 @@ export function renderPage() {
   table.lst .rsz { position: absolute; top: 0; right: 0; width: 7px; height: 100%; cursor: col-resize; }
   table.lst .rsz:hover { background: var(--accent2); opacity: .55; }
   table.lst td.ic-cell { overflow: visible; text-overflow: clip; text-align: center; padding-left: 6px; padding-right: 4px; line-height: 1; }
-  .lst-actions { display: flex; gap: 6px; }
+  .lst-actions { display: flex; gap: 6px; align-items: center; }
   .lst-actions .btn { padding: 4px 8px; font-size: 11.5px; }
+  .lst-sel { padding: 4px 5px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--panel2); color: var(--text); font-size: 11px; cursor: pointer;
+    width: auto; max-width: none; }
+  .lst-sel:hover { border-color: var(--accent, #388bfd); }
 
   /* Memory checkbox + confirm dialog */
   .memck { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; color: var(--muted);
@@ -529,6 +541,30 @@ let DATA = { skills: [], domains: [], queries: [], tenant: {} };
 let activeDomains = new Set();
 let searchTerm = "";
 
+// ---- Favorites (localStorage-backed) ----
+// Skills keyed by name, queries by repo-relative path. favOnly is the sidebar
+// filter toggle. Toggling re-renders the sidebar (fav counts) plus the affected
+// grid so a de-favorited item drops out immediately when the filter is active.
+let favSkills = new Set();
+let favQueries = new Set();
+let favOnly = false;
+try { favSkills = new Set(JSON.parse(localStorage.getItem("mc.fav.skills") || "[]")); } catch (e) {}
+try { favQueries = new Set(JSON.parse(localStorage.getItem("mc.fav.queries") || "[]")); } catch (e) {}
+function saveFavs() {
+  try {
+    localStorage.setItem("mc.fav.skills", JSON.stringify([...favSkills]));
+    localStorage.setItem("mc.fav.queries", JSON.stringify([...favQueries]));
+  } catch (e) {}
+}
+function toggleFavSkill(name) {
+  if (favSkills.has(name)) favSkills.delete(name); else favSkills.add(name);
+  saveFavs(); renderDomains(); renderGrid();
+}
+function toggleFavQuery(path) {
+  if (favQueries.has(path)) favQueries.delete(path); else favQueries.add(path);
+  saveFavs(); renderDomains(); renderQueries();
+}
+
 function toast(msg) {
   const t = document.getElementById("toast");
   t.textContent = msg; t.classList.add("show");
@@ -540,7 +576,7 @@ function skillDesc(s) { return (s.prompt || "Utility skill — click to launch."
 
 // Lookback <option> markup from the single source of truth (DATA.lookbackOptions).
 function lookbackOptionsHTML() {
-  const opts = (DATA && DATA.lookbackOptions) || [{ value: "", label: "Default window" }];
+  const opts = (DATA && DATA.lookbackOptions) || [{ value: "", label: "Default" }];
   return opts.map(o => '<option value="' + o.value + '">' + o.label + '</option>').join("");
 }
 function fillLookback(el) { if (el) el.innerHTML = lookbackOptionsHTML(); }
@@ -577,11 +613,17 @@ function renderDomains() {
   for (const d of DATA.domains) {
     const el = document.createElement("div");
     el.className = "domain" + (activeDomains.has(d.id) ? " on" : "");
-    el.innerHTML = '<span class="ic">' + d.icon + '</span><span class="nm">' + d.id +
-      '</span><span class="ct">' + d.skillCount + ' · ' + d.queryCount + 'q</span>';
+    el.innerHTML = '<span class="ic">' + d.icon + '</span><span class="nm">' + d.id + '</span>';
     el.onclick = () => { activeDomains.has(d.id) ? activeDomains.delete(d.id) : activeDomains.add(d.id); renderDomains(); renderGrid(); renderQueries(); };
     host.appendChild(el);
   }
+  // Favorites filter row — sits under the domain list, toggles favOnly.
+  const fav = document.createElement("div");
+  fav.className = "domain fav-row" + (favOnly ? " on" : "");
+  fav.innerHTML = '<span class="ic">⭐</span><span class="nm">Favorites</span>';
+  fav.title = "Show only favorited skills & queries";
+  fav.onclick = () => { favOnly = !favOnly; renderDomains(); renderGrid(); renderQueries(); };
+  host.appendChild(fav);
 }
 
 function renderRecent(recent) {
@@ -600,6 +642,7 @@ function renderRecent(recent) {
 
 function visibleSkills() {
   return DATA.skills.filter(s => {
+    if (favOnly && !favSkills.has(s.name)) return false;
     if (activeDomains.size && !s.domains.some(d => activeDomains.has(d))) return false;
     if (searchTerm && !(s.name + " " + (s.prompt || "")).toLowerCase().includes(searchTerm)) return false;
     return true;
@@ -618,7 +661,8 @@ function renderSkillCards() {
       ? '<label class="fleetck"><input type="checkbox" class="fleetbox" /> 🌐 Fleet-wide (' + s.fleet.label + ')</label>'
       : '';
     card.innerHTML =
-      '<div class="top"><span class="ic">' + skillIcon(s) + '</span><span class="nm">' + s.name + '</span></div>' +
+      '<div class="top"><span class="ic">' + skillIcon(s) + '</span><span class="nm">' + s.name + '</span>' +
+      '<button class="fav-btn' + (favSkills.has(s.name) ? " on" : "") + '" title="Toggle favorite">⭐</button></div>' +
       '<div class="desc">' + skillDesc(s) + '</div>' +
       '<div class="chips">' + chips + '</div>' +
       fleetHtml +
@@ -634,6 +678,7 @@ function renderSkillCards() {
     const runBtn = card.querySelector(".run");
     const openBtn = card.querySelector(".open");
     if (openBtn) openBtn.onclick = () => openReport(s.path, s.name);
+    card.querySelector(".fav-btn").onclick = (e) => { e.stopPropagation(); toggleFavSkill(s.name); };
     const fleetBox = card.querySelector(".fleetbox");
     if (s.hasEntity) entity.classList.add("show");
     if (fleetBox) {
@@ -874,8 +919,8 @@ railToggle.addEventListener("click", function () {
 });
 
 // --- Resizable left rail (drag the divider) ---
-var RAIL_MIN = 170, RAIL_MAX = 460;
-var railW = 240;
+var RAIL_MIN = 150, RAIL_MAX = 460;
+var railW = 200;
 try { var _rw = parseInt(localStorage.getItem("mc.railWidth"), 10); if (_rw >= RAIL_MIN && _rw <= RAIL_MAX) railW = _rw; } catch (e) {}
 function setRailWidth(px) {
   railW = Math.max(RAIL_MIN, Math.min(RAIL_MAX, Math.round(px)));
@@ -1132,6 +1177,7 @@ document.getElementById("tab-queries").onclick = () => switchView("queries");
 // Reuses the shared domain filter + search box, and the report modal for viewing.
 function visibleQueries() {
   return (DATA.queries || []).filter(q => {
+    if (favOnly && !favQueries.has(q.path)) return false;
     if (activeDomains.size && !q.domains.some(d => activeDomains.has(d))) return false;
     if (searchTerm) {
       const hay = (q.title + " " + (q.description || "") + " " + (q.domains || []).join(" ") +
@@ -1211,7 +1257,8 @@ function renderQueryCards() {
     const desc = q.description ? esc(q.description) : '<span style="opacity:.6">No summary available.</span>';
     const sel = querySel.has(q.path);
     card.innerHTML =
-      '<div class="top"><span class="ic">' + icon + '</span><span class="nm">' + esc(q.title) + '</span></div>' +
+      '<div class="top"><span class="ic">' + icon + '</span><span class="nm">' + esc(q.title) + '</span>' +
+      '<button class="fav-btn' + (favQueries.has(q.path) ? " on" : "") + '" title="Toggle favorite">⭐</button></div>' +
       '<div class="desc">' + desc + '</div>' +
       '<div class="chips">' + chips + meta.join("") + '</div>' +
       '<div class="row"><button class="btn open">📄 Open</button>' +
@@ -1219,6 +1266,7 @@ function renderQueryCards() {
       '<span class="qpath" title="' + esc(q.path) + '">' + esc(q.path) + '</span></div>';
     card.querySelector(".open").onclick = () => openReport(q.path, q.title);
     card.querySelector(".qsel").onclick = () => toggleQuerySel(q.path, q.title);
+    card.querySelector(".fav-btn").onclick = (e) => { e.stopPropagation(); toggleFavQuery(q.path); };
     grid.appendChild(card);
   }
   updateQueryBar();
@@ -1497,13 +1545,23 @@ function renderSkillsTable() {
     empty: "No skills match the current filter.",
     cols: [
       { key: "icon", label: "", w: 34, cls: "ic-cell", html: s => '<span style="font-size:16px">' + skillIcon(s) + "</span>" },
+      { key: "fav", label: "", w: 36, align: "center", cls: "ic-cell", sortable: true, sortVal: s => favSkills.has(s.name) ? 0 : 1, build: (td, s) => {
+          const b = document.createElement("button");
+          b.className = "fav-btn lst" + (favSkills.has(s.name) ? " on" : "");
+          b.textContent = "⭐"; b.title = "Toggle favorite";
+          b.onclick = () => toggleFavSkill(s.name);
+          td.appendChild(b);
+        } },
       { key: "name", label: "Skill", w: 210, sortable: true, cls: "nm", sortVal: s => (s.name || "").toLowerCase(), html: s => esc(s.name) },
       { key: "desc", label: "Description", w: 460, sortable: true, sortVal: s => skillDesc(s).replace(/<[^>]*>/g, "").toLowerCase(), html: s => '<span style="color:var(--muted)">' + esc(skillDesc(s).replace(/<[^>]*>/g, "")) + "</span>", title: s => skillDesc(s).replace(/<[^>]*>/g, "") },
       { key: "domains", label: "Domains", w: 170, sortable: true, sortVal: s => (s.domains || []).join(","), html: s => chipCell(s.domains), title: s => (s.domains || []).join(", ") },
-      { key: "actions", label: "", w: 150, build: (td, s) => {
+      { key: "actions", label: "", w: 250, build: (td, s) => {
           const wrap = document.createElement("div"); wrap.className = "lst-actions";
+          const lb = document.createElement("select"); lb.className = "lst-sel"; lb.title = "Lookback window"; lb.innerHTML = lookbackOptionsHTML();
+          const out = document.createElement("select"); out.className = "lst-sel"; out.title = "Output format"; out.innerHTML = outputOptionsHTML();
+          wrap.appendChild(lb); wrap.appendChild(out);
           if (s.path) wrap.appendChild(actionBtn("📄", "ghost", () => openReport(s.path, s.name)));
-          wrap.appendChild(actionBtn("▶ Run", "", () => run(s.name, "", "", "", false, "")));
+          wrap.appendChild(actionBtn("▶ Run", "", () => run(s.name, "", "", lb.value, false, out.value)));
           td.appendChild(wrap);
         } },
     ],
@@ -1519,6 +1577,13 @@ function renderQueriesTable() {
     empty: "No queries match this filter.",
     cols: [
       { key: "icon", label: "", w: 34, cls: "ic-cell", html: q => '<span style="font-size:15px">' + (ICONS[(q.domains || [])[0]] || "🔎") + "</span>" },
+      { key: "fav", label: "", w: 36, align: "center", cls: "ic-cell", sortable: true, sortVal: q => favQueries.has(q.path) ? 0 : 1, build: (td, q) => {
+          const b = document.createElement("button");
+          b.className = "fav-btn lst" + (favQueries.has(q.path) ? " on" : "");
+          b.textContent = "⭐"; b.title = "Toggle favorite";
+          b.onclick = () => toggleFavQuery(q.path);
+          td.appendChild(b);
+        } },
       { key: "title", label: "Query", w: 250, sortable: true, cls: "nm", sortVal: q => (q.title || "").toLowerCase(), html: q => esc(q.title) },
       { key: "domains", label: "Domains", w: 150, sortable: true, sortVal: q => (q.domains || []).join(","), html: q => chipCell(q.domains), title: q => (q.domains || []).join(", ") },
       { key: "mitre", label: "MITRE", w: 82, align: "center", sortable: true, sortVal: q => (q.mitre || []).length, html: q => (q.mitre || []).length ? '<span class="chip alt">' + (q.mitre || []).length + "</span>" : '<span style="opacity:.4">—</span>', title: q => (q.mitre || []).join(", ") },
