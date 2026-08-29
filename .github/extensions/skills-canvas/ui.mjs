@@ -124,6 +124,39 @@ export function renderPage() {
   .qbar .qbar-paths { flex: 1; font-size: 10.5px; color: var(--muted);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* ---- MITRE map view ---- */
+  .mitre-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+  .mitre-bar .mlbl { font-size: 11.5px; color: var(--muted); }
+  .mitre-bar label.mchk { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); cursor: pointer; }
+  .mitre-wrap { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; align-items: flex-start; }
+  .mitre-col { flex: 0 0 156px; min-width: 156px; background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 5px; }
+  .mitre-col h4 { margin: 2px 2px 4px; font-size: 11px; line-height: 1.25; color: var(--text); font-weight: 640; }
+  .mitre-col h4 .tc { display: block; font-size: 10px; color: var(--muted); font-weight: 500; margin-top: 1px; }
+  .mtile { text-align: left; border: 1px solid var(--border); border-radius: 6px; padding: 5px 7px; font-size: 10.5px;
+    line-height: 1.25; color: var(--text); background: var(--chip); cursor: pointer; display: flex; gap: 6px;
+    align-items: flex-start; justify-content: space-between; }
+  .mtile .tid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9.5px; color: var(--muted); }
+  .mtile .cnt { flex: 0 0 auto; min-width: 16px; text-align: center; border-radius: 999px; padding: 0 5px;
+    font-size: 9.5px; font-weight: 700; color: #04121f; background: var(--accent); }
+  .mtile.cov1 { border-color: rgba(88,166,255,.35); }
+  .mtile.cov2 { border-color: rgba(88,166,255,.6); background: rgba(88,166,255,.10); }
+  .mtile.cov3 { border-color: var(--accent); background: rgba(88,166,255,.18); }
+  .mtile:not(.dim):hover { border-color: var(--accent); }
+  .mtile.sel { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .mtile.dim { opacity: .4; cursor: default; }
+  .mtile.dim .cnt { display: none; }
+  .mitre-detail { border: 1px solid var(--hi); border-radius: 10px; background: var(--panel2);
+    padding: 10px 12px; margin-bottom: 12px; }
+  .mitre-detail .mdh { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .mitre-detail .mdh .mid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); font-weight: 700; }
+  .mitre-detail .mdh .mnm { font-weight: 640; font-size: 13px; }
+  .mitre-detail .mdh .mtac { font-size: 11px; color: var(--muted); }
+  .mitre-detail .mdh .mx { margin-left: auto; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; }
+  .mitre-detail .mdrow { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .mitre-detail .mdrow .mdt { flex: 1; min-width: 140px; font-size: 12px; }
+  .mitre-detail .mdrow .mdp { font-size: 10px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .mitre-empty { color: var(--muted); font-size: 12.5px; padding: 20px 4px; }
   .entity { flex: 1; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border);
     background: var(--panel2); color: var(--text); font-size: 12px; display: none; }
   .entity.show { display: block; }
@@ -151,7 +184,9 @@ export function renderPage() {
   .banner { background: #3a1d1d; border: 1px solid var(--hi); color: #ffd7d5; padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 13px; }
 
   /* Tabs */
-  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .tabs { position: sticky; top: -16px; z-index: 20; background: var(--bg);
+    display: flex; gap: 4px; padding: 16px 0 10px; margin: -16px 0 12px;
+    border-bottom: 1px solid var(--border); }
   .tab { padding: 8px 14px; cursor: pointer; font-size: 13px; color: var(--muted); border-bottom: 2px solid transparent; user-select: none; }
   .tab:hover { color: var(--text); }
   .tab.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 620; }
@@ -392,10 +427,12 @@ export function renderPage() {
           <div class="seg" id="queriesViewToggle">
             <button data-mode="cards" class="on">⊞ Cards</button>
             <button data-mode="list">▤ List</button>
+            <button data-mode="mitre">🗺️ MITRE</button>
           </div>
         </div>
         <div class="grid" id="queryGrid"></div>
         <div id="queriesTable" style="display:none"></div>
+        <div id="queriesMitre" style="display:none"></div>
         <div class="qbar" id="qbar" style="display:none"></div>
       </div>
     </main>
@@ -1187,6 +1224,153 @@ function renderQueryCards() {
   updateQueryBar();
 }
 
+// ---- Queries tab: MITRE ATT&CK coverage map ----
+// Tactics (from the vendored ATT&CK reference in DATA.mitre) become columns;
+// technique tiles are lit by how many *currently visible* query files cover them
+// (sub-techniques roll up to their base technique). Clicking a covered tile opens
+// an inline detail panel listing the matching query files with Open/Select, reusing
+// the same actions as the card view so the "Run with context" bar keeps working.
+let mitreShowAll = false;
+try { mitreShowAll = localStorage.getItem("mc.mitreShowAll") === "1"; } catch (e) {}
+let mitreSel = null; // selected base technique id
+
+function mitreCoverage() {
+  const map = new Map(); // baseId -> [query,...]
+  const re = /^T\\d{4}(\\.\\d{3})?$/;
+  for (const q of visibleQueries()) {
+    const seen = new Set();
+    for (const m of (q.mitre || [])) {
+      if (!re.test(m)) continue; // skip TAxxxx tactic ids
+      const base = m.split(".")[0];
+      if (seen.has(base)) continue;
+      seen.add(base);
+      if (!map.has(base)) map.set(base, []);
+      map.get(base).push(q);
+    }
+  }
+  return map;
+}
+
+function mtile(id, name, count) {
+  const cls = count >= 3 ? "cov3" : count === 2 ? "cov2" : count === 1 ? "cov1" : "dim";
+  const sel = mitreSel === id ? " sel" : "";
+  const badge = count ? '<span class="cnt">' + count + '</span>' : "";
+  return '<div class="mtile ' + cls + sel + '" data-id="' + esc(id) + '" title="' + esc(id + " \\u00b7 " + name) + '">' +
+    '<span><span class="tid">' + esc(id) + '</span> ' + esc(name) + '</span>' + badge + '</div>';
+}
+
+function renderQueryMitre() {
+  const host = document.getElementById("queriesMitre");
+  if (!host) return;
+  const ref = DATA.mitre;
+  if (!ref || !(ref.tactics || []).length) {
+    host.innerHTML = '<div class="mitre-empty">MITRE ATT&CK reference unavailable in this build.</div>';
+    updateQueryBar();
+    return;
+  }
+  const cov = mitreCoverage();
+  const nq = visibleQueries().length;
+  const known = new Set();
+  host.innerHTML = "";
+
+  const bar = document.createElement("div");
+  bar.className = "mitre-bar";
+  bar.innerHTML =
+    '<span class="mlbl">' + cov.size + ' techniques covered by ' + nq + ' quer' + (nq === 1 ? "y" : "ies") + '</span>' +
+    '<label class="mchk"><input type="checkbox" id="mitreAll"' + (mitreShowAll ? " checked" : "") + '> Show all techniques</label>' +
+    '<span class="mlbl" style="margin-left:auto">ATT&CK v' + esc(ref.version || "") + '</span>';
+  host.appendChild(bar);
+
+  const detail = document.createElement("div");
+  detail.id = "mitreDetail";
+  host.appendChild(detail);
+
+  const wrap = document.createElement("div");
+  wrap.className = "mitre-wrap";
+  for (const t of ref.tactics) {
+    const col = document.createElement("div");
+    col.className = "mitre-col";
+    let colCovered = 0;
+    const tiles = [];
+    for (const tech of (t.techniques || [])) {
+      known.add(tech.id);
+      const n = (cov.get(tech.id) || []).length;
+      if (n) colCovered++;
+      if (!n && !mitreShowAll) continue;
+      tiles.push(mtile(tech.id, tech.name, n));
+    }
+    col.innerHTML = '<h4>' + esc(t.name) + '<span class="tc">' + colCovered + ' covered</span></h4>' + tiles.join("");
+    wrap.appendChild(col);
+  }
+  const unmapped = [...cov.keys()].filter(id => !known.has(id)).sort();
+  if (unmapped.length) {
+    const col = document.createElement("div");
+    col.className = "mitre-col";
+    const tiles = unmapped.map(id => mtile(id, "(unmapped technique)", (cov.get(id) || []).length));
+    col.innerHTML = '<h4>Other / Unmapped<span class="tc">' + unmapped.length + ' covered</span></h4>' + tiles.join("");
+    wrap.appendChild(col);
+  }
+  host.appendChild(wrap);
+
+  bar.querySelector("#mitreAll").onchange = (e) => {
+    mitreShowAll = e.target.checked;
+    try { localStorage.setItem("mc.mitreShowAll", mitreShowAll ? "1" : "0"); } catch (e2) {}
+    renderQueryMitre();
+  };
+  wrap.querySelectorAll(".mtile").forEach(el => {
+    if (el.classList.contains("dim")) return;
+    el.onclick = () => showMitreTechnique(el.dataset.id);
+  });
+  if (mitreSel) renderMitreDetail(mitreSel);
+  updateQueryBar();
+}
+
+function showMitreTechnique(id) {
+  mitreSel = id;
+  document.querySelectorAll("#queriesMitre .mtile").forEach(el => el.classList.toggle("sel", el.dataset.id === id));
+  renderMitreDetail(id);
+}
+
+function renderMitreDetail(id) {
+  const box = document.getElementById("mitreDetail");
+  if (!box) return;
+  const qs = mitreCoverage().get(id) || [];
+  let name = "";
+  const tacs = [];
+  for (const t of ((DATA.mitre || {}).tactics || [])) {
+    for (const tech of (t.techniques || [])) {
+      if (tech.id === id) { name = tech.name; if (tacs.indexOf(t.name) < 0) tacs.push(t.name); }
+    }
+  }
+  const head =
+    '<div class="mdh"><span class="mid">' + esc(id) + '</span>' +
+    '<span class="mnm">' + esc(name || "(unmapped technique)") + '</span>' +
+    (tacs.length ? '<span class="mtac">' + esc(tacs.join(" \\u00b7 ")) + '</span>' : "") +
+    '<button class="mx" id="mitreClose" title="Close">\\u2715</button></div>';
+  box.className = "mitre-detail";
+  if (!qs.length) {
+    box.innerHTML = head + '<div class="mdrow" style="border:none"><span class="mdt">No query files cover this technique.</span></div>';
+    box.querySelector("#mitreClose").onclick = clearMitreSel;
+    return;
+  }
+  box.innerHTML = head + qs.map((q, i) =>
+    '<div class="mdrow"><span class="mdt">' + esc(q.title) + '<div class="mdp">' + esc(q.path) + '</div></span>' +
+    '<button class="btn open" data-i="' + i + '">📄 Open</button>' +
+    '<button class="btn ghost qsel' + (querySel.has(q.path) ? " on" : "") + '" data-i="' + i + '">' +
+      (querySel.has(q.path) ? "✓ Added" : "＋ Select") + '</button></div>'
+  ).join("");
+  box.querySelector("#mitreClose").onclick = clearMitreSel;
+  box.querySelectorAll(".open").forEach(b => { const q = qs[+b.dataset.i]; b.onclick = () => openReport(q.path, q.title); });
+  box.querySelectorAll(".qsel").forEach(b => { const q = qs[+b.dataset.i]; b.onclick = () => toggleQuerySel(q.path, q.title); });
+}
+
+function clearMitreSel() {
+  mitreSel = null;
+  const box = document.getElementById("mitreDetail");
+  if (box) { box.innerHTML = ""; box.className = ""; }
+  document.querySelectorAll("#queriesMitre .mtile").forEach(el => el.classList.remove("sel"));
+}
+
 // ---- List/grid view: sortable + resizable tables ----
 // Both tabs can switch between the existing card grid and a dense table with
 // per-column sorting + drag-to-resize columns. Tables are built with DOM APIs
@@ -1366,11 +1550,15 @@ function renderGrid() {
 function renderQueries() {
   const cards = document.getElementById("queryGrid");
   const tbl = document.getElementById("queriesTable");
-  const list = queriesMode === "list";
-  if (cards) cards.style.display = list ? "none" : "";
-  if (tbl) tbl.style.display = list ? "" : "none";
+  const mitre = document.getElementById("queriesMitre");
+  const mode = queriesMode === "list" || queriesMode === "mitre" ? queriesMode : "cards";
+  if (cards) cards.style.display = mode === "cards" ? "" : "none";
+  if (tbl) tbl.style.display = mode === "list" ? "" : "none";
+  if (mitre) mitre.style.display = mode === "mitre" ? "" : "none";
   syncViewToggle("queries");
-  if (list) renderQueriesTable(); else renderQueryCards();
+  if (mode === "list") renderQueriesTable();
+  else if (mode === "mitre") renderQueryMitre();
+  else renderQueryCards();
 }
 function syncViewToggle(which) {
   const id = which === "skills" ? "skillsViewToggle" : "queriesViewToggle";

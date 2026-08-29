@@ -366,6 +366,36 @@ async function loadQueries(repoRoot, manifestQueries) {
     return out;
 }
 
+/**
+ * Load the vendored ATT&CK reference (mitre-coverage-report skill) and reshape it
+ * into a compact, kill-chain-ordered matrix the canvas can render:
+ *   { version, tactics: [ { name, shortname, techniques: [ { id, name } ] } ] }
+ * The source keys its `tactics` object in kill-chain order; JSON.parse preserves
+ * that order, so Object.values gives the correct column sequence. Base techniques
+ * only (no sub rows); multi-tactic techniques are already repeated per tactic in
+ * the source, which we preserve so a tile shows in each of its columns.
+ * Returns null on any failure so the canvas degrades gracefully.
+ */
+async function loadMitreMatrix(repoRoot) {
+    try {
+        const refPath = path.join(
+            repoRoot,
+            ".github", "skills", "mitre-coverage-report", "mitre-attck-enterprise.json"
+        );
+        const ref = JSON.parse(await readFile(refPath, "utf8"));
+        const src = ref && ref.tactics ? ref.tactics : {};
+        const tactics = Object.values(src).map((t) => ({
+            name: t.displayName || "",
+            shortname: t.shortname || "",
+            techniques: (t.techniques || []).map((k) => ({ id: k.id, name: k.name })),
+        }));
+        if (!tactics.length) return null;
+        return { version: ref.version || "", tactics };
+    } catch {
+        return null;
+    }
+}
+
 /** Load everything the canvas UI needs: skills, queries, tenant context. */
 export async function loadCanvasData(repoRoot) {
     const manifestPath = path.join(repoRoot, ".github", "manifests", "discovery-manifest.yaml");
@@ -407,6 +437,7 @@ export async function loadCanvasData(repoRoot) {
 
     const tenant = await resolveTenant(repoRoot);
     const queries = await loadQueries(repoRoot, manifest.queries);
+    const mitre = await loadMitreMatrix(repoRoot);
 
     return {
         error: null,
@@ -415,6 +446,7 @@ export async function loadCanvasData(repoRoot) {
         queries,
         queryTotal: manifest.queries.length,
         tenant,
+        mitre,
         lookbackOptions: LOOKBACK_OPTIONS,
         outputModes: OUTPUT_MODES,
     };
