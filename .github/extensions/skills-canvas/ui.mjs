@@ -764,8 +764,10 @@ async function run(name, entity, prompt, lookback, fleet, output) {
   } catch (e) { toast("⚠️ " + e.message); }
 }
 
-function openCompose(skill, entity, promptText) {
+let SUPPRESS_MEM = false; // when true, the memory directive/toggle is hidden for this compose
+function openCompose(skill, entity, promptText, noMem) {
   PENDING = { skill, entity };
+  SUPPRESS_MEM = !!noMem;
   document.getElementById("composeSkill").textContent = skill + (entity ? " · " + entity : "");
   const ta = document.getElementById("composeText");
   ta.value = promptText || "";
@@ -834,13 +836,15 @@ function applyMem() {
     .replace(/^🧠 Before investigating[\\s\\S]*?documented pattern\\.\\n*/, "")
     .replace(/^\\s+/, "");
   var chk = document.getElementById("memChk");
-  if (chk && chk.checked && memFile()) ta.value = memBlock(memFile()) + "\\n\\n" + stripped;
+  if (chk && chk.checked && memFile() && !SUPPRESS_MEM) ta.value = memBlock(memFile()) + "\\n\\n" + stripped;
   else ta.value = stripped;
 }
 function syncMemUI() {
   var wrap = document.getElementById("memWrap");
   var chk = document.getElementById("memChk");
   if (!wrap || !chk) return;
+  if (SUPPRESS_MEM) { wrap.style.display = "none"; chk.checked = false; return; }
+  wrap.style.display = "";
   var has = !!memFile();
   wrap.classList.toggle("disabled", !has);
   chk.disabled = !has;
@@ -892,7 +896,7 @@ function compactToMemory() {
   p += "2. Mission Control findings at .github/extensions/skills-canvas/state/findings.json (" + n + " recorded finding(s) — first-party, each from an actual skill drill-down).\\n";
   p += "3. Recent markdown reports under reports/.\\n\\n";
   p += "Produce a PROPOSE-ONLY review document for human approval: list candidate ADD / MODIFY / FLAG changes with the supporting evidence for each. Do NOT edit the memory file, and do NOT commit — applying approved changes is a separate manual step. Honor the feedback-loop guard and keep all tenant PII local (never in committed docs).";
-  openCompose("context-memory-review", "", p);
+  openCompose("context-memory-review", "", p, true);
 }
 function syncCompactBtn() {
   var b = document.getElementById("findCompact");
