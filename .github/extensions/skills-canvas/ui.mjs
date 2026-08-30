@@ -778,7 +778,12 @@ function openCompose(skill, entity, promptText, noMem) {
   ta.value = promptText || "";
   document.getElementById("composeMeta").textContent = "";
   var outSel = document.getElementById("composeOutput");
-  if (outSel) outSel.value = detectOutput(ta.value);
+  if (outSel) {
+    // A prompt launched with an explicit output directive (e.g. a card run) wins;
+    // otherwise fall back to the analyst's last-used preference.
+    var det = detectOutput(ta.value);
+    outSel.value = det !== "inline" ? det : outputPref();
+  }
   syncMemUI();
   applyMem();
   applyOutput();
@@ -878,6 +883,12 @@ function outPhraseForVal(val) {
   var m = modes.find(function (o) { return o.value === val; });
   return (m && m.phrase) ? m.phrase : "";
 }
+// Last-used output mode, persisted so the compose modal reopens on the analyst's
+// preferred format (Inline by default). A launch that bakes in its own directive
+// still overrides this for that compose (see openCompose).
+function outputPref() {
+  try { return localStorage.getItem("mc.outputMode") || "inline"; } catch (e) { return "inline"; }
+}
 function detectOutput(text) {
   var modes = (DATA && DATA.outputModes) || [];
   for (var i = 0; i < modes.length; i++) {
@@ -903,6 +914,7 @@ function applyOutput() {
   ta.value = text;
 }
 document.getElementById("composeOutput").addEventListener("change", function () {
+  try { localStorage.setItem("mc.outputMode", this.value); } catch (e) {}
   applyOutput();
   document.getElementById("composeText").focus();
 });
