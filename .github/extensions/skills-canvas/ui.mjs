@@ -503,6 +503,7 @@ export function renderPage() {
       <p class="compose-hint">This is a starting point — edit it however you like, then send it to chat. Nothing is submitted until you click <b>Send</b>.</p>
       <textarea class="compose-ta" id="composeText" spellcheck="false"></textarea>
       <div class="compose-actions">
+        <select class="output" id="composeOutput" title="Output format — 💬 Inline (quick chat summary) or 📄 Markdown (full saved report). Changing this refreshes the prompt."></select>
         <label class="memck" id="memWrap" title="Prepend a directive to review this tenant's context-memory file before investigating">
           <input type="checkbox" id="memChk" /> <span>🧠 Use memory</span>
         </label>
@@ -646,6 +647,7 @@ async function load() {
   fillLookback(document.getElementById("quickLookback"));
   fillOutput(document.getElementById("tpOutput"));
   fillOutput(document.getElementById("quickOutput"));
+  fillOutput(document.getElementById("composeOutput"));
   renderDomains();
   renderRecent(DATA.recent || []);
   renderGrid();
@@ -775,8 +777,11 @@ function openCompose(skill, entity, promptText, noMem) {
   const ta = document.getElementById("composeText");
   ta.value = promptText || "";
   document.getElementById("composeMeta").textContent = "";
+  var outSel = document.getElementById("composeOutput");
+  if (outSel) outSel.value = detectOutput(ta.value);
   syncMemUI();
   applyMem();
+  applyOutput();
   document.getElementById("composeModal").classList.add("on");
   setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 30);
 }
@@ -859,6 +864,46 @@ function syncMemUI() {
 document.getElementById("memChk").addEventListener("change", function () {
   try { localStorage.setItem("mc.useMemory", this.checked ? "1" : "0"); } catch (e) {}
   applyMem();
+  document.getElementById("composeText").focus();
+});
+
+// --- Output mode (Inline / Markdown) inside the compose modal ---
+// The output directive is a phrase appended to the end of the prompt with an
+// em-dash separator (mirrors composePrompt/composeFor server-side). Toggling the
+// dropdown strips any existing output phrase and re-appends the chosen one, so the
+// analyst can flip a recommended follow-up between a quick inline answer and a full
+// saved Markdown report without losing their edits.
+function outPhraseForVal(val) {
+  var modes = (DATA && DATA.outputModes) || [];
+  var m = modes.find(function (o) { return o.value === val; });
+  return (m && m.phrase) ? m.phrase : "";
+}
+function detectOutput(text) {
+  var modes = (DATA && DATA.outputModes) || [];
+  for (var i = 0; i < modes.length; i++) {
+    if (modes[i].phrase && text.indexOf(" \\u2014 " + modes[i].phrase) !== -1) return modes[i].value;
+  }
+  return "inline";
+}
+function applyOutput() {
+  var ta = document.getElementById("composeText");
+  var sel = document.getElementById("composeOutput");
+  if (!ta || !sel) return;
+  var text = ta.value;
+  var modes = (DATA && DATA.outputModes) || [];
+  modes.forEach(function (o) {
+    if (!o.phrase) return;
+    var needle = " \\u2014 " + o.phrase;
+    var idx = text.indexOf(needle);
+    while (idx !== -1) { text = text.slice(0, idx) + text.slice(idx + needle.length); idx = text.indexOf(needle); }
+  });
+  text = text.replace(/\\s+$/, "");
+  var phrase = outPhraseForVal(sel.value);
+  if (phrase) text = text + " \\u2014 " + phrase;
+  ta.value = text;
+}
+document.getElementById("composeOutput").addEventListener("change", function () {
+  applyOutput();
   document.getElementById("composeText").focus();
 });
 
