@@ -1092,7 +1092,7 @@ document.getElementById("quick").addEventListener("keydown", (e) => { if (e.key 
 // ---- Findings tab ----
 let FINDINGS = { findings: [], summary: { total: 0, bySeverity: {} } };
 let currentView = "skills";
-let sevFilter = null; // null = show all; otherwise a severity string
+let sevFilter = new Set(); // empty = show all; otherwise a set of severity strings (multi-select)
 let findSearch = ""; // findings tab free-text filter (lowercased)
 const SEV_ORDER = ["critical", "high", "medium", "low", "info", "clean"];
 
@@ -1126,21 +1126,24 @@ async function loadFindings() {
 function renderRoll() {
   const host = document.getElementById("findRoll");
   const by = (FINDINGS.summary && FINDINGS.summary.counts) || {};
-  const active = sevFilter;
+  const anyActive = sevFilter.size > 0;
   const total = SEV_ORDER.reduce((n, s) => n + (by[s] || 0), 0);
-  // "All" clears the filter; each severity pill toggles filtering to that severity.
-  // When a filter is active, non-matching pills dim so the active one stands out.
-  const all = '<span class="sev-all' + (active ? "" : " active") + '" data-sev="" title="Show all findings">All ' + total + '</span>';
+  // "All" clears the filter; each severity pill toggles its own inclusion in the
+  // multi-select set. When one or more severities are selected, the selected pills
+  // stay lit and the rest dim so the active subset stands out.
+  const all = '<span class="sev-all' + (anyActive ? "" : " active") + '" data-sev="" title="Show all findings">All ' + total + '</span>';
   const parts = SEV_ORDER.filter(s => by[s]).map(s => {
-    const cls = active ? (active === s ? " active" : " dim") : "";
-    return '<span class="sev-pill sev-' + s + cls + '" data-sev="' + s + '" title="Filter to ' + s + ' findings">' + by[s] + ' ' + s + '</span>';
+    const cls = anyActive ? (sevFilter.has(s) ? " active" : " dim") : "";
+    return '<span class="sev-pill sev-' + s + cls + '" data-sev="' + s + '" title="Filter to ' + s + ' findings (multi-select)">' + by[s] + ' ' + s + '</span>';
   });
   host.innerHTML = all + parts.join("");
   host.querySelectorAll("[data-sev]").forEach(el => {
     el.onclick = () => {
       const sev = el.getAttribute("data-sev");
-      // Toggle off if the already-active severity is clicked again.
-      sevFilter = (!sev || sev === sevFilter) ? null : sev;
+      // "All" (empty data-sev) clears the set; a severity toggles in/out of it.
+      if (!sev) sevFilter.clear();
+      else if (sevFilter.has(sev)) sevFilter.delete(sev);
+      else sevFilter.add(sev);
       renderFindings();
     };
   });
@@ -1163,7 +1166,7 @@ function renderFindings() {
   renderRoll();
   const host = document.getElementById("findings");
   const all = FINDINGS.findings || [];
-  const sevList = sevFilter ? all.filter(f => (f.severity || "info").toLowerCase() === sevFilter) : all;
+  const sevList = sevFilter.size ? all.filter(f => sevFilter.has((f.severity || "info").toLowerCase())) : all;
   const list = findSearch ? sevList.filter(f => findingHay(f).includes(findSearch)) : sevList;
   if (!all.length) {
     host.innerHTML =
@@ -1175,7 +1178,7 @@ function renderFindings() {
   }
   if (!list.length) {
     const bits = [];
-    if (sevFilter) bits.push('<b>' + esc(sevFilter) + '</b>');
+    if (sevFilter.size) bits.push('<b>' + esc([...sevFilter].join(", ")) + '</b>');
     if (findSearch) bits.push('matching <b>' + esc(findSearch) + '</b>');
     host.innerHTML =
       '<div class="empty-find"><div class="em">🔍</div>' +
@@ -1865,7 +1868,7 @@ async function doPrune() {
       body: JSON.stringify(body),
     });
     FINDINGS = await res.json();
-    sevFilter = null;
+    sevFilter.clear();
     const t = FINDINGS.summary ? FINDINGS.summary.total : (FINDINGS.findings || []).length;
     const cnt = document.getElementById("findCount");
     cnt.textContent = t;
