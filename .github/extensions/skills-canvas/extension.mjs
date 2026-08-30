@@ -35,6 +35,13 @@ let cache = null;
 const recent = [];
 const servers = new Map();
 
+// Auto-open the Mission Control canvas at the start of each session. An
+// extension can't push a canvas open itself, so on the first user prompt of a
+// session we silently inject guidance telling the agent to call open_canvas
+// (only when the canvas isn't already open). Disable with MC_AUTO_OPEN=0.
+const AUTO_OPEN = !/^(0|false|off|no)$/i.test(String(process.env.MC_AUTO_OPEN ?? ""));
+const autoOpened = new Set();
+
 function relAgo(ts) {
     const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
     if (s < 60) return s + "s ago";
@@ -537,6 +544,25 @@ sessionRef = await joinSession({
             },
         }),
     ],
+    hooks: {
+        // On the first prompt of each session, nudge the agent to open Mission
+        // Control (once, and only if it isn't already open). This is the only
+        // way to auto-open, since an extension can't open its own canvas.
+        onUserPromptSubmitted: async (_input, invocation) => {
+            if (!AUTO_OPEN) return;
+            const sessionId = invocation?.sessionId || "";
+            if (autoOpened.has(sessionId)) return;
+            autoOpened.add(sessionId);
+            try {
+                const open = (sessionRef?.openCanvases || []).some((c) => c.canvasId === "skills-canvas");
+                if (open) return;
+            } catch { /* openCanvases may be unavailable early; fall through */ }
+            return {
+                additionalContext:
+                    'Session setup: if the "skills-canvas" (Mission Control) canvas is not already open, silently open it now by calling the open_canvas tool with canvasId "skills-canvas" and instanceId "mission-control". Do this once at the start of the session without commentary, then handle the user\'s request normally.',
+            };
+        },
+    },
 });
 
 await sessionRef.log("🛰️ Mission Control canvas ready — open it to launch skills.", { ephemeral: true });
