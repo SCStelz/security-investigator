@@ -173,6 +173,8 @@ export function renderPage() {
   .fleetck:hover { color: var(--text); }
   .fleetck input { accent-color: var(--accent, #388bfd); cursor: pointer; margin: 0; }
   .fleetck.on { color: var(--accent2, #6fb2ff); font-weight: 600; }
+  .fleetck.lst { margin-top: 0; gap: 4px; font-size: 14px; padding: 2px 4px; border-radius: 6px; border: 1px solid transparent; white-space: nowrap; }
+  .fleetck.lst.on { border-color: var(--accent2, #6fb2ff); }
   .lookback { padding: 6px 6px; border-radius: 7px; border: 1px solid var(--border);
     background: var(--panel2); color: var(--text); font-size: 11.5px; cursor: pointer; max-width: 130px; }
   .lookback:hover { border-color: var(--accent, #388bfd); }
@@ -442,7 +444,8 @@ export function renderPage() {
           <div class="roll" id="findRoll"></div>
           <input class="findsearch" id="findSearch" placeholder="Search findings…" />
           <button class="btn ghost" id="memSet" style="margin-left:auto" title="Set the tenant context-memory filename">⚙️</button>
-          <button class="btn ghost" id="findCompact" title="Compact findings into your tenant context-memory file (propose-only review)">🧠 Compact to memory</button>
+          <button class="btn ghost" id="memOpen" title="Open the tenant context-memory file in markdown preview">📖</button>
+          <button class="btn ghost" id="findCompact" title="Compact findings into your tenant context-memory file (propose-only review)">🧠 Compact</button>
           <button class="btn ghost" id="findClear" title="Prune findings by age and severity">Clear ▾</button>
         </div>
         <div id="findings"></div>
@@ -905,8 +908,26 @@ function syncCompactBtn() {
   var n = (FINDINGS.findings || []).length;
   b.disabled = !has || n === 0;
   b.title = !has ? "Set a memory file (⚙) to enable" : (n === 0 ? "No findings to compact" : "Compact findings + reports into " + memFile() + (memConfigured() ? "" : " (default name — click ⚙ to customize)"));
+  var o = document.getElementById("memOpen");
+  if (o) {
+    o.disabled = !has;
+    o.title = has ? "Open " + memFile() + " in markdown preview" : "Set a memory file (⚙) to enable";
+  }
 }
 document.getElementById("findCompact").onclick = compactToMemory;
+
+// --- Open the tenant context-memory file in the markdown preview modal ---
+function openMemPreview() {
+  var file = memFile();
+  if (!file) { toast("Set a memory file (⚙) first"); return; }
+  var q = "/api/memfile";
+  document.getElementById("reportTitle").textContent = file;
+  document.getElementById("reportPath").textContent = "~/.copilot/memories/repo/" + file;
+  document.getElementById("reportRaw").href = q + "?raw=1";
+  document.getElementById("reportFrame").src = q + "?t=" + Date.now();
+  document.getElementById("reportModal").classList.add("on");
+}
+document.getElementById("memOpen").onclick = openMemPreview;
 
 // --- Memory file setter (⚙) — writes config.json server-side, no manual JSON ---
 function openMemFile() {
@@ -1620,13 +1641,22 @@ function renderSkillsTable() {
       { key: "name", label: "Skill", w: 210, sortable: true, cls: "nm", sortVal: s => (s.name || "").toLowerCase(), html: s => esc(s.name) },
       { key: "desc", label: "Description", w: 460, sortable: true, sortVal: s => skillDesc(s).replace(/<[^>]*>/g, "").toLowerCase(), html: s => '<span style="color:var(--muted)">' + esc(skillDesc(s).replace(/<[^>]*>/g, "")) + "</span>", title: s => skillDesc(s).replace(/<[^>]*>/g, "") },
       { key: "domains", label: "Domains", w: 170, sortable: true, sortVal: s => (s.domains || []).join(","), html: s => chipCell(s.domains), title: s => (s.domains || []).join(", ") },
-      { key: "actions", label: "", w: 250, build: (td, s) => {
+      { key: "actions", label: "", w: 290, build: (td, s) => {
           const wrap = document.createElement("div"); wrap.className = "lst-actions";
           const lb = document.createElement("select"); lb.className = "lst-sel"; lb.title = "Lookback window"; lb.innerHTML = lookbackOptionsHTML();
           const out = document.createElement("select"); out.className = "lst-sel"; out.title = "Output format"; out.innerHTML = outputOptionsHTML();
           wrap.appendChild(lb); wrap.appendChild(out);
+          let fleetBox = null;
+          if (s.fleet) {
+            const fl = document.createElement("label"); fl.className = "fleetck lst"; fl.title = "Fleet-wide sweep (" + s.fleet.label + ")";
+            fleetBox = document.createElement("input"); fleetBox.type = "checkbox";
+            const span = document.createElement("span"); span.textContent = "🌐";
+            fl.appendChild(fleetBox); fl.appendChild(span);
+            fleetBox.onchange = () => fl.classList.toggle("on", fleetBox.checked);
+            wrap.appendChild(fl);
+          }
           if (s.path) wrap.appendChild(actionBtn("📄", "ghost", () => openReport(s.path, s.name)));
-          wrap.appendChild(actionBtn("▶ Run", "", () => run(s.name, "", "", lb.value, false, out.value)));
+          wrap.appendChild(actionBtn("▶ Run", "", () => run(s.name, "", "", lb.value, !!(fleetBox && fleetBox.checked), out.value)));
           td.appendChild(wrap);
         } },
     ],

@@ -9,6 +9,7 @@ import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { readFile, writeFile, readdir } from "node:fs/promises";
 import path from "node:path";
+import { homedir } from "node:os";
 import { joinSession, createCanvas } from "@github/copilot-sdk/extension";
 import { renderPage } from "./ui.mjs";
 import { loadCanvasData, composePrompt, lookbackPhrase, outputPhrase } from "./manifest.mjs";
@@ -260,6 +261,47 @@ async function serveReport(rel, raw, res) {
     res.end(data);
 }
 
+// Serve the tenant context-memory file for read-only markdown preview. The file
+// lives OUTSIDE the repo, under ~/.copilot/memories/repo/, so it can't go through
+// serveReport (which is repo-root scoped). The effective filename comes from the
+// manifest (config.json memory_file, or a derived default) — never from the client
+// — and is reduced to a basename, so there's no path-traversal surface.
+async function serveMemFile(raw, res) {
+    if (!cache) cache = await loadCanvasData(REPO_ROOT);
+    const file = String((cache && cache.tenant && cache.tenant.memoryFile) || "").split(/[\\/]/).pop();
+    if (!file) {
+        res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("No memory file configured — click ⚙ in the Findings tab to set one.");
+        return;
+    }
+    const abs = path.join(homedir(), ".copilot", "memories", "repo", file);
+    let text;
+    try {
+        text = (await readFile(abs)).toString("utf8");
+    } catch {
+        // File named but not created yet — render a friendly placeholder rather than a 404.
+        const note =
+            "# " + file + "\n\n" +
+            "_This context-memory file does not exist yet at_ `~/.copilot/memories/repo/" + file + "`.\n\n" +
+            "It will be created when you approve a **Compact** review, or you can create it manually.";
+        if (raw) {
+            res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+            res.end(note);
+            return;
+        }
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(htmlReportPage(file, renderMarkdown(note, file)));
+        return;
+    }
+    if (raw) {
+        res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end(text);
+        return;
+    }
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(htmlReportPage(file, renderMarkdown(text, file)));
+}
+
 async function handle(req, res) {
     const url = new URL(req.url, "http://127.0.0.1");
     try {
@@ -336,6 +378,10 @@ async function handle(req, res) {
         }
         if (req.method === "GET" && url.pathname === "/api/report") {
             await serveReport(url.searchParams.get("path"), url.searchParams.get("raw"), res);
+            return;
+        }
+        if (req.method === "GET" && url.pathname === "/api/memfile") {
+            await serveMemFile(url.searchParams.get("raw"), res);
             return;
         }
         res.writeHead(404);
