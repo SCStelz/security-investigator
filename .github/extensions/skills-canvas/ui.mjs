@@ -671,6 +671,7 @@ export function renderPage() {
       <select class="lookback prune-age" id="pruneAge" title="Age threshold">
         <option value="0">Any age (all)</option>
         <option value="1">1 day</option>
+        <option value="3">3 days</option>
         <option value="7">7 days</option>
         <option value="30">30 days</option>
         <option value="90">90 days</option>
