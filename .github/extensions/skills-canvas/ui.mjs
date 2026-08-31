@@ -483,7 +483,7 @@ export function renderPage() {
         <div class="feature" id="feature" style="display:none">
           <span class="big">🔴</span>
           <div class="txt">
-            <h3>Threat Pulse</h3>
+            <h3 style="display:flex;align-items:center;gap:8px">Threat Pulse<span id="tpCost"></span></h3>
             <p>5-minute broad scan across 7 domains → prioritized dashboard. Recommended starting point.</p>
           </div>
           <select class="lookback" id="tpLookback" title="Lookback window"></select>
@@ -2461,6 +2461,7 @@ function renderSkillsTable() {
   const host = document.getElementById("skillsTable");
   if (!host) return;
   const rows = visibleSkills().filter(s => s.name !== "threat-pulse");
+  const avgMap = skillCostAvg();
   buildTable(host, {
     storeKey: "skills", sort: skillSort, onsort: renderGrid, rows,
     empty: "No skills match the current filter.",
@@ -2476,6 +2477,10 @@ function renderSkillsTable() {
       { key: "name", label: "Skill", w: 210, sortable: true, cls: "nm", sortVal: s => (s.name || "").toLowerCase(), html: s => esc(s.name) },
       { key: "desc", label: "Description", w: 460, sortable: true, sortVal: s => skillDesc(s).replace(/<[^>]*>/g, "").toLowerCase(), html: s => '<span style="color:var(--muted)">' + esc(skillDesc(s).replace(/<[^>]*>/g, "")) + "</span>", title: s => skillDesc(s).replace(/<[^>]*>/g, "") },
       { key: "domains", label: "Domains", w: 170, sortable: true, sortVal: s => (s.domains || []).join(","), html: s => chipCell(s.domains), title: s => (s.domains || []).join(", ") },
+      { key: "cost", label: "Cost/run", w: 108, align: "right", sortable: true,
+        sortVal: s => { const ca = avgMap.get(s.name); return ca ? ca.avg : -1; },
+        title: s => { const ca = avgMap.get(s.name); return ca ? "Avg " + fmtCost(ca.avg) + costUnitSuffix() + " / run \u00b7 " + ca.n + " run" + (ca.n === 1 ? "" : "s") + " recorded" : "No costed runs recorded"; },
+        html: s => { const ca = avgMap.get(s.name); return ca ? '<span class="cavg">\u26A1 <b>' + fmtCost(ca.avg, true) + '</b>' + esc(costUnitSuffix()) + '/run</span>' : '<span style="opacity:.4">\u2014</span>'; } },
       { key: "actions", label: "", w: 290, build: (td, s) => {
           const wrap = document.createElement("div"); wrap.className = "lst-actions";
           const lb = document.createElement("select"); lb.className = "lst-sel"; lb.title = "Lookback window"; lb.innerHTML = lookbackOptionsHTML();
@@ -2540,7 +2545,18 @@ function renderGrid() {
   if (cards) cards.style.display = list ? "none" : "";
   if (tbl) tbl.style.display = list ? "" : "none";
   syncViewToggle("skills");
+  renderPulseCost();
   if (list) renderSkillsTable(); else renderSkillCards();
+}
+// The pinned Threat Pulse banner sits outside the card grid / list, so its
+// cost/run badge is populated here rather than in the per-skill renderers.
+function renderPulseCost() {
+  const host = document.getElementById("tpCost");
+  if (!host) return;
+  const ca = skillCostAvg().get("threat-pulse");
+  host.innerHTML = ca
+    ? '<span class="cavg" title="' + esc("Avg " + fmtCost(ca.avg) + costUnitSuffix() + " / run \u00b7 " + ca.n + " run" + (ca.n === 1 ? "" : "s") + " recorded") + '">\u26A1 <b>' + fmtCost(ca.avg, true) + '</b>' + esc(costUnitSuffix()) + '/run</span>'
+    : '';
 }
 function renderQueries() {
   const cards = document.getElementById("queryGrid");
