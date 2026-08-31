@@ -115,6 +115,10 @@ export function renderPage() {
   .card .chips { display: flex; flex-wrap: wrap; gap: 5px; }
   .chip { background: var(--chip); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; font-size: 10.5px; color: var(--muted); text-transform: capitalize; }
   .chip.alt { text-transform: none; color: #cfe2ff; }
+  .cavg { margin-left: auto; align-self: flex-start; background: var(--chip); border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px 6px; font-size: 10px; color: var(--muted); white-space: nowrap;
+    font-variant-numeric: tabular-nums; cursor: default; }
+  .cavg b { color: var(--text); font-weight: 620; }
   .qpath { font-size: 10.5px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: right; opacity: .8; }
   .card .row { display: flex; gap: 7px; align-items: center; margin-top: 2px; flex-wrap: wrap; }
@@ -262,6 +266,8 @@ export function renderPage() {
   .finding .frun:hover { background: #1c3352; border-color: var(--accent); }
   .finding .fskill { font-size: 11px; color: var(--accent); background: #14243a; border: 1px solid var(--accent2);
     border-radius: 6px; padding: 1px 7px; }
+  .finding .fcredits { font-size: 11px; color: #ffd479; background: #2a2413; border: 1px solid #6b5a1e;
+    border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
   .finding .fsum { color: #c9d6e8; font-size: 12.5px; margin: 8px 0; }
   .finding .fchips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
   .metric { background: var(--chip); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 11px; }
@@ -328,6 +334,38 @@ export function renderPage() {
   .seg button + button { border-left: 1px solid var(--border); }
   .seg button.on { background: var(--accent); color: #04121f; font-weight: 640; }
   .seg button:not(.on):hover { color: var(--text); background: var(--panel); }
+
+  .cost-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+  .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; }
+  .kpi-l { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+  .kpi-v { font-size: 22px; font-weight: 680; color: #ffd479; margin-top: 3px; }
+  .kpi-u { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .kpi-s { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .cost-scope { font-size: 11.5px; color: var(--muted); margin-left: auto; }
+  .costcur { display: inline-flex; align-items: center; gap: 7px; }
+  .costcur select { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; font-size: 12.5px; cursor: pointer; }
+  .cost-rate { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .cost-mode { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 3px 7px; font-size: 11.5px; cursor: pointer; margin-right: auto; }
+  .cost-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+  .cost-panel-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; gap: 10px; }
+  .cost-panel-h span:first-child { font-weight: 640; font-size: 13px; }
+  .cost-sub { font-size: 11.5px; color: var(--muted); }
+  .costsvg { width: 100%; height: auto; display: block; }
+  .costsvg .cg { stroke: var(--border); stroke-width: 1; }
+  .costsvg .cyl, .costsvg .cxl { fill: var(--muted); font-size: 10px; }
+  .costsvg .cbv { fill: #e6edf6; font-size: 9.5px; }
+  .costsvg .cbar { fill: url(#cbg); }
+  .costsvg .cbar:hover { opacity: .85; }
+  .costsvg .cbarp { fill: url(#cbgP); opacity: .9; stroke: #7aa2ff; stroke-width: 1; stroke-dasharray: 3 2; }
+  .costsvg .cbarp:hover { opacity: 1; }
+  .costsvg .cbvp { fill: #9db9ff; font-size: 9.5px; }
+  .csrow { display: flex; align-items: center; gap: 10px; margin: 5px 0; }
+  .csk { width: 210px; flex: 0 0 210px; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .csbarwrap { flex: 1; background: var(--panel2); border-radius: 5px; height: 14px; overflow: hidden; }
+  .csbar { display: block; height: 100%; background: linear-gradient(90deg, #b8860b, #ffd479); border-radius: 5px; }
+  .csv { width: 66px; text-align: right; font-size: 12px; color: #ffd479; font-variant-numeric: tabular-nums; }
+  .cost-empty { color: var(--muted); font-size: 12.5px; padding: 10px 2px; }
+  @media (max-width: 620px) { .cost-kpis { grid-template-columns: repeat(2, 1fr); } .csk { width: 130px; flex-basis: 130px; } }
 
   table.lst { width: 100%; border-collapse: collapse; table-layout: fixed; }
   table.lst th, table.lst td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
@@ -415,6 +453,7 @@ export function renderPage() {
         <div class="tab on" id="tab-skills" data-view="skills">🚀 Skills</div>
         <div class="tab" id="tab-queries" data-view="queries">🔎 Queries <span class="badge" id="queryCount">0</span></div>
         <div class="tab" id="tab-findings" data-view="findings">📌 Findings <span class="badge zero" id="findCount">0</span></div>
+        <div class="tab" id="tab-costing" data-view="costing">💰 Costing</div>
       </div>
 
       <div id="skillsView">
@@ -464,6 +503,47 @@ export function renderPage() {
         <div id="queriesTable" style="display:none"></div>
         <div id="queriesMitre" style="display:none"></div>
         <div class="qbar" id="qbar" style="display:none"></div>
+      </div>
+
+      <div id="costingView" style="display:none">
+        <div class="viewbar">
+          <span class="vlabel">Period</span>
+          <div class="seg" id="costPeriodToggle">
+            <button data-p="day" class="on">Daily</button>
+            <button data-p="week">Weekly</button>
+            <button data-p="month">Monthly</button>
+          </div>
+          <label class="costcur"><span class="vlabel">Currency</span>
+            <select id="costUnitSel">
+              <option value="aic">AIC</option>
+              <option value="usd">USD ($)</option>
+              <option value="eur">EUR (€)</option>
+              <option value="gbp">GBP (£)</option>
+              <option value="jpy">JPY (¥)</option>
+              <option value="cad">CAD (CA$)</option>
+              <option value="aud">AUD (A$)</option>
+            </select>
+          </label>
+          <label class="costcur"><span class="vlabel">Model</span>
+            <select id="costModelSel"><option value="__all">All models</option></select>
+          </label>
+          <span class="cost-rate" id="costRate"></span>
+          <span class="cost-scope" id="costScope"></span>
+        </div>
+        <div id="costKpis" class="cost-kpis"></div>
+        <div class="cost-panel">
+          <div class="cost-panel-h"><span id="costTrendTitle">Daily AI credit usage</span><span class="cost-sub" id="costTrendSub"></span></div>
+          <div id="costTrend"></div>
+        </div>
+        <div class="cost-panel">
+          <div class="cost-panel-h"><span>By skill</span>
+            <select id="costSkillMode" class="cost-mode" title="Show total spend or average per run">
+              <option value="total">Total</option>
+              <option value="avg">Avg/run</option>
+            </select>
+            <span class="cost-sub" id="costSkillSub">total AIC in view window</span></div>
+          <div id="costBySkill"></div>
+        </div>
       </div>
     </main>
   </div>
@@ -701,15 +781,20 @@ function renderSkillCards() {
   const grid = document.getElementById("grid");
   grid.innerHTML = "";
   const skills = visibleSkills().filter(s => s.name !== "threat-pulse");
+  const avgMap = skillCostAvg();
   for (const s of skills) {
     const card = document.createElement("div");
     card.className = "card";
     const chips = s.domains.map(d => '<span class="chip">' + (ICONS[d] || "") + ' ' + d + '</span>').join("");
+    const ca = avgMap.get(s.name);
+    const avgHtml = ca
+      ? '<span class="cavg" title="' + esc("Avg " + fmtCost(ca.avg) + costUnitSuffix() + " / run \u00b7 " + ca.n + " run" + (ca.n === 1 ? "" : "s") + " recorded") + '">\u26A1 <b>' + fmtCost(ca.avg, true) + '</b>' + esc(costUnitSuffix()) + '/run</span>'
+      : '';
     const fleetHtml = s.fleet
       ? '<label class="fleetck"><input type="checkbox" class="fleetbox" /> 🌐 Fleet-wide (' + s.fleet.label + ')</label>'
       : '';
     card.innerHTML =
-      '<div class="top"><span class="ic">' + skillIcon(s) + '</span><span class="nm">' + s.name + '</span>' +
+      '<div class="top"><span class="ic">' + skillIcon(s) + '</span><span class="nm">' + s.name + '</span>' + avgHtml +
       '<button class="fav-btn' + (favSkills.has(s.name) ? " on" : "") + '" title="Toggle favorite">⭐</button></div>' +
       '<div class="desc">' + skillDesc(s) + '</div>' +
       '<div class="chips">' + chips + '</div>' +
@@ -1091,7 +1176,12 @@ document.getElementById("quick").addEventListener("keydown", (e) => { if (e.key 
 
 // ---- Findings tab ----
 let FINDINGS = { findings: [], summary: { total: 0, bySeverity: {} } };
+let COSTING = { costing: [], summary: { count: 0, totalNaiu: 0 } };
 let currentView = "skills";
+let costPeriod = "day"; // costing trend granularity: day | week | month
+let costUnit = "aic";
+let costSkillMode = "total"; // costing display unit: aic | usd
+let costModel = "__all"; // costing model filter: __all | <model id>
 let sevFilter = new Set(); // empty = show all; otherwise a set of severity strings (multi-select)
 let findSearch = ""; // findings tab free-text filter (lowercased)
 const SEV_ORDER = ["critical", "high", "medium", "low", "info", "clean"];
@@ -1103,11 +1193,14 @@ function switchView(view) {
   document.getElementById("skillsView").style.display = view === "skills" ? "" : "none";
   document.getElementById("findingsView").style.display = view === "findings" ? "" : "none";
   document.getElementById("queriesView").style.display = view === "queries" ? "" : "none";
+  document.getElementById("costingView").style.display = view === "costing" ? "" : "none";
   document.getElementById("tab-skills").classList.toggle("on", view === "skills");
   document.getElementById("tab-findings").classList.toggle("on", view === "findings");
   document.getElementById("tab-queries").classList.toggle("on", view === "queries");
+  document.getElementById("tab-costing").classList.toggle("on", view === "costing");
   if (view === "findings") renderFindings();
   if (view === "queries") renderQueries();
+  if (view === "costing") { renderCosting(); loadCostingData(); }
 }
 
 async function loadFindings() {
@@ -1121,6 +1214,15 @@ async function loadFindings() {
   badge.classList.toggle("zero", n === 0);
   syncCompactBtn();
   if (currentView === "findings") renderFindings();
+}
+
+async function loadCostingData() {
+  try {
+    const res = await fetch("/api/costing");
+    COSTING = await res.json();
+  } catch (e) { return; }
+  if (currentView === "costing") renderCosting();
+  if (currentView === "skills") renderGrid();
 }
 
 function renderRoll() {
@@ -1203,8 +1305,7 @@ function renderFindings() {
         '" title="' + esc(r.path) + '">📄 ' + esc(label) + '</button>';
     }).join("");
 
-    const recs = (f.recommended || []).map((r, i) => {
-      const label = r.skill + (r.entity ? ' → ' + r.entity : '');
+    const recs = (f.recommended || []).map((r, i) => {      const label = r.skill + (r.entity ? ' → ' + r.entity : '');
       // Visible reason is clamped to 2 lines; hovering shows the full summary text.
       const why = r.reason ? '<span class="why" title="' + esc(r.reason) + '">' + esc(r.reason) + '</span>' : '';
       const tailored = r.prompt && r.prompt.trim();
@@ -1215,10 +1316,16 @@ function renderFindings() {
         '">▶ ' + esc(label) + tag + '</button>' + why + '</span>';
     }).join("");
 
+    const credV = fmtCredits(f.creditsNaiu);
+    const credChip = credV
+      ? '<span class="fcredits" title="AI credits (AIC) consumed for this investigation, from assistant.usage telemetry">\u26A1 ' + credV + ' AIC</span>'
+      : "";
+
     card.innerHTML =
       '<span class="dismiss" title="Dismiss">×</span>' +
       '<div class="fh"><span class="ftitle">' + esc(f.title) + '</span>' +
       '<span class="fskill">' + esc(f.skill) + '</span>' +
+      credChip +
       '<button class="frun" title="Compose an editable prompt seeded with this finding">▶ Investigate</button>' +
       '<span class="fmeta">' + esc(f.scope || "") + (f.ago ? ' · ' + esc(f.ago) : "") + '</span></div>' +
       (f.summary ? '<div class="fsum">' + esc(f.summary) + '</div>' : "") +
@@ -1256,9 +1363,283 @@ function renderFindings() {
   }
 }
 
+// Format nano-AI units as a compact AIC (AI credits) figure. Returns "" when
+// no usage was recorded so the chip is omitted entirely.
+function fmtCredits(naiu) {
+  const aiu = (Number(naiu) || 0) / 1e9;
+  if (aiu <= 0) return "";
+  if (aiu >= 100) return String(Math.round(aiu));
+  if (aiu >= 1) return aiu.toFixed(1);
+  if (aiu >= 0.01) return aiu.toFixed(2);
+  return "<0.01";
+}
+
+// ---- Costing tab ----
+// Reads from the persistent costing ledger (/api/costing) so cost history
+// survives findings pruning/clearing. Falls back to credited findings if the
+// costing store hasn't loaded yet. Each row: { ts, creditsNaiu, skill }.
+function costRows() {
+  let src = (COSTING.costing && COSTING.costing.length) ? COSTING.costing : null;
+  if (!src) src = (FINDINGS.findings || []).filter(f => Number(f.creditsNaiu) > 0);
+  let rows = src
+    .filter(r => Number(r.creditsNaiu) > 0)
+    .map(r => ({ ts: Number(r.ts) || 0, aic: Number(r.creditsNaiu) / 1e9, skill: r.skill || "unknown", model: r.model || "unknown" }));
+  if (costModel !== "__all") rows = rows.filter(r => r.model === costModel);
+  return rows;
+}
+// Distinct models present in the cost ledger (for the Model filter dropdown), sorted by spend desc.
+function costModels() {
+  let src = (COSTING.costing && COSTING.costing.length) ? COSTING.costing : (FINDINGS.findings || []);
+  const m = new Map();
+  for (const r of src) {
+    if (!(Number(r.creditsNaiu) > 0)) continue;
+    const k = r.model || "unknown";
+    m.set(k, (m.get(k) || 0) + Number(r.creditsNaiu));
+  }
+  return Array.from(m.entries()).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+}
+// Rebuild the Model filter <option>s from the ledger, preserving the current selection.
+// If the previously selected model is gone from the data, fall back to "All models".
+function syncCostModelOptions() {
+  const sel = document.getElementById("costModelSel");
+  if (!sel) return;
+  const models = costModels();
+  if (costModel !== "__all" && models.indexOf(costModel) === -1) costModel = "__all";
+  const opts = ['<option value="__all">All models</option>']
+    .concat(models.map(md => '<option value="' + esc(md) + '">' + esc(md) + "</option>"));
+  const joined = opts.join("");
+  if (sel.getAttribute("data-sig") !== joined) {
+    sel.innerHTML = joined;
+    sel.setAttribute("data-sig", joined);
+  }
+  sel.value = costModel;
+}
+function fmtAic(v) { return Math.round(v).toLocaleString(); }
+// GitHub Copilot usage-based billing: 1 AI Credit = $0.01 USD (overage rate, eff. 2026-06-01).
+// Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
+const USD_PER_AIC = 0.01;
+// Display currencies (rate = units per 1 USD; FX snapshot ~2026-08-30, display-only).
+// dec = decimal places for sub-thousand amounts; JPY carries no fractional unit.
+const CURRENCIES = {
+  usd: { symbol: "$", perUsd: 1, dec: 2 },
+  eur: { symbol: "\u20AC", perUsd: 0.8627, dec: 2 },
+  gbp: { symbol: "\u00A3", perUsd: 0.7383, dec: 2 },
+  jpy: { symbol: "\u00A5", perUsd: 159.80, dec: 0 },
+  cad: { symbol: "CA$", perUsd: 1.3891, dec: 2 },
+  aud: { symbol: "A$", perUsd: 1.3949, dec: 2 },
+};
+function costCur() { return CURRENCIES[costUnit] || null; }
+function costUnitSuffix() { return costUnit === "aic" ? " AIC" : ""; }
+// Format an AIC amount in the active display unit. compact = terser form for chart axes/bar labels.
+function fmtCost(aic, compact) {
+  const cur = costCur();
+  if (cur) {
+    const amt = (Number(aic) || 0) * USD_PER_AIC * cur.perUsd;
+    if (compact) {
+      if (cur.dec === 0) return cur.symbol + Math.round(amt).toLocaleString();
+      return amt >= 10 ? cur.symbol + Math.round(amt).toLocaleString() : cur.symbol + amt.toFixed(2);
+    }
+    if (amt >= 1000) return cur.symbol + Math.round(amt).toLocaleString();
+    return cur.symbol + (cur.dec === 0 ? Math.round(amt).toLocaleString() : amt.toFixed(2));
+  }
+  return Math.round(aic).toLocaleString();
+}
+function niceCeil(v) {
+  if (!(v > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / p;
+  const m = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+  return m * p;
+}
+function dayKey(ts) { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); }
+function weekKey(ts) { const d = new Date(ts); d.setHours(0, 0, 0, 0); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return d.getTime(); }
+function monthKey(ts) { const d = new Date(ts); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); }
+function bucketLabel(k, period) {
+  const d = new Date(k);
+  if (period === "month") return d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+function bucketSub(k, period) {
+  const d = new Date(k);
+  if (period === "month") return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  if (period === "week") return "Week of " + d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
+function buildBuckets(rows, period) {
+  const keyFn = period === "month" ? monthKey : period === "week" ? weekKey : dayKey;
+  const m = new Map();
+  let minKey = null;
+  for (const r of rows) {
+    const k = keyFn(r.ts);
+    m.set(k, (m.get(k) || 0) + r.aic);
+    if (minKey === null || k < minKey) minKey = k;
+  }
+  if (minKey === null) return [];
+  const nowKey = keyFn(Date.now());
+  const next = (kk) => {
+    const d = new Date(kk);
+    if (period === "month") return new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+    d.setDate(d.getDate() + (period === "week" ? 7 : 1));
+    return d.getTime();
+  };
+  const keys = [];
+  let k = minKey, guard = 0;
+  while (k <= nowKey && guard < 500) { keys.push(k); k = next(k); guard++; }
+  const cap = period === "day" ? 30 : 12;
+  return keys.slice(-cap).map(kk => ({ key: kk, value: m.get(kk) || 0, label: bucketLabel(kk, period), sub: bucketSub(kk, period) }));
+}
+function projectBuckets(hist, period, count) {
+  if (hist.length < 2) return [];
+  // Fit the trend on complete buckets only — drop the last (current, partial) bucket when we can.
+  const basis = hist.length >= 3 ? hist.slice(0, -1) : hist.slice();
+  const fit = Math.min(6, basis.length);
+  const xs = [], ys = [];
+  for (let i = basis.length - fit; i < basis.length; i++) { xs.push(i); ys.push(basis[i].value); }
+  const nP = xs.length;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (let i = 0; i < nP; i++) { sx += xs[i]; sy += ys[i]; sxx += xs[i] * xs[i]; sxy += xs[i] * ys[i]; }
+  const denom = (nP * sxx - sx * sx) || 1;
+  const slope = (nP * sxy - sx * sy) / denom;
+  const inter = (sy - slope * sx) / nP;
+  const maxHist = Math.max.apply(null, hist.map(b => b.value)) || 0;
+  const cap = maxHist > 0 ? maxHist * 4 : Infinity;
+  const nextKey = (kk) => {
+    const d = new Date(kk);
+    if (period === "month") return new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+    d.setDate(d.getDate() + (period === "week" ? 7 : 1));
+    return d.getTime();
+  };
+  const out = [];
+  let k = nextKey(hist[hist.length - 1].key);
+  for (let j = 1; j <= count; j++) {
+    const x = (hist.length - 1) + j;
+    let v = inter + slope * x;
+    if (!(v > 0)) v = 0;
+    if (v > cap) v = cap;
+    out.push({ key: k, value: v, label: bucketLabel(k, period), sub: bucketSub(k, period), proj: true });
+    k = nextKey(k);
+  }
+  return out;
+}
+function costBars(buckets) {
+  if (!buckets.length) return '<div class="cost-empty">No costed findings yet.</div>';
+  const W = 720, H = 240, padL = 46, padR = 12, padT = 16, padB = 44;
+  const x0 = padL, x1 = W - padR, y1 = H - padB;
+  const plotW = x1 - x0, plotH = y1 - padT;
+  const maxV = Math.max.apply(null, buckets.map(b => b.value));
+  const top = niceCeil(maxV);
+  const n = buckets.length, slot = plotW / n;
+  const bw = Math.max(4, Math.min(46, slot * 0.62));
+  const yFor = v => y1 - (v / top) * plotH;
+  let s = "";
+  const ticks = [0, 0.25, 0.5, 0.75, 1];
+  for (const t of ticks) {
+    const yy = y1 - t * plotH, val = Math.round(top * t);
+    s += '<line x1="' + x0 + '" y1="' + yy.toFixed(1) + '" x2="' + x1 + '" y2="' + yy.toFixed(1) + '" class="cg"/>';
+    s += '<text x="' + (x0 - 6) + '" y="' + (yy + 3.5).toFixed(1) + '" class="cyl" text-anchor="end">' + fmtCost(val, true) + "</text>";
+  }
+  const showEvery = n <= 16 ? 1 : Math.ceil(n / 12);
+  buckets.forEach((b, i) => {
+    const cx = x0 + slot * i + slot / 2, bx = cx - bw / 2, by = yFor(b.value), bh = y1 - by;
+    const cls = b.proj ? "cbarp" : "cbar";
+    const tip = b.proj ? " (projected)" : "";
+    if (b.value > 0 && bh > 0) {
+      s += '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(2, bh).toFixed(1) + '" rx="3" class="' + cls + '"><title>' + esc(b.sub) + " \u2014 " + fmtCost(b.value) + esc(costUnitSuffix()) + tip + '</title></rect>';
+      if (n <= 16) s += '<text x="' + cx.toFixed(1) + '" y="' + (by - 4).toFixed(1) + '" class="' + (b.proj ? "cbvp" : "cbv") + '" text-anchor="middle">' + fmtCost(b.value, true) + "</text>";
+    }
+    if (i % showEvery === 0) s += '<text x="' + cx.toFixed(1) + '" y="' + (y1 + 16) + '" class="cxl" text-anchor="middle">' + esc(b.label) + "</text>";
+  });
+  return '<svg viewBox="0 0 ' + W + " " + H + '" class="costsvg" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="cbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd479"/><stop offset="1" stop-color="#b8860b"/></linearGradient><linearGradient id="cbgP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7aa2ff"/><stop offset="1" stop-color="#3b5bdb"/></linearGradient></defs>' + s + "</svg>";
+}
+// All-time avg AIC/run per skill, from the persistent cost ledger (falls back to
+// findings). Independent of the costing-tab Model filter — this is a general card
+// stat. Returns Map skill -> { avg (AIC), n }.
+function skillCostAvg() {
+  const src = (COSTING.costing && COSTING.costing.length) ? COSTING.costing : (FINDINGS.findings || []);
+  const m = new Map();
+  for (const r of src) {
+    if (!(Number(r.creditsNaiu) > 0)) continue;
+    const k = r.skill || "unknown";
+    const e = m.get(k) || { aic: 0, n: 0 };
+    e.aic += Number(r.creditsNaiu) / 1e9; e.n += 1;
+    m.set(k, e);
+  }
+  const out = new Map();
+  for (const [k, e] of m) out.set(k, { avg: e.aic / Math.max(1, e.n), n: e.n });
+  return out;
+}
+function costBySkill(rows) {
+  const m = new Map();
+  for (const r of rows) {
+    const e = m.get(r.skill) || { aic: 0, n: 0 };
+    e.aic += r.aic; e.n += 1;
+    m.set(r.skill, e);
+  }
+  const avg = costSkillMode === "avg";
+  const arr = Array.from(m.entries())
+    .map(e => ({ skill: e[0], val: avg ? e[1].aic / Math.max(1, e[1].n) : e[1].aic, n: e[1].n }))
+    .sort((a, b) => b.val - a.val);
+  if (!arr.length) return '<div class="cost-empty">No costed findings in view.</div>';
+  const max = arr[0].val || 1;
+  return arr.slice(0, 14).map(x => {
+    const pct = Math.max(2, (x.val / max) * 100);
+    const runs = avg ? ' title="' + esc(x.skill + " — avg over " + x.n + " run" + (x.n === 1 ? "" : "s")) + '"' : ' title="' + esc(x.skill) + '"';
+    return '<div class="csrow"><span class="csk"' + runs + ">" + esc(x.skill) + "</span>" +
+      '<span class="csbarwrap"><span class="csbar" style="width:' + pct.toFixed(1) + '%"></span></span>' +
+      '<span class="csv">' + fmtCost(x.val) + "</span></div>";
+  }).join("");
+}
+function renderCosting() {
+  syncCostModelOptions();
+  const rows = costRows();
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const dow = (now.getDay() + 6) % 7;
+  const weekStart = midnight - dow * 86400000;
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const sumSince = t => rows.filter(r => r.ts >= t).reduce((a, r) => a + r.aic, 0);
+  const cntSince = t => rows.filter(r => r.ts >= t).length;
+  const all = rows.reduce((a, r) => a + r.aic, 0);
+  const kpis = [
+    { label: "Today", v: sumSince(midnight), c: cntSince(midnight) },
+    { label: "This week", v: sumSince(weekStart), c: cntSince(weekStart) },
+    { label: "This month", v: sumSince(monthStart), c: cntSince(monthStart) },
+    { label: "All-time", v: all, c: rows.length },
+  ];
+  const sfx = costUnitSuffix();
+  document.getElementById("costKpis").innerHTML = kpis.map(k =>
+    '<div class="kpi"><div class="kpi-l">' + esc(k.label) + '</div><div class="kpi-v">' + fmtCost(k.v) +
+    (costUnit === "aic" ? ' <span class="kpi-u">AIC</span>' : "") +
+    '</div><div class="kpi-s">' + k.c + " finding" + (k.c === 1 ? "" : "s") + "</div></div>").join("");
+  const buckets = buildBuckets(rows, costPeriod);
+  const proj = projectBuckets(buckets, costPeriod, 3);
+  const titles = { day: "Daily AI credit usage", week: "Weekly AI credit usage", month: "Monthly AI credit usage" };
+  const unit = { day: "days", week: "weeks", month: "months" };
+  document.getElementById("costTrendTitle").textContent = titles[costPeriod] + (costUnit === "aic" ? "" : " (" + costUnit.toUpperCase() + ")");
+  const winTotal = buckets.reduce((a, b) => a + b.value, 0);
+  document.getElementById("costTrendSub").textContent = buckets.length
+    ? fmtCost(winTotal) + sfx + " across " + buckets.length + " " + unit[costPeriod] +
+      (proj.length ? " \u00b7 " + proj.length + " " + unit[costPeriod] + " projected" : "") : "";
+  document.getElementById("costTrend").innerHTML = costBars(buckets.concat(proj));
+  let scopeRows = rows;
+  if (buckets.length) { const from = buckets[0].key; scopeRows = rows.filter(r => r.ts >= from); }
+  document.getElementById("costBySkill").innerHTML = costBySkill(scopeRows);
+  const skillSub = document.getElementById("costSkillSub");
+  if (skillSub) {
+    const unitWord = costUnit === "aic" ? "AIC" : costUnit.toUpperCase();
+    skillSub.textContent = (costSkillMode === "avg" ? "avg " + unitWord + " / run" : "total " + unitWord) + " in view window";
+  }
+  const rate = document.getElementById("costRate");
+  if (rate) {
+    const cur = costCur();
+    rate.textContent = cur ? "@ " + cur.symbol + (+(USD_PER_AIC * cur.perUsd).toFixed(4)) + " / AIC" : "";
+  }
+  document.getElementById("costScope").textContent = rows.length
+    ? "avg " + fmtCost(all / Math.max(1, rows.length)) + sfx + " / finding" : "no costed findings yet";
+}
+
 // Short absolute stamp for the findings timeline gutter (e.g. "Aug 28" / "3:52 PM").
-function fmtStamp(ts) {
-  const d = new Date(ts);
+function fmtStamp(ts) {  const d = new Date(ts);
   return {
     day: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
     time: d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
@@ -1318,8 +1699,63 @@ async function dismissFinding(id) {
 document.getElementById("tab-skills").onclick = () => switchView("skills");
 document.getElementById("tab-findings").onclick = () => switchView("findings");
 document.getElementById("tab-queries").onclick = () => switchView("queries");
-
-// ---- Queries tab ----
+document.getElementById("tab-costing").onclick = () => switchView("costing");
+(function wireCostPeriod() {
+  const seg = document.getElementById("costPeriodToggle");
+  if (!seg) return;
+  seg.querySelectorAll("button").forEach(b => {
+    b.onclick = () => {
+      costPeriod = b.dataset.p;
+      seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+      try { localStorage.setItem("mc.costPeriod", costPeriod); } catch (e) {}
+      renderCosting();
+    };
+  });
+  try {
+    const saved = localStorage.getItem("mc.costPeriod");
+    if (saved && (saved === "day" || saved === "week" || saved === "month")) {
+      costPeriod = saved;
+      seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.p === saved));
+    }
+  } catch (e) {}
+  const sel = document.getElementById("costUnitSel");
+  if (sel) {
+    try {
+      const su = localStorage.getItem("mc.costUnit");
+      if (su === "aic" || CURRENCIES[su]) { costUnit = su; sel.value = su; }
+    } catch (e) {}
+    sel.onchange = () => {
+      costUnit = CURRENCIES[sel.value] ? sel.value : "aic";
+      try { localStorage.setItem("mc.costUnit", costUnit); } catch (e) {}
+      renderCosting();
+      renderGrid(); // skill-card avg badges follow the currency selection
+    };
+  }
+  const modeSel = document.getElementById("costSkillMode");
+  if (modeSel) {
+    try {
+      const sm = localStorage.getItem("mc.costSkillMode");
+      if (sm === "total" || sm === "avg") { costSkillMode = sm; modeSel.value = sm; }
+    } catch (e) {}
+    modeSel.onchange = () => {
+      costSkillMode = modeSel.value === "avg" ? "avg" : "total";
+      try { localStorage.setItem("mc.costSkillMode", costSkillMode); } catch (e) {}
+      renderCosting();
+    };
+  }
+  const modelSel = document.getElementById("costModelSel");
+  if (modelSel) {
+    try {
+      const cm = localStorage.getItem("mc.costModel");
+      if (cm) costModel = cm; // validated against live data in syncCostModelOptions()
+    } catch (e) {}
+    modelSel.onchange = () => {
+      costModel = modelSel.value || "__all";
+      try { localStorage.setItem("mc.costModel", costModel); } catch (e) {}
+      renderCosting();
+    };
+  }
+})();
 // Reuses the shared domain filter + search box, and the report modal for viewing.
 function visibleQueries() {
   return (DATA.queries || []).filter(q => {
@@ -1889,6 +2325,7 @@ document.getElementById("findSearch").addEventListener("input", (e) => { findSea
 
 loadFindings();
 setInterval(loadFindings, 5000);
+loadCostingData();
 
 load();</script>
 </body>

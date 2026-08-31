@@ -174,6 +174,12 @@ export async function addFinding(repoRoot, input, knownSkillNames) {
               }))
             : [],
         domains: Array.isArray(input.domains) ? input.domains.slice(0, 8).map(String) : [],
+        // AI usage (nano-AI units) consumed since the previous finding, captured
+        // from assistant.usage telemetry at record time. null when unavailable.
+        creditsNaiu:
+            Number.isFinite(input.creditsNaiu) && input.creditsNaiu > 0
+                ? Math.round(input.creditsNaiu)
+                : null,
         reports: Array.isArray(input.reports)
             ? input.reports
                   .slice(0, 8)

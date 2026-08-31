@@ -22,6 +22,12 @@ import {
     pruneFindings,
     summarize,
 } from "./findings.mjs";
+import {
+    loadCosting,
+    addCosting,
+    seedCostingFromFindings,
+    summarizeCosting,
+} from "./costing.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // .github/extensions/skills-canvas -> repo root is three levels up.
@@ -41,6 +47,26 @@ const servers = new Map();
 // (only when the canvas isn't already open). Disable with MC_AUTO_OPEN=0.
 const AUTO_OPEN = !/^(0|false|off|no)$/i.test(String(process.env.MC_AUTO_OPEN ?? ""));
 const autoOpened = new Set();
+
+// Running total of AI usage (nano-AI units) reported via `assistant.usage`
+// session events. We snapshot the delta at each record_finding call so every
+// finding is attributed the credits consumed since the previous one.
+let cumulativeNaiu = 0;
+let lastFindingNaiu = 0;
+// Per-model cumulative nano-AIU so each finding can be attributed the model that
+// consumed the most credits since the previous finding (best-effort; sub-agents
+// may mix models within a run).
+const cumulativeByModel = new Map();
+const lastByModel = new Map();
+
+// Pull a model identifier out of an assistant.usage event, tolerating a few
+// shapes across runtime versions. Returns "unknown" when none is present.
+function usageModel(event) {
+  const d = event?.data || {};
+  const u = d.copilotUsage || {};
+  const raw = d.model || d.modelId || d.modelSlug || u.model || u.modelId || u.modelSlug || u.modelFamily || "";
+  return String(raw || "unknown").slice(0, 60);
+}
 
 function relAgo(ts) {
     const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
@@ -216,6 +242,20 @@ async function findingsPayload() {
     return { findings, summary: summarize(findings) };
 }
 
+// Persistent cost ledger payload. Auto-seeds from the current findings on first
+// fetch (when the ledger is empty) so historical spend is carried over once.
+async function costingPayload() {
+    let rows = await loadCosting(REPO_ROOT);
+    if (!rows.length) {
+        try {
+            rows = await seedCostingFromFindings(REPO_ROOT, await loadFindings(REPO_ROOT));
+        } catch {
+            rows = [];
+        }
+    }
+    return { costing: rows, summary: summarizeCosting(rows) };
+}
+
 // Serve a report file referenced by a finding. Only files inside REPO_ROOT are
 // allowed (path-traversal guarded). Markdown/text render inline in the browser;
 // HTML is served as-is. Everything else downloads.
@@ -357,6 +397,10 @@ async function handle(req, res) {
         }
         if (req.method === "GET" && url.pathname === "/api/findings") {
             json(res, 200, await findingsPayload());
+            return;
+        }
+        if (req.method === "GET" && url.pathname === "/api/costing") {
+            json(res, 200, await costingPayload());
             return;
         }
         if (req.method === "POST" && url.pathname === "/api/findings/dismiss") {
@@ -517,8 +561,21 @@ sessionRef = await joinSession({
                     },
                     handler: async (ctx) => {
                         const args = ctx.input || {};
+                        // Attribute AI usage since the previous finding to this one.
+                        const deltaNaiu = Math.max(0, cumulativeNaiu - lastFindingNaiu);
+                        lastFindingNaiu = cumulativeNaiu;
+                        args.creditsNaiu = deltaNaiu;
+                        // Dominant model since the previous finding (most credits consumed).
+                        let bestModel = "", bestDelta = 0;
+                        for (const [m, cum] of cumulativeByModel) {
+                            const d = cum - (lastByModel.get(m) || 0);
+                            if (d > bestDelta) { bestDelta = d; bestModel = m; }
+                        }
+                        for (const [m, cum] of cumulativeByModel) lastByModel.set(m, cum);
+                        if (bestModel) args.model = bestModel;
                         try {
                             const finding = await addFinding(REPO_ROOT, args, await knownSkillNames());
+                            try { await addCosting(REPO_ROOT, { ...finding, model: args.model }); } catch {}
                             await sessionRef?.log(`📌 Finding recorded: ${finding.title} (${finding.severity})`, { ephemeral: true });
                             return { ok: true, id: finding.id, recommended: finding.recommended };
                         } catch (err) {
@@ -566,3 +623,17 @@ sessionRef = await joinSession({
 });
 
 await sessionRef.log("🛰️ Mission Control canvas ready — open it to launch skills.", { ephemeral: true });
+
+// Accumulate AI usage telemetry so findings can report credits consumed. Each
+// assistant.usage event carries copilotUsage.totalNanoAiu (nano-AI units) for
+// one model call; multiple fire per turn (incl. sub-agents), so we sum them.
+try {
+    sessionRef.on("assistant.usage", (event) => {
+        const n = event?.data?.copilotUsage?.totalNanoAiu;
+        if (typeof n === "number" && n > 0) {
+            cumulativeNaiu += n;
+            const model = usageModel(event);
+            cumulativeByModel.set(model, (cumulativeByModel.get(model) || 0) + n);
+        }
+    });
+} catch { /* usage telemetry optional; findings simply omit the chip */ }
