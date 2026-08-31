@@ -4,7 +4,9 @@
 # Install with: pip install --require-hashes -r requirements.lock
 #
 # Generated: 2026-03-26 (updated to latest versions)
-# Python: 3.12 (Windows x64)
+# Updated: 2026-08-31 (charset-normalizer hash refreshed for cp314; pyyaml added)
+# Python: 3.14 (Windows x64) — compiled-wheel hashes (charset-normalizer, pyyaml)
+#   are interpreter/ABI-specific; regenerate if your Python version changes.
 #
 # To update:
 #   1. pip download --no-deps -d /tmp/hashes <package>==<new_version>
@@ -34,6 +36,9 @@ pytz==2026.1.post1 \
 tzdata==2025.3 \
     --hash=sha256:06a47e5700f3081aab02b2e513160914ff0694bce9947d6b76ebd6bf57cfc5d1
 
+pyyaml==6.0.3 \
+    --hash=sha256:4a2e8cebe2ff6ab7d1050ecd59c25d4c8bd7e6f400f5f82b96557ac0abafd0ac
+
 # --- Transitive dependencies (pulled by requests) ---
 
 urllib3==2.6.3 \
@@ -46,7 +51,7 @@ idna==3.11 \
     --hash=sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea
 
 charset-normalizer==3.4.6 \
-    --hash=sha256:c8ae56368f8cc97c7e40a7ee18e1cedaf8e780cd8bc5ed5ac8b81f238614facb
+    --hash=sha256:74119174722c4349af9708993118581686f343adc1c8c9c007d59be90d077f3f
 
 # --- Transitive dependencies (pulled by python-dateutil) ---
 
