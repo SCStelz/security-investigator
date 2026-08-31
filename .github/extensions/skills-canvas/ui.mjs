@@ -98,7 +98,7 @@ export function renderPage() {
   .btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); font-weight: 500; }
   .btn.ghost:hover { color: var(--text); border-color: var(--accent2); }
 
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; display: flex; flex-direction: column; gap: 8px; }
   .card .top { display: flex; align-items: flex-start; gap: 9px; }
   .card .ic { font-size: 18px; line-height: 1; margin-top: 1px; }
@@ -122,10 +122,10 @@ export function renderPage() {
   .qpath { font-size: 10.5px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: right; opacity: .8; }
   .card .row { display: flex; gap: 7px; align-items: center; margin-top: 2px; flex-wrap: wrap; }
-  .card .row.skrow { flex-wrap: nowrap; }
-  .skrow .lookback, .skrow .output { flex: 1 1 0; min-width: 0; max-width: none; }
-  .skrow .btn.open { padding: 8px 9px; flex: 0 0 auto; }
-  .skrow .run { flex: 0 0 auto; }
+  .card .row.skrow { flex-wrap: nowrap; gap: 6px; }
+  .skrow .lookback, .skrow .output { flex: 0 0 auto; width: auto; min-width: 0; max-width: none; }
+  .skrow .btn.open { padding: 8px 8px; flex: 0 0 auto; }
+  .skrow .run { flex: 0 0 auto; padding: 7px 12px; margin-left: auto; white-space: nowrap; }
   .skrow .status:empty { display: none; }
   .card .status { margin-left: auto; font-size: 11px; color: var(--muted); }
   .btn.qsel.on { background: var(--hi); color: #fff; border-color: var(--hi); }
