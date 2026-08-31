@@ -488,6 +488,7 @@ export function renderPage() {
           </div>
           <select class="lookback" id="tpLookback" title="Lookback window"></select>
           <select class="output" id="tpOutput" title="Output format"></select>
+          <button class="btn ghost" data-open="threat-pulse" title="Open SKILL.md">📄</button>
           <button class="btn" data-skill="threat-pulse">▶ Run Threat Pulse</button>
         </div>
         <div class="viewbar">
@@ -1319,6 +1320,11 @@ setRailWidth(railW);
   });
 })();
 document.getElementById("feature").addEventListener("click", (e) => {
+  if (e.target.dataset.open) {
+    const sk = DATA.skills.find(s => s.name === e.target.dataset.open);
+    if (sk && sk.path) openReport(sk.path, sk.name); else toast("SKILL.md not available");
+    return;
+  }
   if (e.target.dataset.skill) run("threat-pulse", "", "", (document.getElementById("tpLookback") || {}).value || "", false, (document.getElementById("tpOutput") || {}).value || "");
 });
 document.getElementById("quickgo").onclick = () => {
