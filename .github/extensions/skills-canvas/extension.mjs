@@ -20,6 +20,10 @@ import {
     dismissFinding,
     clearFindings,
     pruneFindings,
+    archiveFindings,
+    archiveOneFinding,
+    listArchives,
+    readArchive,
     summarize,
 } from "./findings.mjs";
 import {
@@ -421,6 +425,55 @@ async function handle(req, res) {
                 severities: body.severities,
             });
             json(res, 200, { ok: true, ...(await findingsPayload()) });
+            return;
+        }
+        if (req.method === "POST" && url.pathname === "/api/findings/archive") {
+            const body = await readBody(req);
+            const r = await archiveFindings(REPO_ROOT, {
+                olderThanDays: body.olderThanDays,
+                severities: body.severities,
+            });
+            json(res, 200, {
+                ok: true,
+                archived: r.archived,
+                file: r.file,
+                archives: await listArchives(REPO_ROOT),
+                ...(await findingsPayload()),
+            });
+            return;
+        }
+        if (req.method === "POST" && url.pathname === "/api/findings/archive-one") {
+            const { id } = await readBody(req);
+            const r = await archiveOneFinding(REPO_ROOT, id);
+            json(res, 200, {
+                ok: true,
+                archived: r.archived,
+                file: r.file,
+                archives: await listArchives(REPO_ROOT),
+                ...(await findingsPayload()),
+            });
+            return;
+        }
+        if (req.method === "GET" && url.pathname === "/api/findings/archives") {
+            json(res, 200, { archives: await listArchives(REPO_ROOT) });
+            return;
+        }
+        if (req.method === "GET" && url.pathname === "/api/findings/archive") {
+            const a = await readArchive(REPO_ROOT, url.searchParams.get("file") || "");
+            if (!a) {
+                json(res, 404, { ok: false, error: "archive not found" });
+                return;
+            }
+            const findings = a.findings.map((f) => ({ ...f, ago: relAgo(f.ts) }));
+            json(res, 200, {
+                ok: true,
+                file: a.file,
+                archivedAt: a.archivedAt,
+                stamp: a.stamp,
+                count: a.count,
+                findings,
+                summary: summarize(findings),
+            });
             return;
         }
         if (req.method === "POST" && url.pathname === "/api/memory-file") {

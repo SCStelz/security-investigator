@@ -216,6 +216,14 @@ export function renderPage() {
     background: #0d1626; color: var(--text); font-size: 12.5px; font-family: inherit; width: 220px; outline: none; }
   .findhead .findsearch:focus { border-color: var(--accent2); }
   .findhead .findsearch::placeholder { color: #5c6b83; }
+  .findhead .arcsel { max-width: 180px; }
+  .findhead .arcsel.active { border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2) inset; }
+  .arc-banner { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 9px 12px;
+    border: 1px solid var(--accent2); border-radius: 9px; background: rgba(90,140,255,.08);
+    font-size: 12.5px; color: var(--text); }
+  .arc-banner .ab-t { font-weight: 650; }
+  .arc-banner .ab-meta { color: #8aa0c0; }
+  .arc-banner .ab-back { margin-left: auto; }
   .sev-pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
     cursor: pointer; user-select: none; transition: opacity .12s, box-shadow .12s, transform .06s; text-transform: capitalize; }
   .sev-pill:hover { transform: translateY(-1px); }
@@ -258,7 +266,7 @@ export function renderPage() {
   .ftime.b-medium::after { border-color: #d29922; }
   .ftime.b-low::after, .ftime.b-info::after { border-color: #388bfd; }
   .ftime.b-clean::after { border-color: #3fb950; }
-  .finding .fh { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+  .finding .fh { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; padding-right: 40px; }
   .finding .ftitle { font-weight: 640; font-size: 14px; }
   .finding .fmeta { color: var(--muted); font-size: 11.5px; margin-left: auto; }
   .finding .frun { background: #14243a; color: #cfe2ff; border: 1px solid var(--accent2); border-radius: 7px;
@@ -322,6 +330,8 @@ export function renderPage() {
   .rec .tuned { color: #7ee787; font-size: 11px; margin-left: 4px; cursor: help; }
   .finding .dismiss { position: absolute; top: 10px; right: 12px; color: #5c6b83; cursor: pointer; font-size: 15px; line-height: 1; }
   .finding .dismiss:hover { color: var(--hi); }
+  .finding .farch { position: absolute; top: 10px; right: 32px; cursor: pointer; font-size: 12px; line-height: 1; opacity: .5; filter: grayscale(.3); }
+  .finding .farch:hover { opacity: 1; filter: none; }
   .empty-find { color: var(--muted); text-align: center; padding: 40px 20px; }
   .empty-find .em { font-size: 34px; }
   .empty-find code { background: var(--chip); padding: 1px 6px; border-radius: 5px; color: #cfe2ff; }
@@ -410,6 +420,11 @@ export function renderPage() {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); background: var(--panel, #10151c);
     border: 1px solid var(--border, #2a3441); border-radius: 6px; outline: none; }
   .memfile-input:focus { border-color: var(--accent); }
+  .date-row { display: flex; gap: 12px; margin: 0 0 14px; }
+  .date-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
+  .date-input { padding: 7px 9px; font-size: 13px; color: var(--text); background: var(--panel, #10151c);
+    border: 1px solid var(--border, #2a3441); border-radius: 6px; outline: none; color-scheme: dark; }
+  .date-input:focus { border-color: var(--accent); }
   .confirm-actions .grow#memFileMeta { font-size: 12px; color: var(--muted); }
   .btn:disabled { opacity: .4; cursor: not-allowed; }
   .btn:disabled:hover { background: var(--accent); }
@@ -419,7 +434,10 @@ export function renderPage() {
   .prune-lbl .prune-hint { font-size: 11px; opacity: .7; }
   .prune-age { display: block; width: auto; margin: 0 0 14px; }
   .prune-sevs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
-  .prune-preview { margin: 0 0 14px; font-size: 12.5px; color: var(--text); font-weight: 550; }
+  .prune-preview { margin: 0 0 10px; font-size: 12.5px; color: var(--text); font-weight: 550; }
+  .prune-help { margin: 0 0 14px; font-size: 11.5px; line-height: 1.5; color: var(--muted);
+    border-left: 2px solid var(--border); padding-left: 9px; }
+  .prune-help b { color: var(--text); font-weight: 650; }
 </style>
 </head>
 <body>
@@ -485,7 +503,8 @@ export function renderPage() {
           <button class="btn ghost" id="memSet" style="margin-left:auto" title="Set the tenant context-memory filename">⚙️</button>
           <button class="btn ghost" id="memOpen" title="Open the tenant context-memory file in markdown preview">📖</button>
           <button class="btn ghost" id="findCompact" title="Compact findings into your tenant context-memory file (propose-only review)">🧠 Compact</button>
-          <button class="btn ghost" id="findClear" title="Prune findings by age and severity">Clear ▾</button>
+          <select class="lookback arcsel" id="archiveSel" title="Browse an archived findings snapshot"></select>
+          <button class="btn ghost" id="findClear" title="Archive or delete findings by age and severity">Manage ▾</button>
         </div>
         <div id="findings"></div>
       </div>
@@ -637,12 +656,12 @@ export function renderPage() {
 <div class="modal" id="pruneModal">
   <div class="modal-box confirm">
     <div class="modal-head">
-      <span class="mt">Prune findings</span>
+      <span class="mt">Archive or delete findings</span>
       <span class="spacer"></span>
       <span class="x" id="pruneClose" title="Close">×</span>
     </div>
     <div class="confirm-body">
-      <p class="prune-lbl">Remove findings older than</p>
+      <p class="prune-lbl">Select findings older than</p>
       <select class="lookback prune-age" id="pruneAge" title="Age threshold">
         <option value="0">Any age (all)</option>
         <option value="1">1 day</option>
@@ -653,10 +672,43 @@ export function renderPage() {
       <p class="prune-lbl">…that match severity <span class="prune-hint">(click to toggle)</span></p>
       <div class="prune-sevs" id="pruneSevs"></div>
       <p class="prune-preview" id="prunePreview"></p>
+      <p class="prune-help"><b>🗄️ Archive</b> saves them to a timestamped file you can browse later, then removes them from the live view. <b>🗑️ Delete</b> removes them permanently.</p>
       <div class="confirm-actions">
         <span class="grow"></span>
         <button class="btn ghost" id="pruneCancel">Cancel</button>
-        <button class="btn danger" id="pruneOk">Clear</button>
+        <button class="btn danger" id="pruneOk" title="Permanently delete the matching findings — cannot be undone">🗑️ Delete</button>
+        <button class="btn" id="pruneArchive" title="Save matching findings to a timestamped archive file, then remove them from the live view">🗄️ Archive</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="compactModal">
+  <div class="modal-box confirm">
+    <div class="modal-head">
+      <span class="mt">🧠 Compact findings to memory</span>
+      <span class="spacer"></span>
+      <span class="x" id="compactClose" title="Close">×</span>
+    </div>
+    <div class="confirm-body">
+      <p class="prune-lbl">Date range to review</p>
+      <select class="lookback prune-age" id="compactRange" title="Scope the compaction to findings recorded in this window">
+        <option value="all">All time</option>
+        <option value="1">Last 1 day</option>
+        <option value="7">Last 7 days</option>
+        <option value="30">Last 30 days</option>
+        <option value="custom">Custom range…</option>
+      </select>
+      <div class="date-row" id="compactCustom" style="display:none">
+        <label class="date-field">From <input type="date" id="compactFrom" class="date-input" /></label>
+        <label class="date-field">To <input type="date" id="compactTo" class="date-input" /></label>
+      </div>
+      <p class="prune-preview" id="compactPreview"></p>
+      <p class="prune-help">Runs the <b>context-memory-review</b> skill as a propose-only review. The chosen window is embedded in the prompt so the review focuses on findings (and reports) from that period. Nothing is written or committed automatically.</p>
+      <div class="confirm-actions">
+        <span class="grow"></span>
+        <button class="btn ghost" id="compactCancel">Cancel</button>
+        <button class="btn" id="compactOk" title="Compose a tailored context-memory-review prompt for the selected window">🧠 Compact</button>
       </div>
     </div>
   </div>
@@ -1028,19 +1080,110 @@ document.getElementById("confirmOk").onclick = function () { var cb = CONFIRM_CB
 document.getElementById("confirmAlt").onclick = function () { var cb = CONFIRM_ALT_CB; closeConfirm(); if (cb) cb(); };
 bindBackdropClose("confirmModal", closeConfirm);
 
-// --- Compact findings to memory ---
-function compactToMemory() {
+// --- Compact findings to memory (with date-range scoping) ---
+var compactRangeVal = "all";
+
+function ymd(ms) {
+  var d = new Date(ms), p = function (n) { return String(n).padStart(2, "0"); };
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+
+// Resolve the selected window to { fromMs, toMs, valid, label, promptScope }.
+function compactWindow() {
+  var sel = document.getElementById("compactRange");
+  var mode = sel ? sel.value : "all";
+  if (mode === "all") {
+    return { fromMs: 0, toMs: Infinity, valid: true, label: "all time", promptScope: "" };
+  }
+  if (mode === "custom") {
+    var fv = (document.getElementById("compactFrom") || {}).value || "";
+    var tv = (document.getElementById("compactTo") || {}).value || "";
+    if (!fv && !tv) return { valid: false, label: "custom (pick dates)" };
+    var fromMs = fv ? new Date(fv + "T00:00:00").getTime() : 0;
+    var toMs = tv ? new Date(tv + "T23:59:59.999").getTime() : Infinity;
+    if (fromMs > toMs) return { valid: false, label: "custom (from is after to)" };
+    return {
+      fromMs: fromMs, toMs: toMs, valid: true,
+      label: "custom: " + (fv || "start") + " to " + (tv || "now"),
+      promptScope: "Scope this review to investigation evidence recorded between " +
+        (fv || "the earliest available date") + " and " + (tv || "now") + " (inclusive)."
+    };
+  }
+  var days = Number(mode) || 0;
+  var toMs = Date.now();
+  var fromMs = toMs - days * 86400000;
+  return {
+    fromMs: fromMs, toMs: toMs, valid: true,
+    label: "last " + days + " day" + (days === 1 ? "" : "s"),
+    promptScope: "Scope this review to investigation evidence from the last " + days +
+      " day" + (days === 1 ? "" : "s") + " (on or after " + ymd(fromMs) + ")."
+  };
+}
+
+function compactMatchCount(win) {
+  var arr = FINDINGS.findings || [];
+  if (!win || !win.valid) return 0;
+  if (win.fromMs === 0 && win.toMs === Infinity) return arr.length;
+  var c = 0;
+  for (var i = 0; i < arr.length; i++) {
+    var ts = Number(arr[i].ts) || 0;
+    if (ts >= win.fromMs && ts <= win.toMs) c++;
+  }
+  return c;
+}
+
+function updateCompactPreview() {
+  var sel = document.getElementById("compactRange");
+  var custom = document.getElementById("compactCustom");
+  if (custom) custom.style.display = (sel && sel.value === "custom") ? "flex" : "none";
+  var win = compactWindow();
+  var m = (FINDINGS.findings || []).length;
+  var prev = document.getElementById("compactPreview");
+  var ok = document.getElementById("compactOk");
+  if (!win.valid) {
+    if (prev) prev.textContent = "Pick a valid date range to continue.";
+    if (ok) { ok.disabled = true; ok.textContent = "🧠 Compact"; }
+    return;
+  }
+  var n = compactMatchCount(win);
+  if (prev) prev.textContent = n + " of " + m + " finding" + (m === 1 ? "" : "s") + " in range (" + win.label + ").";
+  if (ok) { ok.disabled = n === 0; ok.textContent = n ? ("🧠 Compact " + n) : "🧠 Compact"; }
+}
+
+function openCompact() {
   var file = memFile();
   if (!file) { toast("Set a memory file (⚙) to enable"); return; }
   var n = (FINDINGS.findings || []).length;
   if (n === 0) { toast("No findings to compact"); return; }
+  var sel = document.getElementById("compactRange");
+  if (sel) sel.value = compactRangeVal || "all";
+  updateCompactPreview();
+  document.getElementById("compactModal").classList.add("on");
+}
+function closeCompact() { document.getElementById("compactModal").classList.remove("on"); }
+
+function doCompact() {
+  var file = memFile();
+  if (!file) { toast("Set a memory file (⚙) to enable"); return; }
+  var win = compactWindow();
+  if (!win.valid) { toast("Pick a valid date range"); return; }
+  var total = (FINDINGS.findings || []).length;
+  var inRange = compactMatchCount(win);
+  if (inRange === 0) { toast("No findings in range"); return; }
+  compactRangeVal = document.getElementById("compactRange").value;
+  var scoped = !!(win.promptScope && win.promptScope.length);
+
   var p = "";
   p += "Run the context-memory-review skill (.github/skills/context-memory-review/SKILL.md) to compact accumulated investigation evidence into the tenant context-memory file '" + file + "' (under ~/.copilot/memories/repo/).\\n\\n";
+  if (scoped) {
+    p += win.promptScope + " " + inRange + " of " + total + " recorded finding(s) fall within this window — focus the review on those, and on reports/ markdown updated in the same period.\\n\\n";
+  }
   p += "Evidence sources to review:\\n";
   p += "1. Current memory file '" + file + "' (if it exists).\\n";
-  p += "2. Mission Control findings at .github/extensions/skills-canvas/state/findings.json (" + n + " recorded finding(s) — first-party, each from an actual skill drill-down).\\n";
-  p += "3. Recent markdown reports under reports/.\\n\\n";
+  p += "2. Mission Control findings at .github/extensions/skills-canvas/state/findings.json (" + total + " recorded finding(s) total" + (scoped ? ", " + inRange + " within the selected window" : "") + " — first-party, each from an actual skill drill-down).\\n";
+  p += "3. Recent markdown reports under reports/" + (scoped ? " (prioritize those modified within the selected window)" : "") + ".\\n\\n";
   p += "Produce a PROPOSE-ONLY review document for human approval: list candidate ADD / MODIFY / FLAG changes with the supporting evidence for each. Do NOT edit the memory file, and do NOT commit — applying approved changes is a separate manual step. Honor the feedback-loop guard and keep all tenant PII local (never in committed docs).";
+  closeCompact();
   openCompose("context-memory-review", "", p, true);
 }
 function syncCompactBtn() {
@@ -1056,7 +1199,14 @@ function syncCompactBtn() {
     o.title = has ? "Open " + memFile() + " in markdown preview" : "Set a memory file (⚙) to enable";
   }
 }
-document.getElementById("findCompact").onclick = compactToMemory;
+document.getElementById("findCompact").onclick = openCompact;
+document.getElementById("compactRange").onchange = updateCompactPreview;
+document.getElementById("compactFrom").onchange = updateCompactPreview;
+document.getElementById("compactTo").onchange = updateCompactPreview;
+document.getElementById("compactClose").onclick = closeCompact;
+document.getElementById("compactCancel").onclick = closeCompact;
+document.getElementById("compactOk").onclick = function () { if (!this.disabled) doCompact(); };
+bindBackdropClose("compactModal", closeCompact);
 
 // --- Open the tenant context-memory file in the markdown preview modal ---
 function openMemPreview() {
@@ -1184,7 +1334,17 @@ let costSkillMode = "total"; // costing display unit: aic | usd
 let costModel = "__all"; // costing model filter: __all | <model id>
 let sevFilter = new Set(); // empty = show all; otherwise a set of severity strings (multi-select)
 let findSearch = ""; // findings tab free-text filter (lowercased)
+let archiveView = null; // when set, the Findings tab shows a read-only archive snapshot instead of the live ledger
+let ARCHIVES = []; // metadata for the archive-browser dropdown
 const SEV_ORDER = ["critical", "high", "medium", "low", "info", "clean"];
+
+// Findings source resolves to the live ledger or, when browsing, an archive
+// snapshot. Both share the same shape ({ findings, summary }).
+function findSource() { return archiveView ? (archiveView.findings || []) : (FINDINGS.findings || []); }
+function findCounts() {
+  const s = archiveView ? archiveView.summary : (FINDINGS && FINDINGS.summary);
+  return (s && s.counts) || {};
+}
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
@@ -1213,6 +1373,7 @@ async function loadFindings() {
   badge.textContent = n;
   badge.classList.toggle("zero", n === 0);
   syncCompactBtn();
+  loadArchives();
   if (currentView === "findings") renderFindings();
 }
 
@@ -1227,7 +1388,7 @@ async function loadCostingData() {
 
 function renderRoll() {
   const host = document.getElementById("findRoll");
-  const by = (FINDINGS.summary && FINDINGS.summary.counts) || {};
+  const by = findCounts();
   const anyActive = sevFilter.size > 0;
   const total = SEV_ORDER.reduce((n, s) => n + (by[s] || 0), 0);
   // "All" clears the filter; each severity pill toggles its own inclusion in the
@@ -1267,28 +1428,39 @@ function renderFindings() {
   syncCompactBtn();
   renderRoll();
   const host = document.getElementById("findings");
-  const all = FINDINGS.findings || [];
+  const all = findSource();
   const sevList = sevFilter.size ? all.filter(f => sevFilter.has((f.severity || "info").toLowerCase())) : all;
   const list = findSearch ? sevList.filter(f => findingHay(f).includes(findSearch)) : sevList;
+  // Banner shown above the cards while browsing a read-only archive snapshot.
+  const banner = archiveView
+    ? '<div class="arc-banner"><span class="ab-t">🗄️ Archived snapshot</span>' +
+      '<span class="ab-meta">' + esc(archiveView.stamp || archiveView.file || "") +
+      ' · ' + (archiveView.count != null ? archiveView.count : (archiveView.findings || []).length) + ' findings</span>' +
+      '<button class="btn ghost ab-back" id="arcBack">↩ Back to live</button></div>'
+    : "";
   if (!all.length) {
-    host.innerHTML =
+    host.innerHTML = banner +
       '<div class="empty-find"><div class="em">🛰️</div>' +
-      '<p>No findings recorded yet.</p>' +
-      '<p style="font-size:12px">Run a skill, then the agent pushes its result here via the ' +
-      '<code>record_finding</code> action — with one-click follow-up hunts.</p></div>';
+      '<p>No findings ' + (archiveView ? 'in this archive.' : 'recorded yet.') + '</p>' +
+      (archiveView ? '' :
+        '<p style="font-size:12px">Run a skill, then the agent pushes its result here via the ' +
+        '<code>record_finding</code> action — with one-click follow-up hunts.</p>') + '</div>';
+    wireArcBack();
     return;
   }
   if (!list.length) {
     const bits = [];
     if (sevFilter.size) bits.push('<b>' + esc([...sevFilter].join(", ")) + '</b>');
     if (findSearch) bits.push('matching <b>' + esc(findSearch) + '</b>');
-    host.innerHTML =
+    host.innerHTML = banner +
       '<div class="empty-find"><div class="em">🔍</div>' +
       '<p>No ' + (bits.length ? bits.join(" findings ") : "") + ' findings.</p>' +
       '<p style="font-size:12px">Clear the search or click <b>All</b> above to see everything.</p></div>';
+    wireArcBack();
     return;
   }
-  host.innerHTML = "";
+  host.innerHTML = banner;
+  wireArcBack();
   for (const f of list) {
     const sev = (f.severity || "info").toLowerCase();
     const card = document.createElement("div");
@@ -1322,7 +1494,7 @@ function renderFindings() {
       : "";
 
     card.innerHTML =
-      '<span class="dismiss" title="Dismiss">×</span>' +
+      (archiveView ? '' : '<span class="farch" title="Archive this finding (moves it to today\\u2019s Quick archive)">\uD83D\uDDC4\uFE0F</span><span class="dismiss" title="Dismiss">×</span>') +
       '<div class="fh"><span class="ftitle">' + esc(f.title) + '</span>' +
       '<span class="fskill">' + esc(f.skill) + '</span>' +
       credChip +
@@ -1334,7 +1506,10 @@ function renderFindings() {
       (reports ? '<div class="freports"><span class="lbl">Reports</span>' + reports + '</div>' : "") +
       (recs ? '<div class="frecs"><div class="lbl">Recommended follow-ups</div>' + recs + '</div>' : "");
 
-    card.querySelector(".dismiss").onclick = () => dismissFinding(f.id);
+    const dismissEl = card.querySelector(".dismiss");
+    if (dismissEl) dismissEl.onclick = () => dismissFinding(f.id);
+    const archEl = card.querySelector(".farch");
+    if (archEl) archEl.onclick = () => archiveOne(f.id);
     card.querySelectorAll(".rec button").forEach(b => {
       b.onclick = () => {
         const r = (f.recommended || [])[Number(b.dataset.ri)] || {};
@@ -1361,6 +1536,72 @@ function renderFindings() {
     row.appendChild(card);
     host.appendChild(row);
   }
+}
+
+// Wire the "↩ Back to live" button inside the archive banner (present only when
+// browsing an archive). Returns the live findings view.
+function wireArcBack() {
+  const b = document.getElementById("arcBack");
+  if (b) b.onclick = () => exitArchive();
+}
+
+// Populate the archive-browser dropdown. First option returns to the live
+// ledger; the rest are snapshots newest-first.
+function renderArchiveSel() {
+  const sel = document.getElementById("archiveSel");
+  if (!sel) return;
+  const opts = ['<option value="">📁 Live findings</option>'];
+  for (const a of ARCHIVES) {
+    const label = (a.stamp || a.file) + (a.count != null ? " · " + a.count : "");
+    opts.push('<option value="' + esc(a.file) + '">🗄️ ' + esc(label) + '</option>');
+  }
+  sel.innerHTML = opts.join("");
+  sel.value = archiveView ? archiveView.file : "";
+  sel.classList.toggle("active", !!archiveView);
+  // No snapshots yet → dim the control but keep it visible for discoverability.
+  sel.disabled = ARCHIVES.length === 0 && !archiveView;
+}
+
+async function loadArchives() {
+  try {
+    const res = await fetch("/api/findings/archives");
+    const j = await res.json();
+    ARCHIVES = (j && j.archives) || [];
+  } catch (e) { ARCHIVES = []; }
+  renderArchiveSel();
+}
+
+// Fetch and display a read-only archive snapshot. Live ledger stays intact.
+async function viewArchive(file) {
+  if (!file) { exitArchive(); return; }
+  try {
+    const res = await fetch("/api/findings/archive?file=" + encodeURIComponent(file));
+    if (!res.ok) throw new Error("not found");
+    archiveView = await res.json();
+  } catch (e) {
+    toast("Could not open archive");
+    archiveView = null;
+  }
+  setLiveControlsDisabled(!!archiveView);
+  renderArchiveSel();
+  renderFindings();
+}
+
+// Return to the live ledger from an archive snapshot.
+function exitArchive() {
+  archiveView = null;
+  setLiveControlsDisabled(false);
+  renderArchiveSel();
+  renderFindings();
+}
+
+// The Compact / Clear buttons act on the live ledger, so disable them while an
+// archive snapshot is on screen to avoid confusing mutations.
+function setLiveControlsDisabled(disabled) {
+  ["findClear", "findCompact"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = disabled;
+  });
 }
 
 // Format nano-AI units as a compact AIC (AI credits) figure. Returns "" when
@@ -1693,6 +1934,23 @@ async function dismissFinding(id) {
     FINDINGS = await res.json();
     document.getElementById("findCount").textContent = FINDINGS.summary ? FINDINGS.summary.total : 0;
     renderFindings();
+  } catch (e) { toast("⚠️ " + e.message); }
+}
+
+// Per-card archive: preserves the finding to today's rolling "Quick archive"
+// file, then removes it from the live view. Refreshes the archive dropdown so
+// the snapshot is immediately browsable without a reload.
+async function archiveOne(id) {
+  try {
+    const res = await fetch("/api/findings/archive-one", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    FINDINGS = data;
+    if (Array.isArray(data.archives)) { ARCHIVES = data.archives; renderArchiveSel(); }
+    document.getElementById("findCount").textContent = FINDINGS.summary ? FINDINGS.summary.total : 0;
+    renderFindings();
+    toast("\uD83D\uDDC4\uFE0F Archived to Quick archive");
   } catch (e) { toast("⚠️ " + e.message); }
 }
 
@@ -2278,10 +2536,15 @@ function updatePrunePreview() {
   const n = pruneMatchCount();
   const m = (FINDINGS.findings || []).length;
   const el = document.getElementById("prunePreview");
-  el.textContent = n ? ("Will remove " + n + " of " + m + " finding" + (m === 1 ? "" : "s") + ".") : "No findings match — nothing will be removed.";
+  el.textContent = n ? ("Matches " + n + " of " + m + " finding" + (m === 1 ? "" : "s") + ".") : "No findings match.";
   const ok = document.getElementById("pruneOk");
-  ok.textContent = n ? ("Clear " + n) : "Clear";
+  ok.textContent = n ? ("\uD83D\uDDD1\uFE0F Delete " + n) : "\uD83D\uDDD1\uFE0F Delete";
   ok.disabled = !n;
+  const arc = document.getElementById("pruneArchive");
+  if (arc) {
+    arc.textContent = n ? ("🗄️ Archive " + n) : "🗄️ Archive";
+    arc.disabled = !n;
+  }
 }
 function openPrune() {
   const m = (FINDINGS.findings || []).length;
@@ -2315,12 +2578,43 @@ async function doPrune() {
     toast("Findings pruned");
   } catch (e) { toast("⚠️ " + e.message); }
 }
+// Archive uses the SAME criteria as prune, but preserves the matched findings to
+// a timestamped snapshot before removing them from the live view.
+async function doArchive() {
+  const days = Number(document.getElementById("pruneAge").value) || 0;
+  const sevs = [...pruneSel];
+  const body = { olderThanDays: days, severities: sevs.length === SEV_ORDER.length ? [] : sevs };
+  try {
+    const res = await fetch("/api/findings/archive", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const j = await res.json();
+    FINDINGS = { findings: j.findings, summary: j.summary };
+    ARCHIVES = j.archives || ARCHIVES;
+    sevFilter.clear();
+    archiveView = null;
+    setLiveControlsDisabled(false);
+    const t = FINDINGS.summary ? FINDINGS.summary.total : (FINDINGS.findings || []).length;
+    const cnt = document.getElementById("findCount");
+    cnt.textContent = t;
+    cnt.classList.toggle("zero", !t);
+    syncCompactBtn();
+    renderArchiveSel();
+    renderFindings();
+    closePrune();
+    toast("Archived " + (j.archived || 0) + " → " + (j.file || "archive"));
+  } catch (e) { toast("⚠️ " + e.message); }
+}
 document.getElementById("pruneAge").onchange = updatePrunePreview;
 document.getElementById("pruneClose").onclick = closePrune;
 document.getElementById("pruneCancel").onclick = closePrune;
 document.getElementById("pruneOk").onclick = function () { if (!this.disabled) doPrune(); };
+document.getElementById("pruneArchive").onclick = function () { if (!this.disabled) doArchive(); };
 bindBackdropClose("pruneModal", closePrune);
 document.getElementById("findClear").onclick = openPrune;
+document.getElementById("archiveSel").onchange = (e) => viewArchive(e.target.value);
 document.getElementById("findSearch").addEventListener("input", (e) => { findSearch = e.target.value.trim().toLowerCase(); renderFindings(); });
 
 loadFindings();

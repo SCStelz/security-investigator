@@ -4,7 +4,7 @@
 // JSON file so they survive extension reloads, and the Findings tab renders them
 // with agent-authored (or auto-derived) follow-up skill recommendations.
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4, clean: 5 };
@@ -246,6 +246,162 @@ export async function pruneFindings(repoRoot, { olderThanDays = 0, severities = 
     });
     await saveFindings(repoRoot, kept);
     return kept;
+}
+
+// --- Archive: preserve evidence instead of deleting it ---------------------
+// An "archive" is a timestamped JSON snapshot of the findings that were removed
+// from the live ledger, written under state/archive/. This lets the analyst
+// clear the working view while keeping a dated, browsable copy of the evidence.
+
+function archiveDir(repoRoot) {
+    return path.join(repoRoot, ".github", "extensions", "skills-canvas", "state", "archive");
+}
+
+// Filename stamp: YYYYMMDD-HHMMSS (local time), sortable lexicographically.
+function stampNow(d = new Date()) {
+    const p = (n) => String(n).padStart(2, "0");
+    return (
+        d.getFullYear().toString() + p(d.getMonth() + 1) + p(d.getDate()) +
+        "-" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds())
+    );
+}
+
+// Accepts findings-YYYYMMDD-HHMMSS.json with an optional short collision suffix.
+const ARCHIVE_RE = /^findings-\d{8}-\d{6}(?:-[a-z0-9]{1,4})?\.json$/i;
+
+/**
+ * Archive the findings that match the given criteria (same matching semantics
+ * as pruneFindings) to a timestamped file, then remove them from the live
+ * ledger. With no criteria this archives the entire ledger. Returns
+ * { archived, kept, file } where `file` is the archive filename (or null when
+ * nothing matched).
+ */
+export async function archiveFindings(repoRoot, { olderThanDays = 0, severities = [] } = {}) {
+    const days = Number(olderThanDays) || 0;
+    const cutoff = days > 0 ? Date.now() - days * 86400000 : 0;
+    const sevSet = new Set((Array.isArray(severities) ? severities : []).map(normalizeSeverity));
+    const useSev = sevSet.size > 0;
+    const all = await loadFindings(repoRoot);
+    const toArchive = [];
+    const kept = [];
+    for (const f of all) {
+        const sevMatch = !useSev || sevSet.has(normalizeSeverity(f.severity));
+        const ageMatch = !cutoff || (Number(f.ts) || 0) < cutoff;
+        if (sevMatch && ageMatch) toArchive.push(f);
+        else kept.push(f);
+    }
+    if (!toArchive.length) return { archived: 0, kept: all, file: null };
+
+    const dir = archiveDir(repoRoot);
+    await mkdir(dir, { recursive: true });
+    const stamp = stampNow();
+    let file = "findings-" + stamp + ".json";
+    try {
+        // Collision within the same second → append a short random suffix.
+        await readFile(path.join(dir, file), "utf8");
+        file = "findings-" + stamp + "-" + Math.random().toString(36).slice(2, 5) + ".json";
+    } catch { /* no collision */ }
+
+    const payload = {
+        archivedAt: new Date().toISOString(),
+        stamp,
+        count: toArchive.length,
+        criteria: { olderThanDays: days, severities: [...sevSet] },
+        findings: toArchive,
+    };
+    await writeFile(path.join(dir, file), JSON.stringify(payload, null, 2), "utf8");
+    await saveFindings(repoRoot, kept);
+    return { archived: toArchive.length, kept, file };
+}
+
+/**
+ * Archive a SINGLE finding by id from a per-card "🗄️" button. Rather than
+ * writing a new file per click (file sprawl), these consolidate into one rolling
+ * "quick archive" file per day: findings-YYYYMMDD-000000-q.json. Each click
+ * appends the finding to today's quick file and removes it from the live ledger.
+ * The file naturally rolls over to a fresh archive at the next calendar day.
+ * Returns { archived, file, kept } (archived:0, file:null when id not found).
+ */
+export async function archiveOneFinding(repoRoot, id) {
+    const all = await loadFindings(repoRoot);
+    const target = all.find((f) => f.id === id);
+    if (!target) return { archived: 0, file: null, kept: all };
+    const kept = all.filter((f) => f.id !== id);
+
+    const dir = archiveDir(repoRoot);
+    await mkdir(dir, { recursive: true });
+    const day = stampNow().slice(0, 8); // YYYYMMDD
+    const file = "findings-" + day + "-000000-q.json";
+    const full = path.join(dir, file);
+
+    let payload;
+    try {
+        payload = JSON.parse(await readFile(full, "utf8"));
+        if (!payload || !Array.isArray(payload.findings)) throw new Error("bad shape");
+    } catch {
+        payload = {
+            archivedAt: new Date().toISOString(),
+            stamp: day.slice(0, 4) + "-" + day.slice(4, 6) + "-" + day.slice(6, 8) + " · Quick",
+            quick: true,
+            count: 0,
+            criteria: { quick: true },
+            findings: [],
+        };
+    }
+    payload.findings.push(target);
+    payload.count = payload.findings.length;
+    payload.updatedAt = new Date().toISOString();
+    payload.quick = true;
+    await writeFile(full, JSON.stringify(payload, null, 2), "utf8");
+    await saveFindings(repoRoot, kept);
+    return { archived: 1, file, kept };
+}
+
+/** List archive snapshots (newest first) with lightweight metadata. */
+export async function listArchives(repoRoot) {
+    let names;
+    try {
+        names = (await readdir(archiveDir(repoRoot))).filter((n) => ARCHIVE_RE.test(n));
+    } catch {
+        return [];
+    }
+    const out = [];
+    for (const name of names) {
+        const meta = { file: name, archivedAt: null, stamp: null, count: null, quick: false };
+        try {
+            const j = JSON.parse(await readFile(path.join(archiveDir(repoRoot), name), "utf8"));
+            if (Array.isArray(j)) {
+                meta.count = j.length;
+            } else {
+                meta.archivedAt = j.archivedAt || null;
+                meta.stamp = j.stamp || null;
+                meta.count = j.count != null ? j.count : (Array.isArray(j.findings) ? j.findings.length : null);
+                meta.quick = !!j.quick;
+            }
+        } catch { /* unreadable archive → still list by name */ }
+        out.push(meta);
+    }
+    // Filenames embed a sortable stamp; reverse-sort for newest first.
+    out.sort((a, b) => (a.file < b.file ? 1 : a.file > b.file ? -1 : 0));
+    return out;
+}
+
+/** Read one archive snapshot. Returns null for a bad/missing file. */
+export async function readArchive(repoRoot, file) {
+    if (!ARCHIVE_RE.test(String(file || ""))) return null;
+    try {
+        const j = JSON.parse(await readFile(path.join(archiveDir(repoRoot), file), "utf8"));
+        const findings = Array.isArray(j) ? j : (Array.isArray(j.findings) ? j.findings : []);
+        return {
+            file,
+            archivedAt: (j && j.archivedAt) || null,
+            stamp: (j && j.stamp) || null,
+            count: findings.length,
+            findings,
+        };
+    } catch {
+        return null;
+    }
 }
 
 /** Small severity rollup for the tab badge / header. */
