@@ -848,7 +848,7 @@ function renderSkillCards() {
     const chips = s.domains.map(d => '<span class="chip">' + (ICONS[d] || "") + ' ' + d + '</span>').join("");
     const ca = avgMap.get(s.name);
     const avgHtml = ca
-      ? '<span class="cavg" title="' + esc("Avg " + fmtCost(ca.avg) + costUnitSuffix() + " / run \u00b7 " + ca.n + " run" + (ca.n === 1 ? "" : "s") + " recorded") + '">\u26A1 <b>' + fmtCost(ca.avg, true) + '</b>' + esc(costUnitSuffix()) + '/run</span>'
+      ? '<span class="cavg" title="' + esc("Avg " + fmtCost(ca.avg) + " " + costUnitLabel() + " / run \u00b7 " + ca.n + " run" + (ca.n === 1 ? "" : "s") + " recorded") + '">\u26A1 <b>' + fmtCostFine(ca.avg) + '</b> ' + esc(costUnitLabel()) + '/run</span>'
       : '';
     const fleetHtml = s.fleet
       ? '<label class="fleetck"><input type="checkbox" class="fleetbox" /> 🌐 Fleet-wide (' + s.fleet.label + ')</label>'
@@ -1551,9 +1551,10 @@ function renderFindings() {
         '">▶ ' + esc(label) + tag + '</button>' + why + '</span>';
     }).join("");
 
-    const credV = fmtCredits(f.creditsNaiu);
+    const credAic = (Number(f.creditsNaiu) || 0) / 1e9;
+    const credV = fmtCostFine(credAic);
     const credChip = credV
-      ? '<span class="fcredits" title="AI credits (AIC) consumed for this investigation, from assistant.usage telemetry">\u26A1 ' + credV + ' AIC</span>'
+      ? '<span class="fcredits" title="' + esc("Estimated cost of this investigation \u00b7 " + fmtCredits(f.creditsNaiu) + " AIC consumed (assistant.usage telemetry)") + '">\u26A1 ' + credV + ' ' + esc(costUnitLabel()) + '</span>'
       : "";
 
     // In global search results, a source badge marks whether each card is from
@@ -1758,6 +1759,28 @@ const CURRENCIES = {
 };
 function costCur() { return CURRENCIES[costUnit] || null; }
 function costUnitSuffix() { return costUnit === "aic" ? " AIC" : ""; }
+// Unit label shown alongside a cost figure (AIC or the active currency code,
+// e.g. "USD"), so per-item/avg badges always name the currency, not just its symbol.
+function costUnitLabel() { return costUnit === "aic" ? "AIC" : costUnit.toUpperCase(); }
+// Currency-aware per-item cost formatter for compact badges (skill cards/list,
+// findings chips). Preserves sub-AIC precision for AIC and converts to the
+// active display currency otherwise. Returns "" for non-positive input.
+function fmtCostFine(aic) {
+  aic = Number(aic) || 0;
+  if (aic <= 0) return "";
+  const cur = costCur();
+  if (!cur) {
+    if (aic >= 100) return Math.round(aic).toLocaleString();
+    if (aic >= 1) return aic.toFixed(1);
+    if (aic >= 0.01) return aic.toFixed(2);
+    return "<0.01";
+  }
+  const amt = aic * USD_PER_AIC * cur.perUsd;
+  if (cur.dec === 0) return cur.symbol + Math.round(amt).toLocaleString();
+  if (amt >= 1000) return cur.symbol + Math.round(amt).toLocaleString();
+  if (amt >= 0.01) return cur.symbol + amt.toFixed(2);
+  return cur.symbol + "<0.01";
+}
 // Format an AIC amount in the active display unit. compact = terser form for chart axes/bar labels.
 function fmtCost(aic, compact) {
   const cur = costCur();
@@ -2074,6 +2097,7 @@ document.getElementById("tab-costing").onclick = () => switchView("costing");
       try { localStorage.setItem("mc.costUnit", costUnit); } catch (e) {}
       renderCosting();
       renderGrid(); // skill-card avg badges follow the currency selection
+      renderFindings(); // findings cost chips follow the currency selection too
     };
   }
   const modeSel = document.getElementById("costSkillMode");
@@ -2485,8 +2509,8 @@ function renderSkillsTable() {
       { key: "domains", label: "Domains", w: 170, sortable: true, sortVal: s => (s.domains || []).join(","), html: s => chipCell(s.domains), title: s => (s.domains || []).join(", ") },
       { key: "cost", label: "Cost/run", w: 108, align: "right", sortable: true,
         sortVal: s => { const ca = avgMap.get(s.name); return ca ? ca.avg : -1; },
-        title: s => { const ca = avgMap.get(s.name); return ca ? "Avg " + fmtCost(ca.avg) + costUnitSuffix() + " / run \u00b7 " + ca.n + " run" + (ca.n === 1 ? "" : "s") + " recorded" : "No costed runs recorded"; },
-        html: s => { const ca = avgMap.get(s.name); return ca ? '<span class="cavg">\u26A1 <b>' + fmtCost(ca.avg, true) + '</b>' + esc(costUnitSuffix()) + '/run</span>' : '<span style="opacity:.4">\u2014</span>'; } },
+        title: s => { const ca = avgMap.get(s.name); return ca ? "Avg " + fmtCost(ca.avg) + " " + costUnitLabel() + " / run \u00b7 " + ca.n + " run" + (ca.n === 1 ? "" : "s") + " recorded" : "No costed runs recorded"; },
+        html: s => { const ca = avgMap.get(s.name); return ca ? '<span class="cavg">\u26A1 <b>' + fmtCostFine(ca.avg) + '</b> ' + esc(costUnitLabel()) + '/run</span>' : '<span style="opacity:.4">\u2014</span>'; } },
       { key: "actions", label: "", w: 290, build: (td, s) => {
           const wrap = document.createElement("div"); wrap.className = "lst-actions";
           const lb = document.createElement("select"); lb.className = "lst-sel"; lb.title = "Lookback window"; lb.innerHTML = lookbackOptionsHTML();
@@ -2561,7 +2585,7 @@ function renderPulseCost() {
   if (!host) return;
   const ca = skillCostAvg().get("threat-pulse");
   host.innerHTML = ca
-    ? '<span class="cavg" title="' + esc("Avg " + fmtCost(ca.avg) + costUnitSuffix() + " / run \u00b7 " + ca.n + " run" + (ca.n === 1 ? "" : "s") + " recorded") + '">\u26A1 <b>' + fmtCost(ca.avg, true) + '</b>' + esc(costUnitSuffix()) + '/run</span>'
+    ? '<span class="cavg" title="' + esc("Avg " + fmtCost(ca.avg) + " " + costUnitLabel() + " / run \u00b7 " + ca.n + " run" + (ca.n === 1 ? "" : "s") + " recorded") + '">\u26A1 <b>' + fmtCostFine(ca.avg) + '</b> ' + esc(costUnitLabel()) + '/run</span>'
     : '';
 }
 function renderQueries() {
