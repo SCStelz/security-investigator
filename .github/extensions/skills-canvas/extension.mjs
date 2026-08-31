@@ -24,6 +24,7 @@ import {
     archiveOneFinding,
     listArchives,
     readArchive,
+    loadAllFindingsAggregated,
     summarize,
 } from "./findings.mjs";
 import {
@@ -451,6 +452,16 @@ async function handle(req, res) {
                 file: r.file,
                 archives: await listArchives(REPO_ROOT),
                 ...(await findingsPayload()),
+            });
+            return;
+        }
+        if (req.method === "GET" && url.pathname === "/api/findings/all") {
+            const items = (await loadAllFindingsAggregated(REPO_ROOT)).map((f) => ({ ...f, ago: relAgo(f.ts) }));
+            json(res, 200, {
+                ok: true,
+                items,
+                archives: await listArchives(REPO_ROOT),
+                summary: summarize(items),
             });
             return;
         }

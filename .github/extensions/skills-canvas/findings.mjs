@@ -404,6 +404,37 @@ export async function readArchive(repoRoot, file) {
     }
 }
 
+/**
+ * Aggregate the live ledger plus every archive snapshot into one flat list for
+ * cross-archive search. Each item is tagged with `_source` (human label, e.g.
+ * "Live" or the archive stamp) and `_sourceFile` (archive filename, or null for
+ * live). Deduplicated by `id`: the live copy wins, then archives newest-first,
+ * so a finding that was archived and later re-recorded shows once (as live).
+ */
+export async function loadAllFindingsAggregated(repoRoot) {
+    const seen = new Set();
+    const out = [];
+    const live = await loadFindings(repoRoot);
+    for (const f of live) {
+        if (f && f.id) seen.add(f.id);
+        out.push({ ...f, _source: "Live", _sourceFile: null });
+    }
+    const archives = await listArchives(repoRoot); // newest first
+    for (const a of archives) {
+        const snap = await readArchive(repoRoot, a.file);
+        if (!snap) continue;
+        const label = a.stamp || a.file;
+        for (const f of (snap.findings || [])) {
+            if (f && f.id) {
+                if (seen.has(f.id)) continue;
+                seen.add(f.id);
+            }
+            out.push({ ...f, _source: label, _sourceFile: a.file });
+        }
+    }
+    return out;
+}
+
 /** Small severity rollup for the tab badge / header. */
 export function summarize(findings) {
     const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0, clean: 0 };

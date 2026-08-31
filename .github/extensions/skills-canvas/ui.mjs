@@ -218,6 +218,11 @@ export function renderPage() {
   .findhead .findsearch::placeholder { color: #5c6b83; }
   .findhead .arcsel { max-width: 180px; }
   .findhead .arcsel.active { border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2) inset; }
+  .findhead .arctog { white-space: nowrap; }
+  .findhead .arctog.on { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+  .finding .fsrc { font-size: 10px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border);
+    color: var(--muted); background: var(--panel2); white-space: nowrap; }
+  .finding .fsrc.live { color: #cfe0ff; border-color: var(--accent2); }
   .arc-banner { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 9px 12px;
     border: 1px solid var(--accent2); border-radius: 9px; background: rgba(90,140,255,.08);
     font-size: 12.5px; color: var(--text); }
@@ -500,6 +505,7 @@ export function renderPage() {
         <div class="findhead">
           <div class="roll" id="findRoll"></div>
           <input class="findsearch" id="findSearch" placeholder="Search findings…" />
+          <button class="btn ghost arctog" id="findArch" title="Also search archived snapshots">🗄️ Archives</button>
           <button class="btn ghost" id="memSet" style="margin-left:auto" title="Set the tenant context-memory filename">⚙️</button>
           <button class="btn ghost" id="memOpen" title="Open the tenant context-memory file in markdown preview">📖</button>
           <button class="btn ghost" id="findCompact" title="Compact findings into your tenant context-memory file (propose-only review)">🧠 Compact</button>
@@ -1336,12 +1342,40 @@ let sevFilter = new Set(); // empty = show all; otherwise a set of severity stri
 let findSearch = ""; // findings tab free-text filter (lowercased)
 let archiveView = null; // when set, the Findings tab shows a read-only archive snapshot instead of the live ledger
 let ARCHIVES = []; // metadata for the archive-browser dropdown
+let searchArchives = false; // when on + a search term is active, findings search spans live + all archives
+try { searchArchives = localStorage.getItem("mc.searchArchives") === "1"; } catch (e) {}
+let ALLFINDINGS = null; // cache of the live+archive aggregate for cross-archive search (null = needs fetch)
+let _lastLiveTotal = null; // live ledger total last seen, to invalidate ALLFINDINGS when new findings arrive
 const SEV_ORDER = ["critical", "high", "medium", "low", "info", "clean"];
+
+// Cross-archive search is active only while the toggle is on, a search term is
+// present, and we're not already pinned to a single browsed archive snapshot.
+function globalActive() { return searchArchives && !!findSearch && !archiveView; }
+
+// Fetch (once) the live+archive aggregate for cross-archive search and cache it.
+// Also refreshes the archive dropdown metadata from the same response.
+async function loadAllFindings() {
+  try {
+    const res = await fetch("/api/findings/all");
+    const j = await res.json();
+    ALLFINDINGS = (j && j.items) || [];
+    if (j && Array.isArray(j.archives)) { ARCHIVES = j.archives; renderArchiveSel(); }
+  } catch (e) { ALLFINDINGS = []; }
+  return ALLFINDINGS;
+}
 
 // Findings source resolves to the live ledger or, when browsing, an archive
 // snapshot. Both share the same shape ({ findings, summary }).
-function findSource() { return archiveView ? (archiveView.findings || []) : (FINDINGS.findings || []); }
+function findSource() {
+  if (globalActive() && Array.isArray(ALLFINDINGS)) return ALLFINDINGS;
+  return archiveView ? (archiveView.findings || []) : (FINDINGS.findings || []);
+}
 function findCounts() {
+  if (globalActive() && Array.isArray(ALLFINDINGS)) {
+    const c = {};
+    for (const f of ALLFINDINGS) { const s = (f.severity || "info").toLowerCase(); c[s] = (c[s] || 0) + 1; }
+    return c;
+  }
   const s = archiveView ? archiveView.summary : (FINDINGS && FINDINGS.summary);
   return (s && s.counts) || {};
 }
@@ -1369,6 +1403,10 @@ async function loadFindings() {
     FINDINGS = await res.json();
   } catch (e) { return; }
   const n = FINDINGS.summary ? FINDINGS.summary.total : (FINDINGS.findings || []).length;
+  // Live ledger changed (new run, dismiss, etc.) → drop the cross-archive cache
+  // so the next global search reflects the fresh set.
+  if (_lastLiveTotal !== null && _lastLiveTotal !== n) ALLFINDINGS = null;
+  _lastLiveTotal = n;
   const badge = document.getElementById("findCount");
   badge.textContent = n;
   badge.classList.toggle("zero", n === 0);
@@ -1426,18 +1464,32 @@ function findingHay(f) {
 
 function renderFindings() {
   syncCompactBtn();
-  renderRoll();
   const host = document.getElementById("findings");
+  // Cross-archive search: make sure the live+archive aggregate is loaded before
+  // rendering. Show a brief placeholder, then re-render once the fetch resolves.
+  if (globalActive() && ALLFINDINGS === null) {
+    if (host) host.innerHTML = '<div class="empty-find"><div class="em">🔎</div><p>Searching live + archives…</p></div>';
+    loadAllFindings().then(renderFindings);
+    return;
+  }
+  renderRoll();
+  const globalMode = globalActive();
   const all = findSource();
   const sevList = sevFilter.size ? all.filter(f => sevFilter.has((f.severity || "info").toLowerCase())) : all;
   const list = findSearch ? sevList.filter(f => findingHay(f).includes(findSearch)) : sevList;
-  // Banner shown above the cards while browsing a read-only archive snapshot.
-  const banner = archiveView
-    ? '<div class="arc-banner"><span class="ab-t">🗄️ Archived snapshot</span>' +
-      '<span class="ab-meta">' + esc(archiveView.stamp || archiveView.file || "") +
-      ' · ' + (archiveView.count != null ? archiveView.count : (archiveView.findings || []).length) + ' findings</span>' +
-      '<button class="btn ghost ab-back" id="arcBack">↩ Back to live</button></div>'
-    : "";
+  // Banner: cross-archive search takes precedence, else the read-only archive
+  // snapshot banner, else nothing (plain live view).
+  const archN = ARCHIVES.length;
+  const banner = globalMode
+    ? '<div class="arc-banner glob"><span class="ab-t">🔎 Live + ' + archN + ' archive' + (archN === 1 ? '' : 's') + '</span>' +
+      '<span class="ab-meta">' + list.length + ' match' + (list.length === 1 ? '' : 'es') + ' for “' + esc(findSearch) + '”</span>' +
+      '<button class="btn ghost ab-back" id="globOff">✕ Live only</button></div>'
+    : (archiveView
+      ? '<div class="arc-banner"><span class="ab-t">🗄️ Archived snapshot</span>' +
+        '<span class="ab-meta">' + esc(archiveView.stamp || archiveView.file || "") +
+        ' · ' + (archiveView.count != null ? archiveView.count : (archiveView.findings || []).length) + ' findings</span>' +
+        '<button class="btn ghost ab-back" id="arcBack">↩ Back to live</button></div>'
+      : "");
   if (!all.length) {
     host.innerHTML = banner +
       '<div class="empty-find"><div class="em">🛰️</div>' +
@@ -1454,13 +1506,17 @@ function renderFindings() {
     if (findSearch) bits.push('matching <b>' + esc(findSearch) + '</b>');
     host.innerHTML = banner +
       '<div class="empty-find"><div class="em">🔍</div>' +
-      '<p>No ' + (bits.length ? bits.join(" findings ") : "") + ' findings.</p>' +
+      '<p>No ' + (bits.length ? bits.join(" findings ") : "") + ' findings' +
+      (globalMode ? ' across live + archives' : '') + '.</p>' +
       '<p style="font-size:12px">Clear the search or click <b>All</b> above to see everything.</p></div>';
     wireArcBack();
     return;
   }
   host.innerHTML = banner;
   wireArcBack();
+  // In global (cross-archive) mode and while browsing an archive, cards are
+  // read-only: mutating an archived snapshot from a search result is confusing.
+  const readOnly = archiveView || globalMode;
   for (const f of list) {
     const sev = (f.severity || "info").toLowerCase();
     const card = document.createElement("div");
@@ -1493,10 +1549,19 @@ function renderFindings() {
       ? '<span class="fcredits" title="AI credits (AIC) consumed for this investigation, from assistant.usage telemetry">\u26A1 ' + credV + ' AIC</span>'
       : "";
 
+    // In global search results, a source badge marks whether each card is from
+    // the live ledger or a specific archive snapshot.
+    const srcBadge = globalMode
+      ? (f._sourceFile
+        ? '<span class="fsrc" title="Archived snapshot: ' + esc(f._sourceFile) + '">\uD83D\uDDC4\uFE0F ' + esc(f._source || 'Archive') + '</span>'
+        : '<span class="fsrc live" title="From the live ledger">Live</span>')
+      : "";
+
     card.innerHTML =
-      (archiveView ? '' : '<span class="farch" title="Archive this finding (moves it to today\\u2019s Quick archive)">\uD83D\uDDC4\uFE0F</span><span class="dismiss" title="Dismiss">×</span>') +
+      (readOnly ? '' : '<span class="farch" title="Archive this finding (moves it to today\\u2019s Quick archive)">\uD83D\uDDC4\uFE0F</span><span class="dismiss" title="Dismiss">×</span>') +
       '<div class="fh"><span class="ftitle">' + esc(f.title) + '</span>' +
       '<span class="fskill">' + esc(f.skill) + '</span>' +
+      srcBadge +
       credChip +
       '<button class="frun" title="Compose an editable prompt seeded with this finding">▶ Investigate</button>' +
       '<span class="fmeta">' + esc(f.scope || "") + (f.ago ? ' · ' + esc(f.ago) : "") + '</span></div>' +
@@ -1538,11 +1603,26 @@ function renderFindings() {
   }
 }
 
-// Wire the "↩ Back to live" button inside the archive banner (present only when
-// browsing an archive). Returns the live findings view.
+// Wire the banner buttons: "↩ Back to live" (archive browse) and "✕ Live only"
+// (cross-archive search). Both return to the plain live findings view.
 function wireArcBack() {
   const b = document.getElementById("arcBack");
   if (b) b.onclick = () => exitArchive();
+  const g = document.getElementById("globOff");
+  if (g) g.onclick = () => setSearchArchives(false);
+}
+
+// Toggle cross-archive search on/off, persist the choice, and refresh the view.
+function setSearchArchives(on) {
+  searchArchives = !!on;
+  try { localStorage.setItem("mc.searchArchives", searchArchives ? "1" : "0"); } catch (e) {}
+  const btn = document.getElementById("findArch");
+  if (btn) btn.classList.toggle("on", searchArchives);
+  const inp = document.getElementById("findSearch");
+  if (inp) inp.placeholder = searchArchives ? "Search findings + archives…" : "Search findings…";
+  // Warm the aggregate cache when enabling with a term already typed.
+  if (searchArchives && findSearch && ALLFINDINGS === null) { loadAllFindings().then(renderFindings); return; }
+  renderFindings();
 }
 
 // Populate the archive-browser dropdown. First option returns to the live
@@ -2616,6 +2696,14 @@ bindBackdropClose("pruneModal", closePrune);
 document.getElementById("findClear").onclick = openPrune;
 document.getElementById("archiveSel").onchange = (e) => viewArchive(e.target.value);
 document.getElementById("findSearch").addEventListener("input", (e) => { findSearch = e.target.value.trim().toLowerCase(); renderFindings(); });
+document.getElementById("findArch").onclick = () => setSearchArchives(!searchArchives);
+// Reflect the persisted cross-archive-search choice on first paint.
+(function initSearchArchives() {
+  const btn = document.getElementById("findArch");
+  if (btn) btn.classList.toggle("on", searchArchives);
+  const inp = document.getElementById("findSearch");
+  if (inp && searchArchives) inp.placeholder = "Search findings + archives…";
+})();
 
 loadFindings();
 setInterval(loadFindings, 5000);
