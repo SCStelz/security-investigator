@@ -85,9 +85,18 @@ export function renderPage() {
   .feature {
     background: linear-gradient(135deg, #17263c, #101a2a); border: 1px solid var(--accent2);
     border-radius: 14px; padding: 16px 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 16px;
+    /* Narrow panels: let the controls drop to a second line instead of
+       overflowing past the rounded border. */
+    flex-wrap: wrap;
   }
-  .feature .big { font-size: 30px; }
-  .feature .txt { flex: 1; }
+  .feature .big { font-size: 30px; flex: none; }
+  /* min-width:0 is what actually permits shrinking — without it a flex item
+     refuses to go below its intrinsic content width and pushes siblings out. */
+  .feature .txt { flex: 1 1 180px; min-width: 0; }
+  /* Selects shrink before anything wraps; the buttons never shrink so their
+     labels stay readable. */
+  .feature .lookback, .feature .output { flex: 0 1 auto; min-width: 0; }
+  .feature .btn { flex: none; }
   .feature .txt h3 { margin: 0 0 3px; font-size: 15px; }
   .feature .txt p { margin: 0; color: var(--muted); font-size: 12.5px; }
   .btn {
@@ -199,8 +208,14 @@ export function renderPage() {
 
   /* Tabs */
   .tabs { position: sticky; top: -16px; z-index: 20; background: var(--bg);
-    display: flex; gap: 4px; padding: 16px 0 10px; margin: -16px 0 12px;
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 16px 0 10px; margin: -16px 0 12px;
     border-bottom: 1px solid var(--border); }
+  /* Memory actions (set / open / compact) live here rather than in .findhead so
+     that row has room for the severity pills, search and archive controls before
+     it is forced to wrap. Pushed right by margin-left:auto; allowed to shrink
+     but never below the buttons' own width. */
+  .tabtools { display: flex; align-items: center; gap: 4px; margin-left: auto; flex: 0 0 auto; }
+  .tabtools .btn { flex: none; }
   .tab { padding: 8px 14px; cursor: pointer; font-size: 13px; color: var(--muted); border-bottom: 2px solid transparent; user-select: none; }
   .tab:hover { color: var(--text); }
   .tab.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 620; }
@@ -210,16 +225,55 @@ export function renderPage() {
   #queryCount { background: var(--chip); color: var(--muted); }
 
   /* Findings */
-  .findhead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .findhead .roll { display: flex; gap: 6px; flex-wrap: wrap; }
+  /* Wraps onto multiple lines in narrow panels. Without this the row stays on a
+     single line and squeezes .roll until the severity pills stack one-per-line
+     into a tall column; letting the row wrap keeps the pills on their own line. */
+  .findhead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  /* min-width floors .roll at its natural single-line width (capped at the full
+     row) so flex can never shrink it into a one-pill-wide column. */
+  .findhead .roll { display: flex; gap: 6px; flex-wrap: wrap; flex: 0 1 auto; min-width: min(100%, max-content); }
   .findhead .findsearch { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
-    background: #0d1626; color: var(--text); font-size: 12.5px; font-family: inherit; width: 220px; outline: none; }
+    background: #0d1626; color: var(--text); font-size: 12.5px; font-family: inherit;
+    flex: 1 1 200px; min-width: 140px; max-width: 260px; outline: none; }
   .findhead .findsearch:focus { border-color: var(--accent2); }
   .findhead .findsearch::placeholder { color: #5c6b83; }
   .findhead .arcsel { max-width: 180px; }
   .findhead .arcsel.active { border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2) inset; }
   .findhead .arctog { white-space: nowrap; }
   .findhead .arctog.on { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+
+  /* Live investigation strip (cross-session) */
+  .livestrip { margin: 0 0 12px; }
+  .livestrip .lshead { display: flex; align-items: center; gap: 8px; font-size: 10.5px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px; }
+  .liverow { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 6px;
+    border: 1px solid var(--accent2); border-radius: 9px; background: rgba(90,140,255,.07); font-size: 12.5px; }
+  .liverow.stale { border-color: var(--border); background: var(--panel2); opacity: .62; }
+  .livedot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); flex: none;
+    animation: livepulse 1.4s ease-in-out infinite; }
+  .liverow.stale .livedot { animation: none; background: #5c6b83; }
+  @keyframes livepulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(.65); } }
+  .liveskill { font-weight: 650; white-space: nowrap; }
+  .liveent { color: #8aa0c0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+  .livephase { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    flex: 1 1 auto; min-width: 50px; cursor: help; }
+  .livemeta { display: flex; gap: 6px; align-items: center; margin-left: auto; flex: none;
+    color: #8aa0c0; font-size: 11.5px; }
+  .livemeta .lm { background: var(--chip); border: 1px solid var(--border); border-radius: 999px;
+    padding: 1px 7px; white-space: nowrap; }
+  .livemeta .lm.elapsed { font-variant-numeric: tabular-nums; color: var(--text); }
+  .livesess { font-size: 10px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border);
+    color: var(--muted); background: var(--panel2); white-space: nowrap; max-width: 150px;
+    overflow: hidden; text-overflow: ellipsis; }
+  .livesess.self { color: #cfe0ff; border-color: var(--accent2); }
+  .recentline { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--muted);
+    padding: 5px 12px; border: 1px dashed var(--border); border-radius: 8px; cursor: pointer; user-select: none; }
+  .recentline:hover { color: var(--text); border-color: var(--accent2); }
+  .recentitem { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #8aa0c0;
+    padding: 5px 12px; border-bottom: 1px solid var(--border); }
+  .recentitem:last-child { border-bottom: 0; }
+  .recentitem .rskill { color: var(--text); font-weight: 600; }
+  .recentitem .rwarn { color: #ffb454; }
   .finding .fsrc { font-size: 10px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border);
     color: var(--muted); background: var(--panel2); white-space: nowrap; }
   .finding .fsrc.live { color: #cfe0ff; border-color: var(--accent2); }
@@ -477,6 +531,11 @@ export function renderPage() {
         <div class="tab" id="tab-queries" data-view="queries">🔎 Queries <span class="badge" id="queryCount">0</span></div>
         <div class="tab" id="tab-findings" data-view="findings">📌 Findings <span class="badge zero" id="findCount">0</span></div>
         <div class="tab" id="tab-costing" data-view="costing">💰 Costing</div>
+        <div class="tabtools" id="memTools">
+          <button class="btn ghost" id="memSet" title="Set the tenant context-memory filename">⚙️</button>
+          <button class="btn ghost" id="memOpen" title="Open the tenant context-memory file in markdown preview">📖</button>
+          <button class="btn ghost" id="findCompact" title="Compact findings into your tenant context-memory file (propose-only review)">🧠 Compact</button>
+        </div>
       </div>
 
       <div id="skillsView">
@@ -489,7 +548,7 @@ export function renderPage() {
           <select class="lookback" id="tpLookback" title="Lookback window"></select>
           <select class="output" id="tpOutput" title="Output format"></select>
           <button class="btn ghost" data-open="threat-pulse" title="Open SKILL.md">📄</button>
-          <button class="btn" data-skill="threat-pulse">▶ Run Threat Pulse</button>
+          <button class="btn" data-skill="threat-pulse">▶ Run</button>
         </div>
         <div class="viewbar">
           <span class="vlabel">View</span>
@@ -503,13 +562,11 @@ export function renderPage() {
       </div>
 
       <div id="findingsView" style="display:none">
+        <div class="livestrip" id="liveStrip" style="display:none"></div>
         <div class="findhead">
           <div class="roll" id="findRoll"></div>
           <input class="findsearch" id="findSearch" placeholder="Search findings…" />
           <button class="btn ghost arctog" id="findArch" title="Also search archived snapshots">🗄️ Archives</button>
-          <button class="btn ghost" id="memSet" style="margin-left:auto" title="Set the tenant context-memory filename">⚙️</button>
-          <button class="btn ghost" id="memOpen" title="Open the tenant context-memory file in markdown preview">📖</button>
-          <button class="btn ghost" id="findCompact" title="Compact findings into your tenant context-memory file (propose-only review)">🧠 Compact</button>
           <select class="lookback arcsel" id="archiveSel" title="Browse an archived findings snapshot"></select>
           <button class="btn ghost" id="findClear" title="Archive or delete findings by age and severity">Manage ▾</button>
         </div>
@@ -575,8 +632,8 @@ export function renderPage() {
   </div>
 
   <footer>
-    <label>Entity quick-launch</label>
-    <input id="quick" placeholder="Paste a UPN / IP / hash / device / incident #…" />
+    <label>Quick-launch</label>
+    <input id="quick" placeholder="Entity (UPN / IP / hash / device / incident #) or a free-form question…" />
     <select class="lookback" id="quickLookback" title="Lookback window"></select>
     <select class="output" id="quickOutput" title="Output format"></select>
     <button class="btn" id="quickgo">Go →</button>
@@ -902,21 +959,24 @@ function renderSkillCards() {
 // write the host chat composer without submitting a turn, so the "tailor before
 // send" step lives here in the canvas; Send is what actually injects the turn.
 let PENDING = null;
-async function run(name, entity, prompt, lookback, fleet, output) {
+async function run(name, entity, prompt, lookback, fleet, output, fromQuick) {
   try {
     const res = await fetch("/api/compose", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ skill: name || "", entity: entity || "", prompt: prompt || "", lookback: lookback || "", fleet: fleet === true, output: output || "" }),
     });
     const j = await res.json();
-    if (j.ok) openCompose(j.skill, j.entity || "", j.prompt);
+    if (j.ok) openCompose(j.skill, j.entity || "", j.prompt, false, fromQuick === true);
     else toast("⚠️ " + (j.error || "could not compose prompt"));
   } catch (e) { toast("⚠️ " + e.message); }
 }
 
 let SUPPRESS_MEM = false; // when true, the memory directive/toggle is hidden for this compose
-function openCompose(skill, entity, promptText, noMem) {
-  PENDING = { skill, entity };
+function openCompose(skill, entity, promptText, noMem, fromQuick) {
+  // fromQuick rides along on PENDING so sendCompose can empty the quick-launch
+  // box after a successful send — and only then. Clearing on the Go click would
+  // lose the analyst's text if compose failed or they cancelled the preview.
+  PENDING = { skill, entity, fromQuick: fromQuick === true };
   SUPPRESS_MEM = !!noMem;
   document.getElementById("composeSkill").textContent = skill + (entity ? " · " + entity : "");
   const ta = document.getElementById("composeText");
@@ -944,6 +1004,7 @@ async function sendCompose() {
   const text = document.getElementById("composeText").value.trim();
   if (!text) { toast("Prompt is empty"); return; }
   const { skill, entity } = PENDING;
+  const cameFromQuick = PENDING.fromQuick === true;
   toast("Sending " + skill + "…");
   try {
     // Send the (possibly edited) text verbatim; lookback is already embedded.
@@ -952,7 +1013,16 @@ async function sendCompose() {
       body: JSON.stringify({ skill, entity: entity || "", prompt: text, lookback: "" }),
     });
     const j = await res.json();
-    if (j.ok) { toast("▶ " + skill + " sent to chat"); renderRecent(j.recent || []); closeCompose(); }
+    if (j.ok) {
+      toast("▶ " + skill + " sent to chat");
+      renderRecent(j.recent || []);
+      // Only wipe the quick-launch box once the prompt is actually on its way.
+      if (cameFromQuick) {
+        const q = document.getElementById("quick");
+        if (q) q.value = "";
+      }
+      closeCompose();
+    }
     else toast("⚠️ " + (j.error || "launch failed"));
   } catch (e) { toast("⚠️ " + e.message); }
 }
@@ -1329,11 +1399,13 @@ document.getElementById("feature").addEventListener("click", (e) => {
 });
 document.getElementById("quickgo").onclick = () => {
   const v = document.getElementById("quick").value.trim();
-  if (!v) { toast("Paste an entity first"); return; }
+  if (!v) { toast("Ask a question or paste an entity"); return; }
   const lb = (document.getElementById("quickLookback") || {}).value || "";
   const out = (document.getElementById("quickOutput") || {}).value || "";
-  // Route the entity to a skill and open the editable preview (no auto-submit).
-  run("", v, "", lb, false, out);
+  // Entities route to a skill by regex; free-form questions are sent as-is and
+  // routed by the model. Either way this opens the editable preview (no auto-submit).
+  // The trailing flag lets sendCompose clear this box once the prompt is sent.
+  run("", v, "", lb, false, out, true);
 };
 document.getElementById("quick").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("quickgo").click(); });
 
@@ -1399,16 +1471,182 @@ function switchView(view) {
   document.getElementById("tab-findings").classList.toggle("on", view === "findings");
   document.getElementById("tab-queries").classList.toggle("on", view === "queries");
   document.getElementById("tab-costing").classList.toggle("on", view === "costing");
-  if (view === "findings") renderFindings();
+  if (view === "findings") { renderFindings(); loadActivity(); }
   if (view === "queries") renderQueries();
   if (view === "costing") { renderCosting(); loadCostingData(); }
 }
 
-async function loadFindings() {
+// ---- Live investigation status (cross-session) -----------------------------
+// Fed by /api/activity, which merges one ledger file per Copilot session from
+// the shared repo state/ dir. Runs started in OTHER sessions show up here too,
+// so an analyst running several investigations in parallel can watch all of
+// them from whichever session happens to have Mission Control open. Nothing
+// here depends on the agent reporting progress — the extension observes the run.
+let ACTIVITY = { active: [], recent: [], self: "" };
+let recentOpen = false;
+
+async function loadActivity() {
+  if (document.hidden) return;
+  try {
+    const res = await fetch("/api/activity");
+    ACTIVITY = await res.json();
+  } catch (e) { return; }
+  renderLiveStrip();
+}
+
+function fmtElapsed(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + ":" + String(s % 60).padStart(2, "0");
+  const h = Math.floor(m / 60);
+  return h + "h" + String(m % 60).padStart(2, "0") + "m";
+}
+
+function liveRow(r) {
+  const stale = !!r.stale;
+  const p = [];
+  p.push('<div class="liverow' + (stale ? " stale" : "") + '">');
+  p.push('<span class="livedot"></span>');
+  p.push('<span class="liveskill">' + esc(r.skill || "investigation") + "</span>");
+  if (r.entity) p.push('<span class="liveent">' + esc(r.entity) + "</span>");
+  const phase = stale ? "No heartbeat \u2014 session may have stopped" : (r.phase || "Working\u2026");
+  // Row is a single clipped line; the tooltip carries the untruncated update so
+  // hovering reveals the full text instead of the ellipsised summary.
+  const phaseTip = stale ? phase : (r.phaseFull || r.phase || phase);
+  p.push('<span class="livephase" title="' + esc(phaseTip) + '">' + esc(phase) + "</span>");
+  p.push('<span class="livemeta">');
+  if (r.todos && r.todos.total) p.push('<span class="lm">' + r.todos.done + "/" + r.todos.total + " steps</span>");
+  if (r.subagents > 0) p.push('<span class="lm">' + r.subagents + " agents</span>");
+  if (r.toolCount > 0) p.push('<span class="lm">' + r.toolCount + " tools</span>");
+  const cost = fmtCostFine((Number(r.creditsNaiu) || 0) / 1e9);
+  if (cost) p.push('<span class="lm">' + esc(cost + " " + costUnitLabel()) + "</span>");
+  const started = Number(r.startedAt) || Date.now();
+  p.push('<span class="lm elapsed" data-start="' + started + '">' + esc(fmtElapsed(Date.now() - started)) + "</span>");
+  const sess = r.self ? "this session" : (r.sessionTitle || ("session " + String(r.sessionId || "").slice(0, 6)));
+  p.push('<span class="livesess' + (r.self ? " self" : "") + '">' + esc(sess) + "</span>");
+  p.push("</span></div>");
+  return p.join("");
+}
+
+function recentItem(r) {
+  const dur = fmtElapsed((Number(r.endedAt) || 0) - (Number(r.startedAt) || 0));
+  const cost = fmtCostFine((Number(r.creditsNaiu) || 0) / 1e9);
+  const p = [];
+  p.push('<div class="recentitem">');
+  p.push('<span class="rskill">' + esc(r.skill || "run") + "</span>");
+  if (r.entity) p.push("<span>" + esc(r.entity) + "</span>");
+  if (!r.self) p.push('<span class="livesess">' + esc(r.sessionTitle || ("session " + String(r.sessionId || "").slice(0, 6))) + "</span>");
+  p.push('<span style="margin-left:auto">' + esc(dur) + "</span>");
+  if (r.toolCount) p.push("<span>" + r.toolCount + " tools</span>");
+  if (cost) p.push("<span>" + esc(cost + " " + costUnitLabel()) + "</span>");
+  p.push(r.recorded ? "<span>\u2713 recorded</span>" : '<span class="rwarn">\u26A0 not recorded</span>');
+  p.push("</div>");
+  return p.join("");
+}
+
+// Signature of everything the strip actually displays *except* elapsed time,
+// which tickElapsed() already updates in place every second. Without excluding
+// it, the strip HTML would differ on nearly every poll and rebuild regardless.
+// costUnitLabel() is included so a currency switch still forces a redraw.
+function activitySig() {
+  const one = function (r) {
+    return [r.sessionId, r.skill, r.entity, r.phase, r.toolCount, r.subagents,
+      r.creditsNaiu, r.stale ? 1 : 0, r.recorded ? 1 : 0, r.sessionTitle,
+      r.todos ? (r.todos.done + "/" + r.todos.total) : ""].join("|");
+  };
+  return (ACTIVITY.active || []).map(one).join(";") + "#" +
+    (ACTIVITY.recent || []).map(one).join(";") + "#" + costUnitLabel();
+}
+
+let _lastStripSig = null;
+function renderLiveStrip() {
+  const el = document.getElementById("liveStrip");
+  if (!el) return;
+  const active = ACTIVITY.active || [];
+  const recent = ACTIVITY.recent || [];
+  // Skip the rebuild when nothing visible changed — the 2.5s poll would
+  // otherwise replace the strip's DOM continuously.
+  const sig = activitySig();
+  if (sig === _lastStripSig) return;
+  _lastStripSig = sig;
+  // Zero visual cost at rest: the strip disappears entirely when idle.
+  if (!active.length && !recent.length) { el.style.display = "none"; el.innerHTML = ""; return; }
+  el.style.display = "";
+  let h = "";
+  if (active.length) {
+    const label = active.length === 1 ? "1 investigation running" : active.length + " investigations running";
+    h += '<div class="lshead"><span>' + label + "</span></div>";
+    h += active.map(liveRow).join("");
+  }
+  if (recent.length) {
+    const unrec = recent.filter(function (r) { return !r.recorded; }).length;
+    let label = "\u23F1 " + recent.length + (recent.length === 1 ? " recent run" : " recent runs");
+    if (unrec) label += " \u00B7 " + unrec + " not recorded";
+    h += '<div class="recentline" id="recentToggle">' + esc(label)
+      + '<span style="margin-left:auto">' + (recentOpen ? "\u25B4" : "\u25BE") + "</span></div>";
+    if (recentOpen) h += "<div>" + recent.map(recentItem).join("") + "</div>";
+  }
+  el.innerHTML = h;
+  const tog = document.getElementById("recentToggle");
+  if (tog) tog.onclick = function () { recentOpen = !recentOpen; renderLiveStrip(); };
+}
+
+// Tick the elapsed counters locally so they move smoothly between server polls.
+function tickElapsed() {
+  const nodes = document.querySelectorAll("#liveStrip .lm.elapsed");
+  if (!nodes.length) return;
+  const now = Date.now();
+  for (let i = 0; i < nodes.length; i++) {
+    const st = Number(nodes[i].getAttribute("data-start")) || now;
+    nodes[i].textContent = fmtElapsed(now - st);
+  }
+}
+
+let _lastFindingsRaw = null;
+// The "ago" field is a relative timestamp the server recomputes on every request
+// ("42s ago" ticks every second), so comparing the raw body would report a
+// change on nearly every poll and defeat the guard entirely. Strip it out of
+// the comparison; the visible text is kept fresh client-side by refreshAgo().
+function findingsSig(raw) { return raw.replace(/"ago":"[^"]*"/g, ""); }
+
+// Mirrors relAgo() in extension.mjs so the in-place refresh matches the server.
+function relAgoTs(ts) {
+  const s = Math.max(0, Math.round((Date.now() - Number(ts)) / 1000));
+  if (s < 60) return s + "s ago";
+  const m = Math.round(s / 60);
+  if (m < 60) return m + "m ago";
+  return Math.round(m / 60) + "h ago";
+}
+
+// Update just the age labels — text nodes only, no DOM rebuild, no flash.
+function refreshAgo() {
+  const els = document.querySelectorAll(".fago[data-ts]");
+  for (const el of els) {
+    const t = relAgoTs(el.getAttribute("data-ts"));
+    if (el.textContent !== t) el.textContent = t;
+  }
+}
+
+async function loadFindings(force) {
+  let raw;
   try {
     const res = await fetch("/api/findings");
-    FINDINGS = await res.json();
+    raw = await res.text();
   } catch (e) { return; }
+  // Archives can change without the live ledger changing (e.g. another session
+  // archived a snapshot), so poll them regardless of the guard below. It has its
+  // own change check, so this costs nothing visually.
+  loadArchives();
+  // This polls every 5s, and renderFindings() tears down and rebuilds every card
+  // (host.innerHTML = banner, then a createElement loop). Doing that on an
+  // unchanged payload is what makes the panel visibly flash — so compare the
+  // payload first and leave the DOM alone when nothing moved. View-state changes
+  // (search, severity filter, archive switch) call renderFindings() directly and
+  // are unaffected by this guard.
+  const sig = findingsSig(raw);
+  if (!force && sig === _lastFindingsRaw) { refreshAgo(); return; }
+  _lastFindingsRaw = sig;
+  try { FINDINGS = JSON.parse(raw); } catch (e) { return; }
   const n = FINDINGS.summary ? FINDINGS.summary.total : (FINDINGS.findings || []).length;
   // Live ledger changed (new run, dismiss, etc.) → drop the cross-archive cache
   // so the next global search reflects the fresh set.
@@ -1418,7 +1656,6 @@ async function loadFindings() {
   badge.textContent = n;
   badge.classList.toggle("zero", n === 0);
   syncCompactBtn();
-  loadArchives();
   if (currentView === "findings") renderFindings();
 }
 
@@ -1572,7 +1809,9 @@ function renderFindings() {
       srcBadge +
       credChip +
       '<button class="frun" title="Compose an editable prompt seeded with this finding">▶ Investigate</button>' +
-      '<span class="fmeta">' + esc(f.scope || "") + (f.ago ? ' · ' + esc(f.ago) : "") + '</span></div>' +
+      '<span class="fmeta">' + esc(f.scope || "") +
+        (f.ago ? ' · <span class="fago"' + (f.ts ? ' data-ts="' + Number(f.ts) + '"' : "") + '>' + esc(f.ago) + '</span>' : "") +
+      '</span></div>' +
       (f.summary ? '<div class="fsum">' + esc(f.summary) + '</div>' : "") +
       (metrics ? '<div class="fchips">' + metrics + '</div>' : "") +
       (ents ? '<div class="fchips">' + ents + '</div>' : "") +
@@ -1650,10 +1889,21 @@ function renderArchiveSel() {
   sel.disabled = ARCHIVES.length === 0 && !archiveView;
 }
 
+let _lastArchivesRaw = null;
 async function loadArchives() {
+  let raw;
   try {
     const res = await fetch("/api/findings/archives");
-    const j = await res.json();
+    raw = await res.text();
+  } catch (e) {
+    if (ARCHIVES.length) { ARCHIVES = []; renderArchiveSel(); }
+    return;
+  }
+  // Rebuilding the archive <select> on every 5s poll also closes it mid-click.
+  if (raw === _lastArchivesRaw) return;
+  _lastArchivesRaw = raw;
+  try {
+    const j = JSON.parse(raw);
     ARCHIVES = (j && j.archives) || [];
   } catch (e) { ARCHIVES = []; }
   renderArchiveSel();
@@ -2098,6 +2348,7 @@ document.getElementById("tab-costing").onclick = () => switchView("costing");
       renderCosting();
       renderGrid(); // skill-card avg badges follow the currency selection
       renderFindings(); // findings cost chips follow the currency selection too
+      renderLiveStrip(); // live per-run cost follows it as well
     };
   }
   const modeSel = document.getElementById("costSkillMode");
@@ -2754,6 +3005,12 @@ document.getElementById("findArch").onclick = () => setSearchArchives(!searchArc
 
 loadFindings();
 setInterval(loadFindings, 5000);
+// Live investigation strip: a faster poll for in-flight status (cheap, local,
+// and skipped while the window is hidden) plus a 1s local tick so the elapsed
+// timers move smoothly rather than jumping every poll.
+loadActivity();
+setInterval(loadActivity, 2500);
+setInterval(tickElapsed, 1000);
 loadCostingData();
 
 load();</script>

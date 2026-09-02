@@ -33,6 +33,20 @@ import {
     seedCostingFromFindings,
     summarizeCosting,
 } from "./costing.mjs";
+import {
+    initActivity,
+    activitySessionId,
+    activeRun,
+    beginRun,
+    updateRun,
+    bumpTool,
+    bumpSubagent,
+    markRecorded,
+    endRun,
+    clearSession,
+    setSessionTitle,
+    readActivity,
+} from "./activity.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // .github/extensions/skills-canvas -> repo root is three levels up.
@@ -63,6 +77,13 @@ let lastFindingNaiu = 0;
 // may mix models within a run).
 const cumulativeByModel = new Map();
 const lastByModel = new Map();
+
+// Per-run cost baseline: cumulativeNaiu at the moment a run opened, so the live
+// strip can show credits consumed by THIS investigation rather than the session
+// total. Report paths written during a run are harvested from tool arguments so
+// `record_finding` can auto-fill `reports` without the agent being told to.
+let runBaselineNaiu = 0;
+let runReportPaths = [];
 
 // Pull a model identifier out of an assistant.usage event, tolerating a few
 // shapes across runtime versions. Returns "unknown" when none is present.
@@ -101,6 +122,46 @@ function routeEntity(entity) {
     if (/^https?:\/\//i.test(e)) return "ioc-investigation";
     if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(e)) return "ioc-investigation"; // bare domain
     return "computer-investigation"; // fall back to device/hostname
+}
+
+// Placeholder skill for a free-form question, where the routing decision belongs
+// to the model rather than a regex. Upgraded in place by the `skill.invoked`
+// handler the moment the agent actually loads a SKILL.md, so the strip and the
+// cost ledger end up attributed to the real skill.
+const ADHOC_SKILL = "ad-hoc";
+
+// Does this look like a question/instruction rather than an entity to route?
+// routeEntity() is deliberately total — every input falls through to
+// computer-investigation — so without this check a typed question would be
+// launched as a device investigation against the question text itself.
+function looksFreeForm(text) {
+    const t = String(text || "").trim();
+    if (!t) return false;
+    // Anything shaped like an entity is routed by regex, never treated as prose.
+    if (!/\s/.test(t)) return false;             // single token => entity
+    if (/^https?:\/\//i.test(t)) return false;   // URLs may contain spaces when pasted
+    return /\?$/.test(t) || t.split(/\s+/).length >= 3;
+}
+
+// A free-form ask: the analyst's words come first and verbatim, then a short
+// directive telling the agent to route it itself. Skill selection is exactly the
+// job the CLI's own instructions already describe, so this stays deliberately
+// thin — it only pins down the two things the canvas cares about (pick from the
+// project catalog, and still record a finding). Lookback/output are attached to
+// the question here rather than left to composeFor, which would otherwise staple
+// them onto the end of the routing directive where they read as nonsense.
+function composeAdHoc(question, lookback, output) {
+    let q = question.trim();
+    const phrase = lookbackPhrase(lookback);
+    if (phrase) q += ` — use a lookback window of ${phrase}`;
+    const outPhrase = outputPhrase(output);
+    if (outPhrase) q += ` — ${outPhrase}`;
+    return [
+        q,
+        "",
+        "---",
+        "Route this yourself: if one of this project's skills in `.github/skills/` fits, load its SKILL.md and follow it. Otherwise answer directly using the repo's query library and the KQL pre-flight rules.",
+    ].join("\n");
 }
 
 async function readBody(req) {
@@ -172,12 +233,17 @@ async function setMemoryFile(rawFile) {
 // Closing directive appended to every Mission Control launch so the agent posts
 // its results back to the Findings tab when done. This lives in the launched
 // prompt (NOT in copilot-instructions.md) so the behavior is scoped strictly to
-// canvas-initiated runs — a hand-typed chat investigation is unaffected. It also
-// nudges the agent to author fully tailored, threat-pulse-style follow-up prompts.
+// canvas-initiated runs — a hand-typed chat investigation is unaffected.
+//
+// Deliberately minimal: it asks only for the things the model must *judge*. The
+// mechanical fields are filled in by the extension itself — `skill` comes from
+// the active run, `reports` from markdown paths observed during the run, and
+// severity is normalised server-side (findings.mjs coerces any unknown value to
+// `info`). Every word removed here is a word the model doesn't have to carry.
 const RECORD_FINDING_DIRECTIVE = [
     "",
     "---",
-    "When done, record the result to Mission Control's Findings tab via the `record_finding` action. Required: `skill`, `title`, `severity` (use `info`/`clean`, not `informational`). Always add a 1-3 sentence `summary`, plus `metrics` and `entities` where relevant. If you wrote a markdown report, include its repo-relative path in `reports` so it's linked from the finding. Give each `recommended` follow-up a `skill`, a one-line `reason`, and a tailored `prompt` carrying this finding's evidence — never a bare skill name. Always record, even clean results.",
+    "When done, call `record_finding` with a `title`, `severity`, and a 1-3 sentence `summary`; add `metrics`/`entities` where relevant, and give each `recommended` follow-up a `reason` and a tailored `prompt` carrying this finding's evidence. Always record, even clean results.",
 ].join("\n");
 
 // Append the record-finding directive exactly once. Idempotent: the compose
@@ -189,13 +255,32 @@ function withRecordDirective(prompt) {
     return prompt + "\n" + RECORD_FINDING_DIRECTIVE;
 }
 
-async function launchSkill(name, entity, promptOverride, lookback) {
+async function launchSkill(name, entity, promptOverride, lookback, meta) {
     const composed = await composeFor(name, entity, promptOverride, lookback);
     if (composed.error) return { ok: false, error: composed.error };
     if (!sessionRef) return { ok: false, error: "Session not connected yet" };
     try {
         await sessionRef.send({ prompt: composed.prompt });
         await sessionRef.log(`🛰️ Mission Control launched: ${name}${entity ? ` (${entity})` : ""}`, { ephemeral: true });
+        // Open a live run in the cross-session activity ledger. This is the
+        // 100%-reliable start signal: at send time we already know the skill,
+        // entity and scope, and it needs no cooperation from the agent. The
+        // `skill.invoked` event is only a secondary signal (this project's
+        // instructions tell the agent to `view` a SKILL.md, which doesn't emit
+        // it). Baseline the credit counter so per-run cost is a delta.
+        try {
+            cancelEnd(); // a close scheduled by the previous run must not hit this one
+            runBaselineNaiu = cumulativeNaiu;
+            runReportPaths = [];
+            beginRun({
+                skill: name,
+                entity,
+                lookback,
+                output: meta?.output || "",
+                fleet: meta?.fleet === true,
+                source: "canvas",
+            });
+        } catch { /* ledger is best-effort */ }
         // Only record entries that are safely re-launchable from the "Recently
         // launched" list. Clicking a recent item calls run(name) with no prompt,
         // which resolves only for real skill cards. Ad-hoc query-context launches
@@ -367,6 +452,13 @@ async function handle(req, res) {
             json(res, 200, { ...cache, recent: recentPayload() });
             return;
         }
+        if (req.method === "GET" && url.pathname === "/api/activity") {
+            // Live cross-session investigation status. Merges every session's
+            // ledger file, so this canvas shows runs happening in OTHER sessions
+            // too — including sessions that never opened Mission Control.
+            json(res, 200, await readActivity(REPO_ROOT, activitySessionId()));
+            return;
+        }
         if (req.method === "POST" && url.pathname === "/api/compose") {
             // Compose-only: returns the prompt text (no send) so the canvas can
             // show an editable preview. If no explicit skill is given but an
@@ -374,29 +466,55 @@ async function handle(req, res) {
             const body = await readBody(req);
             let skill = body.skill || "";
             const entity = (body.entity || "").trim();
-            const override = body.prompt || "";
+            let override = body.prompt || "";
+            let free = false;
             if (!skill && !override) {
-                if (!entity) { json(res, 200, { ok: false, error: "empty entity" }); return; }
-                skill = routeEntity(entity);
+                if (!entity) { json(res, 200, { ok: false, error: "ask a question or paste an entity" }); return; }
+                if (looksFreeForm(entity)) {
+                    // Free-form ask: hand the routing decision to the model. The
+                    // question becomes the prompt override so composeFor uses it
+                    // verbatim, and the run is tagged `ad-hoc` until the agent
+                    // loads a real skill. Scope directives are already baked in
+                    // by composeAdHoc, so they are not passed on again below.
+                    skill = ADHOC_SKILL;
+                    override = composeAdHoc(entity, body.lookback || "", body.output || "");
+                    free = true;
+                } else {
+                    skill = routeEntity(entity);
+                }
             }
-            const composed = await composeFor(skill, entity, override, body.lookback || "", body.fleet === true, body.output || "");
+            const composed = await composeFor(
+                skill,
+                free ? "" : entity,
+                override,
+                free ? "" : (body.lookback || ""),
+                body.fleet === true,
+                free ? "" : (body.output || ""),
+            );
             if (composed.error) { json(res, 200, { ok: false, error: composed.error }); return; }
-            json(res, 200, { ok: true, skill: composed.skill || skill, entity, prompt: composed.prompt });
+            json(res, 200, { ok: true, skill: composed.skill || skill, entity: free ? "" : entity, prompt: composed.prompt });
             return;
         }
         if (req.method === "POST" && url.pathname === "/api/run") {
-            const { skill, entity, prompt, lookback } = await readBody(req);
-            json(res, 200, await launchSkill(skill, entity || "", prompt || "", lookback || ""));
+            const body = await readBody(req);
+            const { skill, entity, prompt, lookback } = body;
+            json(res, 200, await launchSkill(skill, entity || "", prompt || "", lookback || "", { fleet: body.fleet === true, output: body.output || "" }));
             return;
         }
         if (req.method === "POST" && url.pathname === "/api/quicklaunch") {
             const { entity, lookback } = await readBody(req);
             if (!entity || !entity.trim()) {
-                json(res, 200, { ok: false, error: "empty entity" });
+                json(res, 200, { ok: false, error: "ask a question or paste an entity" });
                 return;
             }
-            const skill = routeEntity(entity);
-            const result = await launchSkill(skill, entity.trim(), "", lookback || "");
+            const free = looksFreeForm(entity);
+            const skill = free ? ADHOC_SKILL : routeEntity(entity);
+            const result = await launchSkill(
+                skill,
+                free ? "" : entity.trim(),
+                free ? composeAdHoc(entity, lookback || "", "") : "",
+                free ? "" : (lookback || ""),
+            );
             json(res, 200, { ...result, skill });
             return;
         }
@@ -546,11 +664,11 @@ sessionRef = await joinSession({
                     // closes the hunt -> findings -> next-hunt loop.
                     name: "record_finding",
                     description:
-                        "Record a completed investigation result to the Mission Control Findings tab. Call after a skill run. Always include a 1-3 sentence `summary` alongside the required `skill`/`title`/`severity` — never title-only. Add `metrics`, notable `entities`, and `recommended` follow-ups; give each follow-up a one-line `reason` and a tailored `prompt` carrying this finding's evidence, not a bare skill name.",
+                        "Record a completed investigation result to the Mission Control Findings tab. Call after a skill run. Always include a 1-3 sentence `summary` alongside `title`/`severity` — never title-only. `skill` and `reports` are auto-filled from the active run when omitted. Add `metrics`, notable `entities`, and `recommended` follow-ups; give each follow-up a one-line `reason` and a tailored `prompt` carrying this finding's evidence, not a bare skill name.",
                     inputSchema: {
                         type: "object",
                         properties: {
-                            skill: { type: "string", description: "Skill that produced this finding, e.g. exposure-investigation" },
+                            skill: { type: "string", description: "Skill that produced this finding, e.g. exposure-investigation. Optional — auto-filled from the active Mission Control run." },
                             title: { type: "string", description: "Short headline for the finding" },
                             severity: {
                                 type: "string",
@@ -621,10 +739,20 @@ sessionRef = await joinSession({
                                 },
                             },
                         },
-                        required: ["skill", "title", "severity"],
+                        required: ["title", "severity"],
                     },
                     handler: async (ctx) => {
                         const args = ctx.input || {};
+                        // Auto-fill the mechanical fields from the active run so the
+                        // launch directive doesn't have to ask for them. `skill` comes
+                        // from whatever Mission Control (or the Skill tool) opened;
+                        // `reports` from markdown files observed being written during
+                        // the run. Anything the agent supplied explicitly wins.
+                        const run = activeRun();
+                        if (!args.skill) args.skill = run?.skill || "ad-hoc";
+                        if (!Array.isArray(args.reports) || args.reports.length === 0) {
+                            if (runReportPaths.length) args.reports = runReportPaths.map((p) => ({ path: p }));
+                        }
                         // Attribute AI usage since the previous finding to this one.
                         const deltaNaiu = Math.max(0, cumulativeNaiu - lastFindingNaiu);
                         lastFindingNaiu = cumulativeNaiu;
@@ -640,6 +768,9 @@ sessionRef = await joinSession({
                         try {
                             const finding = await addFinding(REPO_ROOT, args, await knownSkillNames());
                             try { await addCosting(REPO_ROOT, { ...finding, model: args.model }); } catch {}
+                            // Link the finding to the run so the live strip can show it
+                            // resolved and the recent-runs line doesn't flag it unrecorded.
+                            try { markRecorded(finding.id); } catch {}
                             await sessionRef?.log(`📌 Finding recorded: ${finding.title} (${finding.severity})`, { ephemeral: true });
                             return { ok: true, id: finding.id, recommended: finding.recommended };
                         } catch (err) {
@@ -698,6 +829,192 @@ try {
             cumulativeNaiu += n;
             const model = usageModel(event);
             cumulativeByModel.set(model, (cumulativeByModel.get(model) || 0) + n);
+            // Live per-run cost for the Findings strip (delta since run start).
+            // A usage event also means a model call just completed, so the run
+            // is demonstrably still alive — hold off any pending close.
+            try { cancelEnd(); updateRun({ creditsNaiu: Math.max(0, cumulativeNaiu - runBaselineNaiu) }); } catch {}
         }
     });
 } catch { /* usage telemetry optional; findings simply omit the chip */ }
+
+// ---------------------------------------------------------------------------
+// Live investigation status (cross-session).
+//
+// These subscriptions are registered at module load, NOT on canvas open — so a
+// session reports its progress even when Mission Control is never opened in it,
+// and any other session's Findings tab can watch it. Nothing here requires the
+// agent to be prompted: the run is observed, not self-reported.
+//
+// Every subscription is wrapped individually so an event name renamed by a
+// future SDK can degrade one signal without breaking extension load.
+// ---------------------------------------------------------------------------
+
+initActivity(REPO_ROOT, sessionRef?.sessionId || process.env.SESSION_ID || "");
+
+function on(eventName, fn) {
+    try {
+        sessionRef.on(eventName, (event) => {
+            try { fn(event); } catch { /* one bad payload must not kill the stream */ }
+        });
+    } catch { /* event unavailable in this SDK build — signal simply goes dark */ }
+}
+
+// Secondary start signal: a skill loaded via the Skill tool rather than a canvas
+// click (hand-typed "run threat pulse"). Only project skills count — this keeps
+// ordinary coding/chat turns out of the strip entirely.
+on("skill.invoked", (event) => {
+    const d = event?.data || {};
+    const p = String(d.path || "").replace(/\\/g, "/");
+    if (!p.includes(".github/skills/")) return;
+    const open = activeRun();
+    if (open) {
+        // A free-form quick-launch opens as `ad-hoc` because the routing decision
+        // was the model's to make. Now that it has made it, re-attribute the run
+        // so the live strip, findings and cost ledger show the real skill.
+        if (open.skill === ADHOC_SKILL) updateRun({ skill: String(d.name || ADHOC_SKILL) });
+        return; // canvas launch already opened this run
+    }
+    cancelEnd(); // a stale close scheduled by the previous run must not hit this one
+    runBaselineNaiu = cumulativeNaiu;
+    runReportPaths = [];
+    beginRun({ skill: String(d.name || "investigation"), source: "skill-tool" });
+});
+
+// The live one-liner shown in the strip. `assistant.intent` is the documented
+// source but is `ephemeral` and — verified empirically against SDK 1.0.61 — is
+// never delivered to extensions, so it alone left the phase stuck at "Starting…".
+// The reliable source is `assistant.message.content`: the agent's own progress
+// narration, which the system prompt already requires. No extra prompting needed.
+// Both are wired; whichever arrives wins. Each is also proof of life.
+on("assistant.intent", (event) => {
+    const intent = cleanText(event?.data?.intent);
+    if (!intent) return;
+    cancelEnd();
+    updateRun({ phase: shortPhase(intent), phaseFull: intent });
+});
+
+on("assistant.message", (event) => {
+    // Tool-only messages carry empty content — ignore those so the last real
+    // narration stays on screen instead of blanking between steps.
+    const full = cleanText(event?.data?.content);
+    if (!full) return;
+    cancelEnd();
+    // `phase` is the one-line display value; `phaseFull` backs the hover tooltip
+    // so the analyst can read the whole update without it being cut off.
+    updateRun({ phase: shortPhase(full), phaseFull: full });
+});
+
+// Flatten a markdown progress update into plain prose, keeping the whole thing.
+function cleanText(text) {
+    if (typeof text !== "string") return "";
+    const t = text
+        .replace(/```[\s\S]*?```/g, " ")   // drop fenced code
+        .replace(/`([^`]*)`/g, "$1")       // unwrap inline code
+        .replace(/[*_#>|]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    return t.length > 600 ? t.slice(0, 597).trimEnd() + "\u2026" : t;
+}
+
+// Condense to a single status line for the collapsed row.
+function shortPhase(t) {
+    if (!t) return "";
+    const stop = t.match(/^.{20,}?[.!?](\s|$)/);   // first sentence, if long enough to stand alone
+    let s = stop ? stop[0].trim() : t;
+    if (s.length > 120) s = s.slice(0, 117).trimEnd() + "\u2026";
+    return s;
+}
+
+// Tool activity: drives the tool counter/chip, and doubles as the source for
+// auto-filled `reports` (markdown paths written during the run).
+on("tool.execution_start", (event) => {
+    const d = event?.data || {};
+    const label = d.mcpToolName || d.toolName || "";
+    cancelEnd();
+    bumpTool(String(label));
+    harvestReportPath(d);
+});
+
+on("subagent.started", () => { cancelEnd(); bumpSubagent(1); });
+on("subagent.completed", () => bumpSubagent(-1));
+
+on("session.title_changed", (event) => setSessionTitle(event?.data?.title || ""));
+
+// Signal-only event — the todo table changed. Reading it is an extra call, so
+// debounce and treat any failure as "no progress info available".
+let todoTimer = null;
+on("session.todos_changed", () => {
+    if (!activeRun() || todoTimer) return;
+    todoTimer = setTimeout(async () => {
+        todoTimer = null;
+        try {
+            const rows = await sessionRef?.plan?.readSqlTodosWithDependencies?.();
+            const list = Array.isArray(rows) ? rows : (rows?.todos || []);
+            if (!Array.isArray(list) || !list.length) return;
+            const done = list.filter((t) => String(t?.status || "") === "done").length;
+            updateRun({ todos: { done, total: list.length } });
+        } catch { /* progress detail is optional */ }
+    }, 2000);
+    if (todoTimer.unref) todoTimer.unref();
+});
+
+// Closing the run.
+//
+// `assistant.turn_end` fires per model round-trip, NOT once per investigation —
+// a multi-step skill emits many of them, so ending on the first one closed runs
+// seconds after they started while the agent was still working. `session.idle`
+// can likewise arrive before the first model call has produced anything.
+//
+// So an end signal never ends the run directly: it opens a quiet window. Any
+// proof of life (new turn, tool call, intent, sub-agent) cancels it, and a run
+// younger than MIN_RUN_MS is deferred rather than closed. The run ends only
+// after the session has genuinely stopped doing anything.
+const END_QUIET_MS = 12000;   // silence after turn_end before a run is done
+const IDLE_QUIET_MS = 5000;   // idle is a stronger signal, so a shorter window
+const MIN_RUN_MS = 20000;     // never close a run that only just opened
+let endTimer = null;
+
+function cancelEnd() {
+    if (endTimer) { clearTimeout(endTimer); endTimer = null; }
+}
+
+function scheduleEnd(ms, opts) {
+    if (!activeRun()) return;
+    cancelEnd();
+    endTimer = setTimeout(() => {
+        endTimer = null;
+        const run = activeRun();
+        if (!run) return;
+        // Too young to be finished — wait out the remainder instead of closing.
+        const age = Date.now() - (Number(run.startedAt) || 0);
+        if (age < MIN_RUN_MS) { scheduleEnd(MIN_RUN_MS - age, opts); return; }
+        endRun(opts || {});
+    }, Math.max(0, ms));
+    if (endTimer.unref) endTimer.unref();
+}
+
+on("assistant.turn_start", () => cancelEnd());
+on("assistant.turn_end", () => scheduleEnd(END_QUIET_MS, {}));
+on("session.idle", () => scheduleEnd(IDLE_QUIET_MS, {}));
+// A hard error is unambiguous — close immediately so the failure is visible.
+on("session.error", (event) => { cancelEnd(); endRun({ error: event?.data?.message || "Session error" }); });
+on("session.shutdown", () => { cancelEnd(); void clearSession(); });
+
+// Harvest repo-relative markdown paths from file-writing tool calls so a report
+// authored during the run is linked to the finding without the agent being asked
+// to include it. Only .md under the repo, capped so a runaway run can't grow the
+// ledger without bound.
+function harvestReportPath(d) {
+    const name = String(d?.toolName || "").toLowerCase();
+    if (name !== "create" && name !== "edit" && name !== "write" && name !== "str_replace_editor") return;
+    const a = d?.arguments || {};
+    const raw = a.path || a.file_path || a.filePath || a.filename || "";
+    if (typeof raw !== "string" || !raw.toLowerCase().endsWith(".md")) return;
+    let rel = raw.replace(/\\/g, "/");
+    const root = REPO_ROOT.replace(/\\/g, "/");
+    if (rel.toLowerCase().startsWith(root.toLowerCase())) rel = rel.slice(root.length).replace(/^\/+/, "");
+    if (!rel || rel.startsWith("..") || /^[a-zA-Z]:/.test(rel)) return; // outside the repo
+    if (rel.includes(".github/extensions/")) return; // extension state, not a report
+    if (runReportPaths.includes(rel) || runReportPaths.length >= 5) return;
+    runReportPaths.push(rel);
+}
