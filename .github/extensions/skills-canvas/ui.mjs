@@ -1022,6 +1022,13 @@ async function sendCompose() {
         if (q) q.value = "";
       }
       closeCompose();
+      // Every launch path (skill card, query card, quick-launch, findings
+      // follow-up) funnels through here, so jumping to Findings once the
+      // prompt is away puts the analyst on the live status strip that is
+      // about to pick the run up, without them having to switch tabs.
+      switchView("findings");
+      const main = document.querySelector(".main");
+      if (main) main.scrollTop = 0;
     }
     else toast("⚠️ " + (j.error || "launch failed"));
   } catch (e) { toast("⚠️ " + e.message); }
