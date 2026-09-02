@@ -37,7 +37,11 @@ import {
     initActivity,
     activitySessionId,
     activeRun,
+    hasActiveRun,
     beginRun,
+    enqueueRun,
+    takeNextQueued,
+    dropQueued,
     updateRun,
     bumpTool,
     bumpSubagent,
@@ -259,9 +263,44 @@ async function launchSkill(name, entity, promptOverride, lookback, meta) {
     const composed = await composeFor(name, entity, promptOverride, lookback);
     if (composed.error) return { ok: false, error: composed.error };
     if (!sessionRef) return { ok: false, error: "Session not connected yet" };
+    const spec = {
+        skill: name,
+        entity,
+        lookback,
+        output: meta?.output || "",
+        fleet: meta?.fleet === true,
+        prompt: composed.prompt,
+    };
+    // One agent, one investigation at a time. Sending now would let the CLI queue
+    // the prompt internally, but it gives us no event when it later dequeues, so
+    // the ledger could not tell run A's work from run B's — the previous
+    // behaviour closed run A early, stamped it "not recorded", and misattributed
+    // everything after. Hold it instead and dispatch on run end.
+    if (hasActiveRun()) {
+        const position = enqueueRun(spec);
+        if (!position) return { ok: false, error: "Queue is full — wait for the running investigation to finish" };
+        try {
+            await sessionRef.log(`🕒 Mission Control queued: ${name}${entity ? ` (${entity})` : ""} (#${position})`, { ephemeral: true });
+        } catch { /* logging is best-effort */ }
+        if ((await knownSkillNames()).has(name)) recordRun(name, entity);
+        return { ok: true, queued: true, position, recent: recentPayload() };
+    }
+    const sent = await dispatchRun(spec);
+    if (!sent.ok) return sent;
+    if ((await knownSkillNames()).has(name)) recordRun(name, entity);
+    return { ok: true, recent: recentPayload() };
+}
+
+/**
+ * Send a composed launch and open its ledger run. The send and the run must
+ * start together so per-run cost is a true delta — which is exactly why queued
+ * launches are dispatched here at promotion time rather than at request time.
+ */
+async function dispatchRun(spec) {
+    if (!sessionRef) return { ok: false, error: "Session not connected yet" };
     try {
-        await sessionRef.send({ prompt: composed.prompt });
-        await sessionRef.log(`🛰️ Mission Control launched: ${name}${entity ? ` (${entity})` : ""}`, { ephemeral: true });
+        await sessionRef.send({ prompt: spec.prompt });
+        await sessionRef.log(`🛰️ Mission Control launched: ${spec.skill}${spec.entity ? ` (${spec.entity})` : ""}`, { ephemeral: true });
         // Open a live run in the cross-session activity ledger. This is the
         // 100%-reliable start signal: at send time we already know the skill,
         // entity and scope, and it needs no cooperation from the agent. The
@@ -273,22 +312,39 @@ async function launchSkill(name, entity, promptOverride, lookback, meta) {
             runBaselineNaiu = cumulativeNaiu;
             runReportPaths = [];
             beginRun({
-                skill: name,
-                entity,
-                lookback,
-                output: meta?.output || "",
-                fleet: meta?.fleet === true,
+                skill: spec.skill,
+                entity: spec.entity,
+                lookback: spec.lookback,
+                output: spec.output || "",
+                fleet: spec.fleet === true,
                 source: "canvas",
             });
         } catch { /* ledger is best-effort */ }
-        // Only record entries that are safely re-launchable from the "Recently
-        // launched" list. Clicking a recent item calls run(name) with no prompt,
-        // which resolves only for real skill cards. Ad-hoc query-context launches
-        // (labels like "🔎 2 queries") would compose to "Unknown skill", so skip them.
-        if ((await knownSkillNames()).has(name)) recordRun(name, entity);
-        return { ok: true, recent: recentPayload() };
+        return { ok: true };
     } catch (err) {
         return { ok: false, error: err.message };
+    }
+}
+
+/**
+ * Start the next queued launch once nothing is running. Called after every run
+ * close. Failures drop the entry rather than stalling the queue behind it.
+ */
+async function promoteQueued() {
+    if (hasActiveRun()) return;
+    const next = takeNextQueued();
+    if (!next) return;
+    const sent = await dispatchRun({
+        skill: next.skill,
+        entity: next.entity,
+        lookback: next.scope?.lookback || "",
+        output: next.scope?.output || "",
+        fleet: next.scope?.fleet === true,
+        prompt: next.prompt,
+    });
+    if (!sent.ok) {
+        try { await sessionRef?.log(`⚠️ Mission Control could not start queued ${next.skill}: ${sent.error}`, { ephemeral: true }); } catch { /* best-effort */ }
+        void promoteQueued(); // don't let one bad entry block the rest
     }
 }
 
@@ -457,6 +513,14 @@ async function handle(req, res) {
             // ledger file, so this canvas shows runs happening in OTHER sessions
             // too — including sessions that never opened Mission Control.
             json(res, 200, await readActivity(REPO_ROOT, activitySessionId()));
+            return;
+        }
+        if (req.method === "POST" && url.pathname === "/api/queue/cancel") {
+            // Drop a launch the analyst queued but no longer wants. Only this
+            // session's own queue is cancellable — another session's ledger file
+            // is written solely by that session's process.
+            const body = await readBody(req);
+            json(res, 200, { ok: dropQueued(String(body?.queueId || "")) });
             return;
         }
         if (req.method === "POST" && url.pathname === "/api/compose") {
@@ -989,6 +1053,7 @@ function scheduleEnd(ms, opts) {
         const age = Date.now() - (Number(run.startedAt) || 0);
         if (age < MIN_RUN_MS) { scheduleEnd(MIN_RUN_MS - age, opts); return; }
         endRun(opts || {});
+        void promoteQueued();
     }, Math.max(0, ms));
     if (endTimer.unref) endTimer.unref();
 }
@@ -996,8 +1061,13 @@ function scheduleEnd(ms, opts) {
 on("assistant.turn_start", () => cancelEnd());
 on("assistant.turn_end", () => scheduleEnd(END_QUIET_MS, {}));
 on("session.idle", () => scheduleEnd(IDLE_QUIET_MS, {}));
+
 // A hard error is unambiguous — close immediately so the failure is visible.
-on("session.error", (event) => { cancelEnd(); endRun({ error: event?.data?.message || "Session error" }); });
+on("session.error", (event) => {
+    cancelEnd();
+    endRun({ error: event?.data?.message || "Session error" });
+    void promoteQueued();
+});
 on("session.shutdown", () => { cancelEnd(); void clearSession(); });
 
 // Harvest repo-relative markdown paths from file-writing tool calls so a report

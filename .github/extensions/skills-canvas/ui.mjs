@@ -266,6 +266,18 @@ export function renderPage() {
     color: var(--muted); background: var(--panel2); white-space: nowrap; max-width: 150px;
     overflow: hidden; text-overflow: ellipsis; }
   .livesess.self { color: #cfe0ff; border-color: var(--accent2); }
+  /* Queued launches — deliberately quieter than a live row: dashed, no pulse. */
+  .queuerow { display: flex; align-items: center; gap: 10px; padding: 7px 12px; margin-bottom: 6px;
+    border: 1px dashed var(--border); border-radius: 9px; background: var(--panel2);
+    font-size: 12.5px; opacity: .82; }
+  .queuenum { width: 16px; height: 16px; border-radius: 50%; flex: none; font-size: 9.5px;
+    display: flex; align-items: center; justify-content: center; background: var(--chip);
+    border: 1px solid var(--border); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .qcancel { background: none; border: 1px solid var(--border); color: var(--muted); cursor: pointer;
+    border-radius: 999px; width: 18px; height: 18px; line-height: 1; padding: 0; font-size: 10px;
+    display: flex; align-items: center; justify-content: center; }
+  .qcancel:hover { color: #ff9a9a; border-color: #ff9a9a; }
+  .qcancel:disabled { opacity: .4; cursor: default; }
   .recentline { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--muted);
     padding: 5px 12px; border: 1px dashed var(--border); border-radius: 8px; cursor: pointer; user-select: none; }
   .recentline:hover { color: var(--text); border-color: var(--accent2); }
@@ -1014,7 +1026,12 @@ async function sendCompose() {
     });
     const j = await res.json();
     if (j.ok) {
-      toast("▶ " + skill + " sent to chat");
+      // A queued launch has NOT been sent yet — Mission Control is holding the
+      // prompt and will dispatch it when the running investigation closes. Say
+      // so plainly, otherwise "sent to chat" would be a lie and the analyst
+      // would go looking for it in the transcript.
+      if (j.queued) toast("⏳ " + skill + " queued (#" + (j.position || 1) + ") — starts when the current run ends");
+      else toast("▶ " + skill + " sent to chat");
       renderRecent(j.recent || []);
       // Only wipe the quick-launch box once the prompt is actually on its way.
       if (cameFromQuick) {
@@ -1535,6 +1552,23 @@ function liveRow(r) {
   return p.join("");
 }
 
+function queuedRow(q, idx) {
+  const p = [];
+  p.push('<div class="queuerow">');
+  p.push('<span class="queuenum">' + (idx + 1) + "</span>");
+  p.push('<span class="liveskill">' + esc(q.skill || "investigation") + "</span>");
+  if (q.entity) p.push('<span class="liveent">' + esc(q.entity) + "</span>");
+  p.push('<span class="livephase">Waiting for the running investigation to finish\u2026</span>');
+  p.push('<span class="livemeta">');
+  const sess = q.self ? "this session" : (q.sessionTitle || ("session " + String(q.sessionId || "").slice(0, 6)));
+  p.push('<span class="livesess' + (q.self ? " self" : "") + '">' + esc(sess) + "</span>");
+  // Only this session's process can mutate its own queue file, so a cancel
+  // button on another session's entry would silently do nothing.
+  if (q.self) p.push('<button class="qcancel" data-qid="' + esc(q.queueId || "") + '" title="Cancel this queued launch">\u2715</button>');
+  p.push("</span></div>");
+  return p.join("");
+}
+
 function recentItem(r) {
   const dur = fmtElapsed((Number(r.endedAt) || 0) - (Number(r.startedAt) || 0));
   const cost = fmtCostFine((Number(r.creditsNaiu) || 0) / 1e9);
@@ -1562,6 +1596,9 @@ function activitySig() {
       r.todos ? (r.todos.done + "/" + r.todos.total) : ""].join("|");
   };
   return (ACTIVITY.active || []).map(one).join(";") + "#" +
+    (ACTIVITY.queued || []).map(function (q) {
+      return [q.queueId, q.skill, q.entity, q.sessionId].join("|");
+    }).join(";") + "#" +
     (ACTIVITY.recent || []).map(one).join(";") + "#" + costUnitLabel();
 }
 
@@ -1570,6 +1607,7 @@ function renderLiveStrip() {
   const el = document.getElementById("liveStrip");
   if (!el) return;
   const active = ACTIVITY.active || [];
+  const queued = ACTIVITY.queued || [];
   const recent = ACTIVITY.recent || [];
   // Skip the rebuild when nothing visible changed — the 2.5s poll would
   // otherwise replace the strip's DOM continuously.
@@ -1577,13 +1615,19 @@ function renderLiveStrip() {
   if (sig === _lastStripSig) return;
   _lastStripSig = sig;
   // Zero visual cost at rest: the strip disappears entirely when idle.
-  if (!active.length && !recent.length) { el.style.display = "none"; el.innerHTML = ""; return; }
+  if (!active.length && !queued.length && !recent.length) { el.style.display = "none"; el.innerHTML = ""; return; }
   el.style.display = "";
   let h = "";
   if (active.length) {
     const label = active.length === 1 ? "1 investigation running" : active.length + " investigations running";
     h += '<div class="lshead"><span>' + label + "</span></div>";
     h += active.map(liveRow).join("");
+  }
+  if (queued.length) {
+    const qlabel = "\u23F3 " + queued.length + (queued.length === 1 ? " queued" : " queued")
+      + " \u00B7 starts automatically when the current run ends";
+    h += '<div class="lshead"><span>' + esc(qlabel) + "</span></div>";
+    h += queued.map(queuedRow).join("");
   }
   if (recent.length) {
     const unrec = recent.filter(function (r) { return !r.recorded; }).length;
@@ -1596,6 +1640,18 @@ function renderLiveStrip() {
   el.innerHTML = h;
   const tog = document.getElementById("recentToggle");
   if (tog) tog.onclick = function () { recentOpen = !recentOpen; renderLiveStrip(); };
+  const cancels = el.querySelectorAll(".qcancel");
+  for (let i = 0; i < cancels.length; i++) {
+    cancels[i].onclick = function () {
+      const qid = this.getAttribute("data-qid");
+      this.disabled = true;
+      fetch("/api/queue/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ queueId: qid })
+      }).then(function () { loadActivity(); }).catch(function () { });
+    };
+  }
 }
 
 // Tick the elapsed counters locally so they move smoothly between server polls.

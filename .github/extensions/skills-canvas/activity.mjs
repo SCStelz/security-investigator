@@ -26,6 +26,9 @@ const STALE_MS = 90000;
 const PRUNE_MS = 12 * 60 * 60 * 1000;
 // Completed runs retained per session for the "recent runs" line.
 const MAX_RECENT = 8;
+// Launches held behind an active run. A cap keeps a stuck run from letting an
+// unbounded backlog build up out of the analyst's sight.
+const MAX_QUEUE = 10;
 
 function activityDir(repoRoot) {
     return path.join(repoRoot, ".github", "extensions", "skills-canvas", "state", "activity");
@@ -62,6 +65,13 @@ export function initActivity(repoRoot, sessionId) {
         startedAt: Date.now(),
         updatedAt: Date.now(),
         run: null,
+        // Launches requested while a run is already open. The CLI would accept
+        // the send and queue it internally, but it emits no observable event when
+        // it later dequeues (`user.message` is not delivered to extensions), so we
+        // could never tell where run A stops and run B begins. Holding the prompt
+        // here instead means we choose the send moment ourselves and the run
+        // boundary is exact — including the credit baseline.
+        queue: [],
         recent: [],
     };
     return id;
@@ -87,6 +97,15 @@ function snapshot() {
         startedAt: state.startedAt,
         updatedAt: state.updatedAt,
         run: state.run ? { ...state.run } : null,
+        // The composed prompt stays in memory: only this process ever promotes
+        // its own queue, and prompts can be large. Readers just need the label.
+        queue: state.queue.map((q) => ({
+            queueId: q.queueId,
+            skill: q.skill,
+            entity: q.entity,
+            scope: q.scope,
+            queuedAt: q.queuedAt,
+        })),
         recent: state.recent.slice(0, MAX_RECENT),
     };
 }
@@ -188,6 +207,52 @@ export function beginRun(info) {
     return state.run;
 }
 
+/**
+ * Hold a launch until the active run finishes. Returns the queue position (1 =
+ * next up), or 0 when the queue is full.
+ */
+export function enqueueRun(spec) {
+    if (!state) return 0;
+    if (state.queue.length >= MAX_QUEUE) return 0;
+    const now = Date.now();
+    state.queue.push({
+        queueId: "q-" + now.toString(36) + "-" + Math.random().toString(36).slice(2, 6),
+        skill: String(spec?.skill || "investigation").slice(0, 120),
+        entity: String(spec?.entity || "").slice(0, 160),
+        scope: {
+            lookback: String(spec?.lookback || ""),
+            output: String(spec?.output || ""),
+            fleet: spec?.fleet === true,
+        },
+        prompt: String(spec?.prompt || ""),
+        queuedAt: now,
+    });
+    schedule(true);
+    return state.queue.length;
+}
+
+export function queuedRuns() {
+    return state ? state.queue.slice() : [];
+}
+
+/** Pop the next queued launch. The caller is responsible for dispatching it. */
+export function takeNextQueued() {
+    if (!state || !state.queue.length) return null;
+    const next = state.queue.shift();
+    schedule(true);
+    return next;
+}
+
+/** Drop a queued launch by id (analyst cancelled it). */
+export function dropQueued(queueId) {
+    if (!state || !queueId) return false;
+    const before = state.queue.length;
+    state.queue = state.queue.filter((q) => q.queueId !== queueId);
+    if (state.queue.length === before) return false;
+    schedule(true);
+    return true;
+}
+
 /** Shallow-merge a patch into the active run. No-op when nothing is running. */
 export function updateRun(patch) {
     if (!state || !state.run || !patch) return;
@@ -284,9 +349,10 @@ export async function readActivity(repoRoot, selfSessionId) {
     try {
         names = await readdir(dir);
     } catch {
-        return { active: [], recent: [], sessions: 0, self: selfSessionId || "", now };
+        return { active: [], queued: [], recent: [], sessions: 0, self: selfSessionId || "", now };
     }
     const active = [];
+    const queued = [];
     const recent = [];
     let sessions = 0;
     for (const name of names) {
@@ -311,11 +377,15 @@ export async function readActivity(repoRoot, selfSessionId) {
                 heartbeatAgo: Math.max(0, Math.round((now - updatedAt) / 1000)),
             });
         }
+        for (const q of Array.isArray(rec.queue) ? rec.queue : []) {
+            queued.push({ ...q, sessionId: sid, sessionTitle: label, self });
+        }
         for (const r of Array.isArray(rec.recent) ? rec.recent : []) {
             recent.push({ ...r, sessionId: sid, sessionTitle: label, self });
         }
     }
     active.sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+    queued.sort((a, b) => (a.queuedAt || 0) - (b.queuedAt || 0));
     recent.sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0));
-    return { active, recent: recent.slice(0, 12), sessions, self: selfSessionId || "", now };
+    return { active, queued, recent: recent.slice(0, 12), sessions, self: selfSessionId || "", now };
 }
