@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-08-28T04:55:44Z'
+generated: '2026-09-03T20:49:55Z'
 valid_domains:
 - admin
 - cloud
@@ -546,6 +546,17 @@ queries:
   - TA0010
   - T1078
   - T1098
+- title: Privileged Account Creation & Escalation Detection
+  path: queries/identity/privileged_account_detection.md
+  domains:
+  - identity
+  mitre:
+  - T1078.002
+  - T1078.003
+  - T1098
+  - T1098.003
+  - T1136.001
+  - T1136.002
 - title: Service Principal Scope Drift Detection
   path: queries/identity/service_principal_scope_drift.md
   domains:

@@ -39,7 +39,7 @@ Discovery is automatic once a device is onboarded to MDE Plan 2 with Defender An
 ## Quick Reference — Query Index
 
 | # | Query | Use Case | Key Table |
-| --- | --- | --- | --- |
+|---|-------|----------|-----------|
 | 1 | [Local AI Agent Inventory](#query-1-local-ai-agent-inventory) | Posture | `AgentsInfo` + `RawAgentInfo` |
 | 2 | [Vendor & Platform Footprint](#query-2-vendor--platform-footprint) | Investigation | `AgentsInfo` + `RawAgentInfo` |
 | 3 | [Local Agent Configuration Detail](#query-3-local-agent-configuration-detail) | Investigation | `AgentsInfo` + `RawAgentInfo` |
