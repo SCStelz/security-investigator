@@ -885,7 +885,7 @@ sessionRef = await joinSession({
                     // closes the hunt -> findings -> next-hunt loop.
                     name: "record_finding",
                     description:
-                        "Record a completed investigation result to the Mission Control Findings tab. Call after a skill run. Always include a 1-3 sentence `summary` alongside `title`/`severity` — never title-only. `skill` and `reports` are auto-filled from the active run when omitted. Add `metrics`, notable `entities`, and `recommended` follow-ups; give each follow-up a one-line `reason` and a tailored `prompt` carrying this finding's evidence, not a bare skill name.",
+                        "Record a completed investigation result to the Mission Control Findings tab. Invoke after a skill run. Always include a 1-3 sentence `summary` alongside `title`/`severity` — never title-only. `skill` and `reports` are auto-filled from the active run when omitted. Add `metrics`, notable `entities`, and `recommended` follow-ups; give each follow-up a one-line `reason` and a tailored `prompt` carrying this finding's evidence, not a bare skill name.",
                     inputSchema: {
                         type: "object",
                         properties: {

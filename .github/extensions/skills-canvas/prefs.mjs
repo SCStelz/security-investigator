@@ -46,10 +46,16 @@ export const DEFAULT_MEMORY_PROMPT =
 // the active run, `reports` from markdown paths observed during the run, and
 // severity is normalised server-side (findings.mjs coerces any unknown value to
 // `info`). Every word removed here is a word the model doesn't have to carry.
+//
+// Naming `invoke_canvas_action` is what earns its place: `record_finding` is a
+// canvas action, so "call record_finding" sent the agent hunting for a tool
+// that isn't in its list. Pointing at the right verb is enough — it can work
+// out the rest.
 export const DEFAULT_RECORD_PROMPT =
-    "When done, call `record_finding` with a `title`, `severity`, and a 1-3 sentence `summary`; add " +
-    "`metrics`/`entities` where relevant, and give each `recommended` follow-up a `reason` and a tailored `prompt` " +
-    "carrying this finding's evidence. Always record, even clean results.";
+    "When done, record the result: `invoke_canvas_action` on the Mission Control panel with `actionName` " +
+    "`record_finding`. Pass a `title`, `severity`, and a 1-3 sentence `summary`; add `metrics`/`entities` where " +
+    "relevant, and give each `recommended` follow-up a `reason` and a tailored `prompt` carrying this finding's " +
+    "evidence. Always record, even clean results.";
 
 export const MEMORY_PROMPT_KEY = "mc.prompt.memory";
 export const RECORD_PROMPT_KEY = "mc.prompt.record";
