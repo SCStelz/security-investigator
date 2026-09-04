@@ -13,7 +13,7 @@ import { homedir } from "node:os";
 import { joinSession, createCanvas } from "@github/copilot-sdk/extension";
 import { renderPage } from "./ui.mjs";
 import { loadCanvasData, composePrompt, lookbackPhrase, outputPhrase } from "./manifest.mjs";
-import { loadPrefs, savePrefs } from "./prefs.mjs";
+import { loadPrefs, savePrefs, memoryPromptTemplate, recordPromptTemplate, DEFAULT_MEMORY_PROMPT, DEFAULT_RECORD_PROMPT } from "./prefs.mjs";
 import { renderMarkdown, htmlReportPage } from "./md.mjs";
 import {
     loadFindings,
@@ -240,24 +240,21 @@ async function setMemoryFile(rawFile) {
 // prompt (NOT in copilot-instructions.md) so the behavior is scoped strictly to
 // canvas-initiated runs — a hand-typed chat investigation is unaffected.
 //
-// Deliberately minimal: it asks only for the things the model must *judge*. The
-// mechanical fields are filled in by the extension itself — `skill` comes from
-// the active run, `reports` from markdown paths observed during the run, and
-// severity is normalised server-side (findings.mjs coerces any unknown value to
-// `info`). Every word removed here is a word the model doesn't have to carry.
-const RECORD_FINDING_DIRECTIVE = [
-    "",
-    "---",
-    "When done, call `record_finding` with a `title`, `severity`, and a 1-3 sentence `summary`; add `metrics`/`entities` where relevant, and give each `recommended` follow-up a `reason` and a tailored `prompt` carrying this finding's evidence. Always record, even clean results.",
-].join("\n");
+// The wording is editable from Settings → Record findings; the default lives in
+// prefs.mjs. An empty override disables the directive entirely.
 
 // Append the record-finding directive exactly once. Idempotent: the compose
 // modal path runs composeFor twice (preview via /api/compose, then send via
-// /api/run with the edited text as an override), so we skip when the token is
-// already present to avoid a duplicated directive.
-function withRecordDirective(prompt) {
-    if (!prompt || prompt.includes("record_finding")) return prompt;
-    return prompt + "\n" + RECORD_FINDING_DIRECTIVE;
+// /api/run with the edited text as an override), so we skip when the directive
+// is already present to avoid a duplicated tail. The `record_finding` token is
+// checked as well, so a directive the analyst edited inside the compose box
+// still counts as present.
+function withRecordDirective(prompt, prefs) {
+    if (!prompt) return prompt;
+    const text = recordPromptTemplate(prefs).trim();
+    if (!text) return prompt; // deliberately disabled
+    if (prompt.includes(text) || prompt.includes("record_finding")) return prompt;
+    return `${prompt}\n\n---\n${text}`;
 }
 
 async function launchSkill(name, entity, promptOverride, lookback, meta) {
@@ -375,7 +372,7 @@ async function composeFor(name, entity, promptOverride, lookback, fleet, output)
         if (outPhrase) prompt = `${prompt} — ${outPhrase}`;
     }
     if (!prompt) return { error: `Unknown skill: ${name}` };
-    return { skill: name, prompt: withRecordDirective(prompt) };
+    return { skill: name, prompt: withRecordDirective(prompt, await loadPrefs(REPO_ROOT)) };
 }
 
 /** Names of launchable skills — used to validate auto-recommended follow-ups. */

@@ -7,6 +7,8 @@
 // because this server's port — and thus the origin owning localStorage —
 // changes on every extension load.
 
+import { memoryPromptTemplate, recordPromptTemplate, DEFAULT_MEMORY_PROMPT, DEFAULT_RECORD_PROMPT } from "./prefs.mjs";
+
 export function renderPage(prefs = {}) {
     return `<!doctype html>
 <html lang="en">
@@ -496,6 +498,26 @@ export function renderPage(prefs = {}) {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); background: var(--panel, #10151c);
     border: 1px solid var(--border, #2a3441); border-radius: 6px; outline: none; }
   .memfile-input:focus { border-color: var(--accent); }
+  /* Settings dialog: memory file + the two prompt wrappers, one tab each */
+  .modal-box.confirm.settings { width: min(680px, 96vw); }
+  .stabs { display: flex; gap: 4px; padding: 0 18px; border-bottom: 1px solid var(--border, #2a3441); }
+  .stab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted);
+    font-size: 12.5px; padding: 9px 10px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .stab:hover { color: var(--text); }
+  .stab.on { color: var(--text); border-bottom-color: var(--accent); }
+  .spane { display: none; }
+  .spane.on { display: block; }
+  .prompt-ta { width: 100%; box-sizing: border-box; margin: 0 0 10px; padding: 10px 11px; font-size: 12.5px;
+    line-height: 1.5; min-height: 176px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--text); background: var(--panel, #10151c); border: 1px solid var(--border, #2a3441);
+    border-radius: 6px; outline: none; }
+  .prompt-ta:focus { border-color: var(--accent); }
+  .ph-note { margin: 0 0 12px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+  .ph-note b { color: var(--text); font-weight: 600; }
+  .lnk { background: none; border: 0; color: var(--accent); font-size: 12px; cursor: pointer; padding: 0;
+    font-family: inherit; }
+  .lnk:hover { text-decoration: underline; }
+  .lnk:disabled { color: var(--muted); cursor: default; text-decoration: none; }
   .date-row { display: flex; gap: 12px; margin: 0 0 14px; }
   .date-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
   .date-input { padding: 7px 9px; font-size: 13px; color: var(--text); background: var(--panel, #10151c);
@@ -716,17 +738,45 @@ export function renderPage(prefs = {}) {
 </div>
 
 <div class="modal" id="memFileModal">
-  <div class="modal-box confirm">
+  <div class="modal-box confirm settings">
     <div class="modal-head">
-      <span class="mt">Tenant memory file</span>
+      <span class="mt">Settings</span>
       <span class="spacer"></span>
       <span class="x" id="memFileClose" title="Close">×</span>
     </div>
+    <div class="stabs">
+      <button class="stab on" data-st="mem">🧠 Memory file</button>
+      <button class="stab" data-st="pre">⬆ Prefix prompt</button>
+      <button class="stab" data-st="post">⬇ Record prompt</button>
+    </div>
     <div class="confirm-body">
-      <p>Names the context-memory file under <code>.copilot/memories/repo/</code>. Saved to <code>config.json</code> — no manual editing needed.</p>
-      <input type="text" id="memFileInput" class="memfile-input" spellcheck="false" autocomplete="off" placeholder="tenant-context.md" />
+      <div class="spane on" id="spane-mem">
+        <p>Names your tenant context-memory file under <code>.copilot/memories/repo/</code> — the notes an
+        investigation should check before it judges anything. Saved to <code>config.json</code>, so it survives a
+        tenant switch and needs no manual editing. The <b>Prefix prompt</b> tab controls how the agent is told to
+        use it.</p>
+        <input type="text" id="memFileInput" class="memfile-input" spellcheck="false" autocomplete="off" placeholder="tenant-context.md" />
+      </div>
+      <div class="spane" id="spane-pre">
+        <p>Added <b>in front of</b> every launch, but only while the 🧠 <b>Use memory</b> toggle in the launch box is
+        ticked. Its job is to make the agent read your tenant context <em>before</em> forming a verdict, so
+        known-good IPs, automation fingerprints and documented false positives don't come back as findings.</p>
+        <textarea id="preTa" class="prompt-ta" spellcheck="false"></textarea>
+        <p class="ph-note"><code>{file}</code> is replaced with the memory filename from the first tab.
+        Leave this empty to send launches with no memory preamble at all.</p>
+      </div>
+      <div class="spane" id="spane-post">
+        <p>Added <b>after</b> every launch, below a <code>---</code> separator. This is what brings results back into
+        the Findings tab instead of leaving them in chat — with no directive, an investigation still runs but
+        Mission Control records nothing for it.</p>
+        <textarea id="postTa" class="prompt-ta" spellcheck="false"></textarea>
+        <p class="ph-note">Keep the <code>record_finding</code> call. Ask only for what the model must judge —
+        skill, report paths and cost are filled in automatically, and an unknown severity is coerced to
+        <code>info</code>. Leave this empty to stop recording findings.</p>
+      </div>
       <div class="confirm-actions">
         <span class="grow" id="memFileMeta"></span>
+        <button class="lnk" id="promptReset">Reset to default</button>
         <button class="btn ghost" id="memFileCancel">Cancel</button>
         <button class="btn" id="memFileSave">Save</button>
       </div>
@@ -854,6 +904,15 @@ export function renderPage(prefs = {}) {
   });
 })();
 const ICONS = ${JSON.stringify(domainIconsForClient())};
+// The two editable prompt wrappers (Settings). memory/record are what is in
+// force now; the Default copies back the Reset button. Defaults live in
+// prefs.mjs so the editor, this compose preview and the server-side send agree.
+const PROMPTS = ${JSON.stringify({
+        memory: memoryPromptTemplate(prefs),
+        record: recordPromptTemplate(prefs),
+        memoryDefault: DEFAULT_MEMORY_PROMPT,
+        recordDefault: DEFAULT_RECORD_PROMPT,
+    })};
 let DATA = { skills: [], domains: [], queries: [], tenant: {} };
 let activeDomains = new Set();
 let searchTerm = "";
@@ -1138,19 +1197,38 @@ document.getElementById("composeText").addEventListener("keydown", (e) => {
 function memFile() { return (DATA.tenant && DATA.tenant.memoryFile) ? DATA.tenant.memoryFile : ""; }
 function memConfigured() { return !!(DATA.tenant && DATA.tenant.memoryFileConfigured); }
 function memEnabled() { try { return localStorage.getItem("mc.useMemory") !== "0"; } catch (e) { return true; } }
+// The preamble in force, with {file} resolved. Empty when the analyst cleared
+// the template in Settings, which disables the memory prefix entirely.
 function memBlock(file) {
-  return "🧠 Before investigating and before rendering any verdict, consult your tenant context-memory file '" + file + "' (under ~/.copilot/memories/repo/). Don't read it in full — first skim its section headers, then search it for the specific entities in this task (IPs, UPNs, hostnames, domains, file hashes, app/SPN names) and read only the matching sections. Apply the documented ground truth you find — known-good IPs, automation/orchestration fingerprints, account classifications, and false-positive rules — and cite it explicitly when a signal matches a documented pattern.";
+  var t = (PROMPTS.memory || "").trim();
+  if (!t) return "";
+  return t.split("{file}").join(file);
+}
+// Remembers the block we last prepended so a template edited in Settings while
+// the compose box is open can still be removed cleanly.
+var LAST_MEM_BLOCK = "";
+// Strip any previously applied preamble: the block in force, the last one we
+// applied, the marker form, and the original built-in wording (which may still
+// be sitting in a compose box from before the template became editable).
+function stripMemBlock(v) {
+  [memBlock(memFile()), LAST_MEM_BLOCK].forEach(function (b) {
+    if (b && v.indexOf(b) === 0) v = v.slice(b.length);
+  });
+  return v
+    .replace(/<!-- use-memory -->[\\s\\S]*?<!-- \\/use-memory -->\\n*/g, "")
+    .replace(/^🧠 Before investigating[\\s\\S]*?documented pattern\\.\\n*/, "")
+    .replace(/^\\s+/, "");
 }
 function applyMem() {
   var ta = document.getElementById("composeText");
   if (!ta) return;
-  var stripped = ta.value
-    .replace(/<!-- use-memory -->[\\s\\S]*?<!-- \\/use-memory -->\\n*/g, "")
-    .replace(/^🧠 Before investigating[\\s\\S]*?documented pattern\\.\\n*/, "")
-    .replace(/^\\s+/, "");
+  var stripped = stripMemBlock(ta.value);
   var chk = document.getElementById("memChk");
-  if (chk && chk.checked && memFile() && !SUPPRESS_MEM) ta.value = memBlock(memFile()) + "\\n\\n" + stripped;
-  else ta.value = stripped;
+  var block = memBlock(memFile());
+  if (chk && chk.checked && block && !SUPPRESS_MEM) {
+    LAST_MEM_BLOCK = block;
+    ta.value = block + "\\n\\n" + stripped;
+  } else ta.value = stripped;
 }
 function syncMemUI() {
   var wrap = document.getElementById("memWrap");
@@ -1158,13 +1236,17 @@ function syncMemUI() {
   if (!wrap || !chk) return;
   if (SUPPRESS_MEM) { wrap.style.display = "none"; chk.checked = false; return; }
   wrap.style.display = "";
-  var has = !!memFile();
+  // Needs both a filename and a non-empty preamble template — clearing the
+  // template in Settings is an explicit "don't use memory" and should read as
+  // unavailable here rather than silently doing nothing on launch.
+  var hasTpl = !!(PROMPTS.memory || "").trim();
+  var has = !!memFile() && hasTpl;
   wrap.classList.toggle("disabled", !has);
   chk.disabled = !has;
   chk.checked = has && memEnabled();
   wrap.title = has
-    ? ("Prepend a directive to review " + memFile() + " before investigating" + (memConfigured() ? "" : " (default name — click ⚙ in Findings to set)"))
-    : "Set a memory file (⚙ in Findings) to enable";
+    ? ("Prepend a directive to review " + memFile() + " before investigating" + (memConfigured() ? "" : " (default name — click ⚙ to set)"))
+    : (hasTpl ? "Set a memory file (⚙ → Memory file) to enable" : "Prefix prompt is empty (⚙ → Prefix prompt) — memory preamble disabled");
 }
 document.getElementById("memChk").addEventListener("change", function () {
   try { localStorage.setItem("mc.useMemory", this.checked ? "1" : "0"); } catch (e) {}
@@ -1385,32 +1467,77 @@ function openMemPreview() {
 document.getElementById("memOpen").onclick = openMemPreview;
 
 // --- Memory file setter (⚙) — writes config.json server-side, no manual JSON ---
+// --- Settings (⚙): memory file + the two prompt wrappers, one tab each ---
+// The filename persists to config.json; the prompts persist to state/prefs.json.
+// Save commits whichever of the three actually changed, so switching tabs to
+// read a description never rewrites anything.
+var SETTINGS_TAB = "mem";
+function setSettingsTab(t) {
+  SETTINGS_TAB = t;
+  document.querySelectorAll("#memFileModal .stab").forEach(function (b) { b.classList.toggle("on", b.dataset.st === t); });
+  ["mem", "pre", "post"].forEach(function (k) {
+    document.getElementById("spane-" + k).classList.toggle("on", k === t);
+  });
+  var reset = document.getElementById("promptReset");
+  reset.style.display = t === "mem" ? "none" : "";
+  syncResetBtn();
+}
+// Greyed out when the box already matches the built-in wording.
+function syncResetBtn() {
+  var reset = document.getElementById("promptReset");
+  if (SETTINGS_TAB === "mem") return;
+  var ta = document.getElementById(SETTINGS_TAB === "pre" ? "preTa" : "postTa");
+  var def = SETTINGS_TAB === "pre" ? PROMPTS.memoryDefault : PROMPTS.recordDefault;
+  reset.disabled = ta.value === def;
+}
 function openMemFile() {
   var inp = document.getElementById("memFileInput");
   inp.value = memFile() || "";
-  document.getElementById("memFileMeta").textContent = memConfigured() ? "Currently set in config.json" : "Currently using a default name";
+  document.getElementById("preTa").value = PROMPTS.memory || "";
+  document.getElementById("postTa").value = PROMPTS.record || "";
+  document.getElementById("memFileMeta").textContent = memConfigured() ? "Memory file set in config.json" : "Memory file using a default name";
+  setSettingsTab("mem");
   document.getElementById("memFileModal").classList.add("on");
   setTimeout(function () { inp.focus(); inp.select(); }, 30);
 }
 function closeMemFile() { document.getElementById("memFileModal").classList.remove("on"); }
 async function saveMemFile() {
   var name = document.getElementById("memFileInput").value.trim();
+  var pre = document.getElementById("preTa").value;
+  var post = document.getElementById("postTa").value;
   var meta = document.getElementById("memFileMeta");
-  if (!name) { meta.textContent = "Enter a filename"; return; }
+  if (!name) { setSettingsTab("mem"); meta.textContent = "Enter a filename"; return; }
+  var done = [];
   try {
-    var res = await fetch("/api/memory-file", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ file: name }),
-    });
-    var j = await res.json();
-    if (!j.ok) { meta.textContent = "⚠️ " + (j.error || "save failed"); return; }
-    DATA.tenant = DATA.tenant || {};
-    DATA.tenant.memoryFile = j.memoryFile;
-    DATA.tenant.memoryFileConfigured = true;
+    if (pre !== PROMPTS.memory || post !== PROMPTS.record) {
+      var pres = await fetch("/api/prefs", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patch: { "mc.prompt.memory": pre, "mc.prompt.record": post } }),
+      });
+      var pj = await pres.json();
+      if (!pj.ok) { meta.textContent = "⚠️ prompts: " + (pj.error || "save failed"); return; }
+      if (pre !== PROMPTS.memory) done.push("prefix prompt");
+      if (post !== PROMPTS.record) done.push("record prompt");
+      PROMPTS.memory = pre;
+      PROMPTS.record = post;
+    }
+    if (name !== memFile()) {
+      var res = await fetch("/api/memory-file", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file: name }),
+      });
+      var j = await res.json();
+      if (!j.ok) { setSettingsTab("mem"); meta.textContent = "⚠️ " + (j.error || "save failed"); return; }
+      DATA.tenant = DATA.tenant || {};
+      DATA.tenant.memoryFile = j.memoryFile;
+      DATA.tenant.memoryFileConfigured = true;
+      done.push("memory file");
+    }
     closeMemFile();
     syncMemUI();
     syncCompactBtn();
-    toast("Memory file set to " + j.memoryFile);
+    applyMem(); // an open compose box picks up the new preamble immediately
+    toast(done.length ? "Saved: " + done.join(", ") : "No changes");
   } catch (e) { meta.textContent = "⚠️ " + e.message; }
 }
 document.getElementById("memSet").onclick = openMemFile;
@@ -1419,6 +1546,16 @@ document.getElementById("memFileCancel").onclick = closeMemFile;
 document.getElementById("memFileClose").onclick = closeMemFile;
 bindBackdropClose("memFileModal", closeMemFile);
 document.getElementById("memFileInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveMemFile(); } });
+document.querySelectorAll("#memFileModal .stab").forEach(function (b) {
+  b.onclick = function () { setSettingsTab(b.dataset.st); };
+});
+document.getElementById("promptReset").onclick = function () {
+  var isPre = SETTINGS_TAB === "pre";
+  document.getElementById(isPre ? "preTa" : "postTa").value = isPre ? PROMPTS.memoryDefault : PROMPTS.recordDefault;
+  syncResetBtn();
+};
+document.getElementById("preTa").addEventListener("input", syncResetBtn);
+document.getElementById("postTa").addEventListener("input", syncResetBtn);
 
 document.getElementById("search").addEventListener("input", (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); renderQueries(); });
 document.getElementById("refresh").onclick = () => { toast("Reloading manifest…"); load(); };

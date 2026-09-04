@@ -24,6 +24,53 @@ function storePath(repoRoot) {
     return path.join(repoRoot, ".github", "extensions", "skills-canvas", "state", "prefs.json");
 }
 
+// ---- Customisable launch prompts ----
+//
+// Mission Control wraps every launched prompt: a memory preamble in front and a
+// record-finding directive behind. Both are editable from Settings, so these are
+// the fallbacks used when the analyst hasn't overridden them. Defined here (not
+// in ui.mjs / extension.mjs) so the editor, the client-side compose preview and
+// the server-side send all read one source of truth.
+
+/** Prefix. `{file}` is substituted with the configured tenant memory filename. */
+export const DEFAULT_MEMORY_PROMPT =
+    "🧠 Before investigating and before rendering any verdict, consult your tenant context-memory file '{file}' " +
+    "(under ~/.copilot/memories/repo/). Don't read it in full — first skim its section headers, then search it for " +
+    "the specific entities in this task (IPs, UPNs, hostnames, domains, file hashes, app/SPN names) and read only " +
+    "the matching sections. Apply the documented ground truth you find — known-good IPs, automation/orchestration " +
+    "fingerprints, account classifications, and false-positive rules — and cite it explicitly when a signal matches " +
+    "a documented pattern.";
+
+// Deliberately minimal: it asks only for the things the model must *judge*. The
+// mechanical fields are filled in by the extension itself — `skill` comes from
+// the active run, `reports` from markdown paths observed during the run, and
+// severity is normalised server-side (findings.mjs coerces any unknown value to
+// `info`). Every word removed here is a word the model doesn't have to carry.
+export const DEFAULT_RECORD_PROMPT =
+    "When done, call `record_finding` with a `title`, `severity`, and a 1-3 sentence `summary`; add " +
+    "`metrics`/`entities` where relevant, and give each `recommended` follow-up a `reason` and a tailored `prompt` " +
+    "carrying this finding's evidence. Always record, even clean results.";
+
+export const MEMORY_PROMPT_KEY = "mc.prompt.memory";
+export const RECORD_PROMPT_KEY = "mc.prompt.record";
+
+// A stored empty string is meaningful — it means "disabled" — so only fall back
+// to the default when the key is absent entirely.
+function resolve(prefs, key, fallback) {
+    const v = prefs ? prefs[key] : undefined;
+    return typeof v === "string" ? v : fallback;
+}
+
+/** The memory preamble template in force (may contain `{file}`). */
+export function memoryPromptTemplate(prefs) {
+    return resolve(prefs, MEMORY_PROMPT_KEY, DEFAULT_MEMORY_PROMPT);
+}
+
+/** The record-finding directive in force. */
+export function recordPromptTemplate(prefs) {
+    return resolve(prefs, RECORD_PROMPT_KEY, DEFAULT_RECORD_PROMPT);
+}
+
 // Only the client's own namespaced keys are accepted, so a stray setItem from
 // anything else on the page can never reach disk.
 function validKey(k) {
