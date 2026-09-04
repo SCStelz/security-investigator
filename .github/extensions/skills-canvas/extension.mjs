@@ -69,6 +69,7 @@ import {
     autopilotOnRunClosed,
     autopilotAllowsPromotion,
     autopilotBoardPreview,
+    clearAutopilotTrail,
 } from "./autopilot.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -471,6 +472,10 @@ async function knownSkillNames() {
 
 async function findingsPayload() {
     const findings = (await loadFindings(REPO_ROOT)).map((f) => ({ ...f, ago: relAgo(f.ts) }));
+    // An emptied board leaves a finished chain's trail describing findings that
+    // are no longer there — clear it with them. A no-op unless autopilot is off,
+    // so archiving during a live chain can't erase its state.
+    if (!findings.length) { try { clearAutopilotTrail(); } catch { /* best-effort */ } }
     return { findings, summary: summarize(findings) };
 }
 
@@ -627,6 +632,9 @@ async function handle(req, res) {
                     try { await setVerdict(REPO_ROOT, fid, "approved", body?.reason); } catch {}
                 }
                 snap = await resumeAutopilot();
+            } else if (action === "clear-trail") {
+                clearAutopilotTrail();
+                snap = autopilotSnapshot();
             } else if (action === "settings") {
                 const patch = {};
                 const p = body?.limits || {};

@@ -162,6 +162,25 @@ export async function enableAutopilot(opts) {
     return autopilotSnapshot();
 }
 
+/**
+ * Drop a finished chain's trail.
+ *
+ * Called when the board it describes is emptied: once those findings are
+ * archived, the trail is a record of work you can no longer click through to,
+ * so keeping it on screen is clutter rather than history — the archive is where
+ * that history lives now.
+ *
+ * Deliberately a no-op while autopilot is armed, running or paused: an active
+ * chain's trail is live state, and archiving old findings must not erase it.
+ */
+export function clearAutopilotTrail() {
+    if (!state || state.status !== "off") return false;
+    if (!state.trail.length) return false;
+    state.trail = [];
+    hooks?.flush?.();
+    return true;
+}
+
 /** Turn autopilot off. The trail is retained so the chain stays reviewable. */
 export async function stopAutopilot(note) {
     if (!state) return autopilotSnapshot();

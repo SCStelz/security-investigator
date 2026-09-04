@@ -320,6 +320,11 @@ export function renderPage(prefs = {}) {
   .ap-trail .tr { display: flex; gap: 8px; padding: 2px 0; }
   .ap-trail .tr b { color: #c9d6e8; font-weight: 600; }
   .ap-trail .tr .d { color: #6f83a0; margin-left: auto; }
+.ap-trail .th { border-bottom: 1px solid var(--border); margin-bottom: 5px; padding-bottom: 5px; }
+.ap-trail .apx { cursor: pointer; padding: 0 5px; border-radius: 4px; }
+.ap-trail .apx:hover { background: rgba(255,255,255,.09); color: #e6edf3; }
+.ap-trail.fold { cursor: pointer; }
+.ap-trail.fold:hover { border-color: var(--accent2); }
   .ap-set { display: grid; grid-template-columns: max-content 1fr; gap: 10px 12px; align-items: center; margin: 10px 0 4px; }
   .ap-set label { font-size: 12.5px; color: #b9c8de; }
   .ap-set input[type=number], .ap-set select { width: 100%; padding: 6px 8px; border-radius: 7px;
@@ -2056,18 +2061,43 @@ function renderAutopilot() {
   const tr = document.getElementById("apTrail");
   if (tr) {
     const rows = (s.trail || []).slice(0, 8);
-    if (!apTrailOpen || !rows.length) { tr.style.display = "none"; tr.innerHTML = ""; }
-    else {
+    if (!rows.length) {
+      tr.style.display = "none"; tr.innerHTML = ""; tr.className = "ap-trail"; tr.onclick = null;
+    } else if (!apTrailOpen) {
+      // Collapsed to a handle rather than hidden outright — dismissing a trail
+      // shouldn't be a one-way door while the chain it describes is still live.
       tr.style.display = "";
-      tr.innerHTML = rows.map(function (t) {
+      tr.className = "ap-trail fold";
+      tr.innerHTML = '<div class="tr"><b>▸ Chain trail</b><span class="d">' + rows.length + "</span></div>";
+      tr.onclick = function () { apTrailOpen = true; renderAutopilot(); };
+    } else {
+      tr.style.display = "";
+      tr.className = "ap-trail";
+      tr.onclick = null;
+      tr.innerHTML =
+        '<div class="tr th"><b>Chain trail</b><span class="d apx" id="apTrailX" title="' +
+        (s.status === "off" ? "Discard this finished chain" : "Collapse") + '">×</span></div>' +
+        rows.map(function (t) {
         // Launch rows are labelled by what they launched; the rest carry no
         // skill, so using the kind as the label just repeats the badge.
         const who = t.skill ? t.skill + (t.entity ? " (" + t.entity + ")" : "") : (AP_TRAIL_LABEL[t.kind] || t.kind);
         return '<div class="tr"><b>' + esc(who) + "</b><span>" + esc(t.note || "") + "</span>" +
           '<span class="d">' + (t.depth != null ? "d" + t.depth + " · " : "") + esc(t.kind) + "</span></div>";
       }).join("");
+      const x = document.getElementById("apTrailX");
+      if (x) x.onclick = apDismissTrail;
     }
   }
+}
+
+// Collapsing is a view preference, but discarding a FINISHED chain is not: by
+// then its findings are usually archived, so the trail points at work you can no
+// longer open. Clear that server-side so it stays gone across panels and
+// reloads, rather than reappearing from the ledger.
+function apDismissTrail() {
+  apTrailOpen = false;
+  if ((AP.state || {}).status === "off") { apPost("clear-trail"); return; }
+  renderAutopilot();
 }
 
 // Arming is two questions in one click: turn autopilot on, and decide whether
