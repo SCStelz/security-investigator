@@ -193,6 +193,20 @@ export async function addFinding(repoRoot, input, knownSkillNames) {
                   .filter((r) => r.path)
             : [],
         recommended: [],
+        // Provenance. Absent (depth 0) for anything an analyst launched by hand;
+        // set when autopilot chased a parent finding's recommendation. Storing
+        // the parent id here is what makes a whole chain reconstructible from the
+        // ledger alone — no separate chain store, and it archives for free.
+        origin: input.origin && input.origin.autopilot
+            ? {
+                  autopilot: true,
+                  parentFindingId: String(input.origin.parentFindingId || "").slice(0, 40),
+                  depth: Math.max(0, Math.round(Number(input.origin.depth) || 0)),
+              }
+            : null,
+        // Set when an analyst approves or stops autopilot at this finding. That
+        // verdict is a judgement signal worth keeping, not just a UI transition.
+        autopilotVerdict: null,
     };
     const supplied = Array.isArray(input.recommended) ? input.recommended : [];
     finding.recommended = supplied.length
@@ -211,6 +225,44 @@ export async function addFinding(repoRoot, input, knownSkillNames) {
     if (findings.length > 100) findings.length = 100;
     await saveFindings(repoRoot, findings);
     return finding;
+}
+
+/** Record an analyst's approve/stop decision on a paused autopilot finding. */
+export async function setVerdict(repoRoot, id, decision, reason) {
+    const findings = await loadFindings(repoRoot);
+    const f = findings.find((x) => x.id === id);
+    if (!f) return null;
+    f.autopilotVerdict = {
+        decision: decision === "approved" ? "approved" : "stopped",
+        reason: String(reason || "").slice(0, 300),
+        at: Date.now(),
+    };
+    await saveFindings(repoRoot, findings);
+    return f;
+}
+
+/**
+ * Walk a finding's lineage back to the human-launched root, oldest first.
+ * Depth-capped so a corrupted parent cycle can't spin.
+ */
+export async function chainFor(repoRoot, id) {
+    const findings = await loadFindings(repoRoot);
+    const byId = new Map(findings.map((f) => [f.id, f]));
+    const chain = [];
+    const seen = new Set();
+    let cur = byId.get(id);
+    while (cur && !seen.has(cur.id) && chain.length < 12) {
+        seen.add(cur.id);
+        chain.unshift(cur);
+        const parent = cur.origin?.parentFindingId;
+        cur = parent ? byId.get(parent) : null;
+    }
+    return chain;
+}
+
+/** Look up a single finding by id. */
+export async function getFinding(repoRoot, id) {
+    return (await loadFindings(repoRoot)).find((f) => f.id === id) || null;
 }
 
 /** Remove one finding by id. Returns the remaining array. */

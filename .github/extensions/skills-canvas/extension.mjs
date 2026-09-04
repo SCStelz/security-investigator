@@ -13,7 +13,7 @@ import { homedir } from "node:os";
 import { joinSession, createCanvas } from "@github/copilot-sdk/extension";
 import { renderPage } from "./ui.mjs";
 import { loadCanvasData, composePrompt, lookbackPhrase, outputPhrase } from "./manifest.mjs";
-import { loadPrefs, savePrefs, memoryPromptTemplate, recordPromptTemplate, DEFAULT_MEMORY_PROMPT, DEFAULT_RECORD_PROMPT } from "./prefs.mjs";
+import { loadPrefs, savePrefs, memoryPromptTemplate, memoryEnabled, recordPromptTemplate, DEFAULT_MEMORY_PROMPT, DEFAULT_RECORD_PROMPT, autopilotLimits, AUTOPILOT_DEFAULTS, AUTOPILOT_CEILINGS, AUTOPILOT_KEYS } from "./prefs.mjs";
 import { renderMarkdown, htmlReportPage } from "./md.mjs";
 import {
     loadFindings,
@@ -26,6 +26,9 @@ import {
     listArchives,
     readArchive,
     loadAllFindingsAggregated,
+    getFinding,
+    setVerdict,
+    chainFor,
     summarize,
 } from "./findings.mjs";
 import {
@@ -43,6 +46,9 @@ import {
     enqueueRun,
     takeNextQueued,
     dropQueued,
+    dropAutopilotQueued,
+    flushActivity,
+    syncHeartbeat,
     updateRun,
     bumpTool,
     bumpSubagent,
@@ -52,6 +58,18 @@ import {
     setSessionTitle,
     readActivity,
 } from "./activity.mjs";
+import {
+    initAutopilot,
+    applyAutopilotLimits,
+    autopilotSnapshot,
+    enableAutopilot,
+    stopAutopilot,
+    resumeAutopilot,
+    autopilotOnFinding,
+    autopilotOnRunClosed,
+    autopilotAllowsPromotion,
+    autopilotBoardPreview,
+} from "./autopilot.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // .github/extensions/skills-canvas -> repo root is three levels up.
@@ -88,6 +106,19 @@ const lastByModel = new Map();
 // total. Report paths written during a run are harvested from tool arguments so
 // `record_finding` can auto-fill `reports` without the agent being told to.
 let runBaselineNaiu = 0;
+// Credits attributable to autopilot. The budget governor must measure what
+// AUTOPILOT spent, not what the session spent: the documented flow is to arm
+// first and then launch a seed hunt by hand, so a session-wide delta silently
+// charges the analyst's own run to autopilot's allowance. Closed autopilot runs
+// accumulate here; the in-flight one is added live from its own baseline.
+let autopilotNaiu = 0;
+let activeRunIsAutopilot = false;
+
+/** Credits autopilot itself is responsible for, including the run in flight. */
+function autopilotSpentNaiu() {
+    const live = activeRunIsAutopilot ? Math.max(0, cumulativeNaiu - runBaselineNaiu) : 0;
+    return autopilotNaiu + live;
+}
 let runReportPaths = [];
 
 // Pull a model identifier out of an assistant.usage event, tolerating a few
@@ -257,17 +288,59 @@ function withRecordDirective(prompt, prefs) {
     return `${prompt}\n\n---\n${text}`;
 }
 
+/**
+ * Prepend the tenant memory preamble exactly once.
+ *
+ * The client prepends this in the compose bar so the analyst can see and edit
+ * it, which is why this must be idempotent — a composed prompt arriving back
+ * through /api/run already carries it. But autopilot never touches the compose
+ * bar, so without applying it here an autonomous chain would investigate with
+ * no tenant ground truth at all: exactly the runs where a documented
+ * false-positive rule matters most, because nobody is reading the output live.
+ *
+ * Honours the same `mc.useMemory` checkbox rather than adding a second switch —
+ * one decision, one place, whoever pulls the trigger.
+ */
+function withMemoryPreamble(prompt, prefs) {
+    if (!prompt) return prompt;
+    if (!memoryEnabled(prefs)) return prompt;
+    const file = String(cache?.tenant?.memoryFile || "").trim();
+    if (!file) return prompt;
+    const text = memoryPromptTemplate(prefs).split("{file}").join(file).trim();
+    if (!text) return prompt; // template cleared in Settings = disabled
+    if (prompt.includes(text) || prompt.includes(file)) return prompt;
+    return `${text}\n\n---\n${prompt}`;
+}
+
 async function launchSkill(name, entity, promptOverride, lookback, meta) {
-    const composed = await composeFor(name, entity, promptOverride, lookback);
+    // fleet/output must reach composeFor or the directive never makes it into
+    // the prompt — the ledger would badge a run "Markdown" while the agent was
+    // only ever asked for an inline answer.
+    const composed = await composeFor(
+        name,
+        entity,
+        promptOverride,
+        lookback,
+        meta?.fleet === true,
+        meta?.output || "",
+    );
     if (composed.error) return { ok: false, error: composed.error };
     if (!sessionRef) return { ok: false, error: "Session not connected yet" };
+    // Applied here rather than in composeFor: composeFor also serves the compose
+    // modal's preview, where the client owns the preamble so the analyst can
+    // edit it. This is the send path — the last point every launch passes
+    // through, whether it came from a click, a quick-launch or autopilot.
+    const prompt = withMemoryPreamble(composed.prompt, await loadPrefs(REPO_ROOT));
     const spec = {
         skill: name,
         entity,
         lookback,
         output: meta?.output || "",
         fleet: meta?.fleet === true,
-        prompt: composed.prompt,
+        prompt,
+        // { depth, parentFindingId } when autopilot chased this. Rides through the
+        // queue and the ledger so the finding it eventually produces knows its parent.
+        autopilot: meta?.autopilot || null,
     };
     // One agent, one investigation at a time. Sending now would let the CLI queue
     // the prompt internally, but it gives us no event when it later dequeues, so
@@ -308,6 +381,7 @@ async function dispatchRun(spec) {
         try {
             cancelEnd(); // a close scheduled by the previous run must not hit this one
             runBaselineNaiu = cumulativeNaiu;
+            activeRunIsAutopilot = !!spec.autopilot;
             runReportPaths = [];
             beginRun({
                 skill: spec.skill,
@@ -316,6 +390,7 @@ async function dispatchRun(spec) {
                 output: spec.output || "",
                 fleet: spec.fleet === true,
                 source: "canvas",
+                autopilot: spec.autopilot || null,
             });
         } catch { /* ledger is best-effort */ }
         return { ok: true };
@@ -332,6 +407,15 @@ async function promoteQueued() {
     if (hasActiveRun()) return;
     const next = takeNextQueued();
     if (!next) return;
+    // Governors are checked again here, not just at enqueue: the originating
+    // run's final credits land in between, so a chain can cross the budget while
+    // its next hop is already sitting in the queue. Human-queued work always passes.
+    const gate = await autopilotAllowsPromotion(next);
+    if (!gate.ok) {
+        try { await sessionRef?.log(`🛰️ Autopilot skipped queued ${next.skill} — ${gate.reason}.`, { ephemeral: true }); } catch { /* best-effort */ }
+        void promoteQueued();
+        return;
+    }
     const sent = await dispatchRun({
         skill: next.skill,
         entity: next.entity,
@@ -339,6 +423,7 @@ async function promoteQueued() {
         output: next.scope?.output || "",
         fleet: next.scope?.fleet === true,
         prompt: next.prompt,
+        autopilot: next.autopilot || null,
     });
     if (!sent.ok) {
         try { await sessionRef?.log(`⚠️ Mission Control could not start queued ${next.skill}: ${sent.error}`, { ephemeral: true }); } catch { /* best-effort */ }
@@ -366,10 +451,13 @@ async function composeFor(name, entity, promptOverride, lookback, fleet, output)
     // For a verbatim override (Findings follow-up) that carries its own framing,
     // only append the window / output directive when explicitly chosen alongside it.
     if (override) {
+        // Idempotent: the compose modal previews through composeFor and then
+        // sends the result back as an override, so both directives can already
+        // be present. Appending blind would duplicate them.
         const phrase = lookbackPhrase(lookback);
-        if (phrase) prompt = `${prompt} — use a lookback window of ${phrase}`;
+        if (phrase && !prompt.includes(phrase)) prompt = `${prompt} — use a lookback window of ${phrase}`;
         const outPhrase = outputPhrase(output);
-        if (outPhrase) prompt = `${prompt} — ${outPhrase}`;
+        if (outPhrase && !prompt.includes(outPhrase)) prompt = `${prompt} — ${outPhrase}`;
     }
     if (!prompt) return { error: `Unknown skill: ${name}` };
     return { skill: name, prompt: withRecordDirective(prompt, await loadPrefs(REPO_ROOT)) };
@@ -510,6 +598,66 @@ async function handle(req, res) {
             // every time.
             const body = await readBody(req);
             json(res, 200, { ok: true, prefs: await savePrefs(REPO_ROOT, body?.patch) });
+            return;
+        }
+        if (req.method === "POST" && url.pathname === "/api/autopilot") {
+            // Autopilot control surface. Only the owning session can act, so this
+            // route is a no-op in any other session's canvas by construction —
+            // the state machine lives in this process.
+            const body = await readBody(req);
+            const action = String(body?.action || "");
+            let snap = autopilotSnapshot();
+            if (action === "enable") {
+                snap = await enableAutopilot({ coldStart: body?.coldStart === true });
+            } else if (action === "stop") {
+                // The analyst's reason is a judgement signal worth keeping, not
+                // just a UI transition — write it back onto the finding it was
+                // made about before tearing the chain down.
+                const fid = snap.findingId;
+                if (fid) { try { await setVerdict(REPO_ROOT, fid, "stopped", body?.reason); } catch {} }
+                // Pausing must never touch analyst-queued work; stopping drops
+                // only the launches autopilot itself added.
+                let dropped = 0;
+                try { dropped = dropAutopilotQueued(); } catch {}
+                snap = await stopAutopilot(body?.reason);
+                snap.dropped = dropped;
+            } else if (action === "resume") {
+                const fid = snap.findingId;
+                if (fid && snap.reason === "critical") {
+                    try { await setVerdict(REPO_ROOT, fid, "approved", body?.reason); } catch {}
+                }
+                snap = await resumeAutopilot();
+            } else if (action === "settings") {
+                const patch = {};
+                const p = body?.limits || {};
+                for (const k of ["maxRuns", "maxAic", "maxDepth"]) {
+                    if (p[k] !== undefined && p[k] !== null && p[k] !== "") patch[AUTOPILOT_KEYS[k]] = String(p[k]);
+                }
+                if (p.minSeverity) patch[AUTOPILOT_KEYS.minSeverity] = String(p.minSeverity);
+                if (p.output) patch[AUTOPILOT_KEYS.output] = String(p.output);
+                const prefs = await savePrefs(REPO_ROOT, patch);
+                const limits = autopilotLimits(prefs);
+                json(res, 200, { ok: true, autopilot: applyAutopilotLimits(limits), limits, prefs });
+                return;
+            }
+            json(res, 200, { ok: true, autopilot: snap, limits: autopilotLimits(await loadPrefs(REPO_ROOT)) });
+            return;
+        }
+        if (req.method === "GET" && url.pathname === "/api/autopilot") {
+            const prefs = await loadPrefs(REPO_ROOT);
+            json(res, 200, {
+                autopilot: autopilotSnapshot(),
+                limits: autopilotLimits(prefs),
+                defaults: AUTOPILOT_DEFAULTS,
+                ceilings: AUTOPILOT_CEILINGS,
+                // What a cold start would pick up right now, so the enable
+                // prompt can name the work instead of asking blind.
+                board: await autopilotBoardPreview(),
+            });
+            return;
+        }
+        if (req.method === "GET" && url.pathname === "/api/chain") {
+            json(res, 200, { chain: await chainFor(REPO_ROOT, String(url.searchParams.get("id") || "")) });
             return;
         }
         if (req.method === "GET" && url.pathname === "/api/data") {
@@ -838,6 +986,16 @@ sessionRef = await joinSession({
                         }
                         for (const [m, cum] of cumulativeByModel) lastByModel.set(m, cum);
                         if (bestModel) args.model = bestModel;
+                        // Lineage. The run knows whether autopilot launched it and
+                        // from which parent finding, so the chain records itself with
+                        // no cooperation from the agent and no extra prompt text.
+                        if (run?.autopilot) {
+                            args.origin = {
+                                autopilot: true,
+                                parentFindingId: run.autopilot.parentFindingId || "",
+                                depth: Number(run.autopilot.depth) || 0,
+                            };
+                        }
                         try {
                             const finding = await addFinding(REPO_ROOT, args, await knownSkillNames());
                             try { await addCosting(REPO_ROOT, { ...finding, model: args.model }); } catch {}
@@ -845,6 +1003,10 @@ sessionRef = await joinSession({
                             // resolved and the recent-runs line doesn't flag it unrecorded.
                             try { markRecorded(finding.id); } catch {}
                             await sessionRef?.log(`📌 Finding recorded: ${finding.title} (${finding.severity})`, { ephemeral: true });
+                            // The decision point. Fires while this run is still open, so
+                            // any follow-up lands in the queue and is dispatched on close
+                            // — exactly what a click would have done.
+                            try { await autopilotOnFinding(finding, run); } catch {}
                             return { ok: true, id: finding.id, recommended: finding.recommended };
                         } catch (err) {
                             return { ok: false, error: err.message };
@@ -924,6 +1086,24 @@ try {
 
 initActivity(REPO_ROOT, sessionRef?.sessionId || process.env.SESSION_ID || "");
 
+// Autopilot's dependencies, injected rather than imported, so the state machine
+// stays testable and can't reach into the session on its own.
+initAutopilot({
+    log: (message, opts) => sessionRef?.log(message, { ephemeral: !opts?.sticky }),
+    // Deliberately the same entry point a click uses — autopilot gets no
+    // privileged execution path, just the queue everything else goes through.
+    launch: (lead) => launchSkill(lead.skill, lead.entity, lead.prompt, "", { autopilot: lead.autopilot, output: lead.output || "" }),
+    limits: async () => autopilotLimits(await loadPrefs(REPO_ROOT)),
+    credits: () => autopilotSpentNaiu(),
+    knownSkills: () => knownSkillNames(),
+    getFinding: (id) => getFinding(REPO_ROOT, id),
+    listFindings: () => loadFindings(REPO_ROOT),
+    // Every run that actually executed, recorded or not — the only source that
+    // knows about runs which finished without producing a finding.
+    recentRuns: async () => (await readActivity(REPO_ROOT, activitySessionId())).recent || [],
+    flush: () => { try { flushActivity(); syncHeartbeat(); } catch { } },
+});
+
 function on(eventName, fn) {
     try {
         sessionRef.on(eventName, (event) => {
@@ -949,6 +1129,8 @@ on("skill.invoked", (event) => {
     }
     cancelEnd(); // a stale close scheduled by the previous run must not hit this one
     runBaselineNaiu = cumulativeNaiu;
+    // A run the agent started itself (skill tool) is the analyst's, not autopilot's.
+    activeRunIsAutopilot = false;
     runReportPaths = [];
     beginRun({ skill: String(d.name || "investigation"), source: "skill-tool" });
 });
@@ -1047,6 +1229,18 @@ const IDLE_QUIET_MS = 5000;   // idle is a stronger signal, so a shorter window
 const MIN_RUN_MS = 20000;     // never close a run that only just opened
 let endTimer = null;
 
+/**
+ * Fold the finished run's credits into autopilot's total. Must run before
+ * endRun clears the run, and before the next run rebaselines the counter —
+ * otherwise the spend is lost and the budget governor under-counts.
+ */
+function settleAutopilotCredits() {
+    if (activeRunIsAutopilot) {
+        autopilotNaiu += Math.max(0, cumulativeNaiu - runBaselineNaiu);
+        activeRunIsAutopilot = false;
+    }
+}
+
 function cancelEnd() {
     if (endTimer) { clearTimeout(endTimer); endTimer = null; }
 }
@@ -1061,7 +1255,11 @@ function scheduleEnd(ms, opts) {
         // Too young to be finished — wait out the remainder instead of closing.
         const age = Date.now() - (Number(run.startedAt) || 0);
         if (age < MIN_RUN_MS) { scheduleEnd(MIN_RUN_MS - age, opts); return; }
+        settleAutopilotCredits();
         endRun(opts || {});
+        // Watchdog: an autopilot run that closed without recording a finding has
+        // broken the chain. Without this the loop stalls while looking healthy.
+        void autopilotOnRunClosed(run);
         void promoteQueued();
     }, Math.max(0, ms));
     if (endTimer.unref) endTimer.unref();
@@ -1074,6 +1272,7 @@ on("session.idle", () => scheduleEnd(IDLE_QUIET_MS, {}));
 // A hard error is unambiguous — close immediately so the failure is visible.
 on("session.error", (event) => {
     cancelEnd();
+    settleAutopilotCredits();
     endRun({ error: event?.data?.message || "Session error" });
     void promoteQueued();
 });

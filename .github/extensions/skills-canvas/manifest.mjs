@@ -174,7 +174,15 @@ export const OUTPUT_MODES = [
     },
 ];
 
-/** Directive phrase for an output mode, or "" for the default (inline). */
+/**
+ * Preselected output mode. Inline by design: a saved report is nice to have,
+ * but it costs materially more per run, and the honest tradeoff is that the
+ * same budget buys noticeably fewer investigations. Reach for Markdown when a
+ * specific result is worth keeping, not by default.
+ */
+export const DEFAULT_OUTPUT = "inline";
+
+/** Directive phrase for an output mode, or "" when the mode adds nothing. */
 export function outputPhrase(value) {
     const opt = OUTPUT_MODES.find((o) => o.value === (value || "").trim());
     return opt && opt.phrase ? opt.phrase : "";
@@ -449,5 +457,6 @@ export async function loadCanvasData(repoRoot) {
         mitre,
         lookbackOptions: LOOKBACK_OPTIONS,
         outputModes: OUTPUT_MODES,
+        defaultOutput: DEFAULT_OUTPUT,
     };
 }

@@ -53,6 +53,68 @@ export const DEFAULT_RECORD_PROMPT =
 
 export const MEMORY_PROMPT_KEY = "mc.prompt.memory";
 export const RECORD_PROMPT_KEY = "mc.prompt.record";
+// The compose-bar "use memory" checkbox. Written by the client through the
+// localStorage mirror, but read on the server too — autopilot launches never
+// pass through the compose bar, so the server has to apply the preamble itself.
+export const MEMORY_ENABLED_KEY = "mc.useMemory";
+
+// ---- Autopilot governors ----
+//
+// Config lives here because it's durable and shared; the *runtime* state
+// (counters, pause reason, chain trail) belongs to the per-session activity
+// ledger instead, since only the owning session can act on it.
+
+export const AUTOPILOT_DEFAULTS = Object.freeze({
+    maxRuns: 8,
+    maxAic: 2000, // 1 AIC = $0.01, so ~$20 per autopilot session
+    maxDepth: 3,
+    minSeverity: "medium",
+    // Inline: markdown reports cost materially more per run, and autopilot is
+    // the one place where that compounds — every extra AIC a report costs is an
+    // investigation the budget no longer buys. Switch it per-chain when the
+    // output is worth keeping.
+    output: "inline",
+});
+
+// Absolute ceilings, applied on top of whatever is stored. Autopilot spends real
+// credits without asking, so a mistyped preference must not be able to run away.
+export const AUTOPILOT_CEILINGS = Object.freeze({ maxRuns: 25, maxAic: 20000, maxDepth: 6 });
+
+export const AUTOPILOT_KEYS = Object.freeze({
+    maxRuns: "mc.autopilot.maxRuns",
+    maxAic: "mc.autopilot.maxAic",
+    maxDepth: "mc.autopilot.maxDepth",
+    minSeverity: "mc.autopilot.minSeverity",
+    output: "mc.autopilot.output",
+});
+
+// Mirrors manifest.mjs OUTPUT_MODES. Kept as a plain set so prefs.mjs stays
+// dependency-free; an unknown value falls back to the default.
+const OUTPUT_VALUES = new Set(["inline", "markdown"]);
+
+// `clean` is deliberately absent: a floor of "chase everything including clean
+// results" is never what someone means, and would burn the budget on dead ends.
+const SEVERITY_FLOORS = new Set(["critical", "high", "medium", "low", "info"]);
+
+function clampInt(raw, fallback, min, max) {
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+}
+
+/** The autopilot governors in force, clamped to the hard ceilings. */
+export function autopilotLimits(prefs) {
+    const p = prefs || {};
+    const sev = String(p[AUTOPILOT_KEYS.minSeverity] || "").toLowerCase().trim();
+    const out = String(p[AUTOPILOT_KEYS.output] || "").toLowerCase().trim();
+    return {
+        maxRuns: clampInt(p[AUTOPILOT_KEYS.maxRuns], AUTOPILOT_DEFAULTS.maxRuns, 1, AUTOPILOT_CEILINGS.maxRuns),
+        maxAic: clampInt(p[AUTOPILOT_KEYS.maxAic], AUTOPILOT_DEFAULTS.maxAic, 50, AUTOPILOT_CEILINGS.maxAic),
+        maxDepth: clampInt(p[AUTOPILOT_KEYS.maxDepth], AUTOPILOT_DEFAULTS.maxDepth, 1, AUTOPILOT_CEILINGS.maxDepth),
+        minSeverity: SEVERITY_FLOORS.has(sev) ? sev : AUTOPILOT_DEFAULTS.minSeverity,
+        output: OUTPUT_VALUES.has(out) ? out : AUTOPILOT_DEFAULTS.output,
+    };
+}
 
 // A stored empty string is meaningful — it means "disabled" — so only fall back
 // to the default when the key is absent entirely.
@@ -64,6 +126,11 @@ function resolve(prefs, key, fallback) {
 /** The memory preamble template in force (may contain `{file}`). */
 export function memoryPromptTemplate(prefs) {
     return resolve(prefs, MEMORY_PROMPT_KEY, DEFAULT_MEMORY_PROMPT);
+}
+
+/** Whether the memory preamble is switched on. Absent key = on. */
+export function memoryEnabled(prefs) {
+    return (prefs || {})[MEMORY_ENABLED_KEY] !== "0";
 }
 
 /** The record-finding directive in force. */

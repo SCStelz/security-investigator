@@ -14,6 +14,7 @@
 
 import { readFile, writeFile, mkdir, readdir, unlink, rename } from "node:fs/promises";
 import path from "node:path";
+import { autopilotSnapshot } from "./autopilot.mjs";
 
 // Coalesce disk writes: tool.execution_start / assistant.usage fire in bursts.
 const WRITE_THROTTLE_MS = 1500;
@@ -105,8 +106,12 @@ function snapshot() {
             entity: q.entity,
             scope: q.scope,
             queuedAt: q.queuedAt,
+            autopilot: q.autopilot || null,
         })),
         recent: state.recent.slice(0, MAX_RECENT),
+        // Read live rather than mirrored through a setter: autopilot state changes
+        // in a dozen places and a stale mirror would be worse than no mirror.
+        autopilot: autopilotSnapshot(),
     };
 }
 
@@ -154,14 +159,39 @@ function schedule(force) {
     if (writeTimer.unref) writeTimer.unref();
 }
 
+/**
+ * The heartbeat is what proves this session is alive. It has to cover an armed
+ * autopilot as well as an in-flight run: autopilot can sit armed for minutes
+ * between chains, and without a beat that idle session is indistinguishable
+ * from a crashed one.
+ */
+function heartbeatWanted() {
+    if (state?.run) return true;
+    try {
+        const s = autopilotSnapshot();
+        return !!s && s.status !== "off";
+    } catch {
+        return false;
+    }
+}
+
 function startHeartbeat() {
-    stopHeartbeat();
-    heartbeatTimer = setInterval(() => schedule(true), HEARTBEAT_MS);
+    if (heartbeatTimer) return;
+    heartbeatTimer = setInterval(() => {
+        if (!heartbeatWanted()) { stopHeartbeat(); return; }
+        schedule(true);
+    }, HEARTBEAT_MS);
     if (heartbeatTimer.unref) heartbeatTimer.unref();
 }
 
 function stopHeartbeat() {
     if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+}
+
+/** Called when autopilot transitions, so an armed-but-idle session keeps beating. */
+export function syncHeartbeat() {
+    if (heartbeatWanted()) startHeartbeat();
+    else stopHeartbeat();
 }
 
 /** Session title (from session.title_changed) — shown as the strip row label. */
@@ -192,6 +222,10 @@ export function beginRun(info) {
             fleet: info?.fleet === true,
         },
         source: info?.source === "skill-tool" ? "skill-tool" : "canvas",
+        // Set when the run was launched by autopilot: { depth, parentFindingId }.
+        // Carried through to the finding recorded during the run, which is what
+        // makes a chain reconstructible from the findings ledger alone.
+        autopilot: info?.autopilot || null,
         startedAt: now,
         phase: "Starting…",
         tool: "",
@@ -225,6 +259,7 @@ export function enqueueRun(spec) {
             fleet: spec?.fleet === true,
         },
         prompt: String(spec?.prompt || ""),
+        autopilot: spec?.autopilot || null,
         queuedAt: now,
     });
     schedule(true);
@@ -251,6 +286,21 @@ export function dropQueued(queueId) {
     if (state.queue.length === before) return false;
     schedule(true);
     return true;
+}
+
+/** Drop every queued launch that autopilot added (autopilot was stopped). */
+/** Force the ledger to disk now. Used when state changes outside a run boundary. */
+export function flushActivity() {
+    schedule(true);
+}
+
+export function dropAutopilotQueued() {
+    if (!state || !state.queue.length) return 0;
+    const before = state.queue.length;
+    state.queue = state.queue.filter((q) => !q.autopilot);
+    const dropped = before - state.queue.length;
+    if (dropped) schedule(true);
+    return dropped;
 }
 
 /** Shallow-merge a patch into the active run. No-op when nothing is running. */
@@ -317,11 +367,14 @@ export function endRun(opts) {
         creditsNaiu: r.creditsNaiu,
         findingId: r.findingId,
         recorded: !!r.findingId,
+        autopilot: r.autopilot || null,
         error: r.error,
     });
     state.recent = state.recent.slice(0, MAX_RECENT);
     state.run = null;
-    stopHeartbeat();
+    // An armed autopilot outlives the run that fed it, so hand the decision to
+    // syncHeartbeat rather than stopping unconditionally.
+    syncHeartbeat();
     schedule(true);
 }
 
@@ -349,11 +402,13 @@ export async function readActivity(repoRoot, selfSessionId) {
     try {
         names = await readdir(dir);
     } catch {
-        return { active: [], queued: [], recent: [], sessions: 0, self: selfSessionId || "", now };
+        return { active: [], queued: [], recent: [], sessions: 0, self: selfSessionId || "", now, autopilot: null, autopilots: [] };
     }
     const active = [];
     const queued = [];
     const recent = [];
+    const autopilots = [];
+    let autopilot = null;
     let sessions = 0;
     for (const name of names) {
         if (!name.endsWith(".json")) continue;
@@ -367,13 +422,32 @@ export async function readActivity(repoRoot, selfSessionId) {
         const sid = String(rec.sessionId || "");
         const label = String(rec.title || "");
         const self = !!selfSessionId && sid === selfSessionId;
+        const stale = now - updatedAt > STALE_MS;
+        // Only the owning session can drive autopilot, so its own record is the
+        // authoritative one; other sessions' states are exposed read-only.
+        // A lapsed heartbeat means that process is gone — its autopilot is not
+        // "armed", it's abandoned, and showing it as live invites an analyst to
+        // trust a chain that nothing is driving.
+        //
+        // A finished autopilot is still published to its OWN session, status and
+        // all, so the canvas can clear the chip and show the completion entry.
+        // Other sessions only ever see a live one.
+        if (rec.autopilot && rec.autopilot.status && !stale) {
+            if (self) {
+                if (rec.autopilot.status !== "off" || (rec.autopilot.trail || []).length) {
+                    autopilot = rec.autopilot;
+                }
+            } else if (rec.autopilot.status !== "off") {
+                autopilots.push({ ...rec.autopilot, sessionId: sid, sessionTitle: label });
+            }
+        }
         if (rec.run && typeof rec.run === "object") {
             active.push({
                 ...rec.run,
                 sessionId: sid,
                 sessionTitle: label,
                 self,
-                stale: now - updatedAt > STALE_MS,
+                stale,
                 heartbeatAgo: Math.max(0, Math.round((now - updatedAt) / 1000)),
             });
         }
@@ -387,5 +461,5 @@ export async function readActivity(repoRoot, selfSessionId) {
     active.sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
     queued.sort((a, b) => (a.queuedAt || 0) - (b.queuedAt || 0));
     recent.sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0));
-    return { active, queued, recent: recent.slice(0, 12), sessions, self: selfSessionId || "", now };
+    return { active, queued, recent: recent.slice(0, 12), sessions, self: selfSessionId || "", now, autopilot, autopilots };
 }

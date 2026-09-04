@@ -302,6 +302,33 @@ export function renderPage(prefs = {}) {
   .arc-banner .ab-t { font-weight: 650; }
   .arc-banner .ab-meta { color: #8aa0c0; }
   .arc-banner .ab-back { margin-left: auto; }
+  /* Autopilot: one compact chip in the findings toolbar, plus a full-width
+     banner that only appears when the loop is holding for a human. */
+  .ap-chip { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ap-chip.on { border-color: var(--accent2); background: rgba(90,140,255,.14); color: #cfe0ff; }
+  .ap-chip.held { border-color: #d05a5a; background: rgba(208,90,90,.16); color: #ffc9c9; }
+  .ap-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 12px;
+    padding: 10px 12px; border: 1px solid #d05a5a; border-radius: 9px; background: rgba(208,90,90,.10);
+    font-size: 12.5px; color: var(--text); }
+  .ap-banner.gov { border-color: #b98900; background: rgba(200,150,0,.10); }
+  .ap-banner .ap-t { font-weight: 650; }
+  .ap-banner .ap-msg { color: #b9c8de; }
+.ap-banner .ap-sub { color: var(--muted); font-size: 12px; }
+  .ap-banner .ap-acts { margin-left: auto; display: flex; gap: 6px; }
+  .ap-trail { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 9px;
+    background: var(--panel2); font-size: 11.5px; color: #8aa0c0; }
+  .ap-trail .tr { display: flex; gap: 8px; padding: 2px 0; }
+  .ap-trail .tr b { color: #c9d6e8; font-weight: 600; }
+  .ap-trail .tr .d { color: #6f83a0; margin-left: auto; }
+  .ap-set { display: grid; grid-template-columns: max-content 1fr; gap: 10px 12px; align-items: center; margin: 10px 0 4px; }
+  .ap-set label { font-size: 12.5px; color: #b9c8de; }
+  .ap-set input[type=number], .ap-set select { width: 100%; padding: 6px 8px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text); font-size: 12.5px; }
+  .ap-set .row2 { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
+  .ap-reasons { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 8px; }  .ap-reasons .btn.on { border-color: var(--accent2); background: rgba(90,140,255,.14); }
+.ap-lead { color: var(--muted); font-size: 12.5px; margin: 6px 0 2px; }
+  .finding.flash { animation: apFlash 1.8s ease-out; }
+  @keyframes apFlash { 0%,60% { box-shadow: 0 0 0 2px var(--accent); } 100% { box-shadow: none; } }
   .sev-pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
     cursor: pointer; user-select: none; transition: opacity .12s, box-shadow .12s, transform .06s; text-transform: capitalize; }
   .sev-pill:hover { transform: translateY(-1px); }
@@ -604,11 +631,14 @@ export function renderPage(prefs = {}) {
         <div class="livestrip" id="liveStrip" style="display:none"></div>
         <div class="findhead">
           <div class="roll" id="findRoll"></div>
+          <button class="btn ghost ap-chip" id="apChip" title="Autopilot — chase recommended follow-ups automatically">🛰️ Autopilot</button>
           <input class="findsearch" id="findSearch" placeholder="Search findings…" />
           <button class="btn ghost arctog" id="findArch" title="Also search archived snapshots">🗄️ Archives</button>
           <select class="lookback arcsel" id="archiveSel" title="Browse an archived findings snapshot"></select>
           <button class="btn ghost" id="findClear" title="Archive or delete findings by age and severity">Manage ▾</button>
         </div>
+        <div class="ap-banner" id="apBanner" style="display:none"></div>
+        <div class="ap-trail" id="apTrail" style="display:none"></div>
         <div id="findings"></div>
       </div>
 
@@ -737,6 +767,50 @@ export function renderPage(prefs = {}) {
   </div>
 </div>
 
+<div class="modal" id="apStopModal">
+  <div class="modal-box confirm">
+    <div class="modal-head">
+      <span class="mt">Stop autopilot</span>
+      <span class="spacer"></span>
+      <span class="x" id="apStopClose" title="Close">×</span>
+    </div>
+    <div class="confirm-body">
+      <p>Why are you stopping here? Recorded against the finding autopilot paused at, so the
+      call is auditable and <code>context-memory-review</code> can learn from it. Optional.</p>
+      <div class="ap-reasons" id="apReasons">
+        <button class="btn ghost" data-r="Not a threat">Not a threat</button>
+        <button class="btn ghost" data-r="Already handled elsewhere">Handled elsewhere</button>
+        <button class="btn ghost" data-r="Needs manual investigation">Needs manual work</button>
+      </div>
+      <input type="text" id="apReasonInput" class="memfile-input" spellcheck="false" autocomplete="off" placeholder="or type a reason…" />
+      <div class="confirm-actions">
+        <span class="grow"></span>
+        <button class="btn ghost" id="apStopCancel">Cancel</button>
+        <button class="btn danger" id="apStopOk">Stop autopilot</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="apStartModal">
+  <div class="modal-box confirm">
+    <div class="modal-head">
+      <span class="mt">Arm autopilot</span>
+      <span class="spacer"></span>
+      <span class="x" id="apStartClose" title="Close">×</span>
+    </div>
+    <div class="confirm-body">
+      <p id="apStartMsg"></p>
+      <p class="ap-lead" id="apStartLead"></p>
+      <div class="confirm-actions">
+        <span class="grow"></span>
+        <button class="btn ghost" id="apStartWait">Wait for the next finding</button>
+        <button class="btn" id="apStartNow">Start from the board</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="memFileModal">
   <div class="modal-box confirm settings">
     <div class="modal-head">
@@ -748,6 +822,7 @@ export function renderPage(prefs = {}) {
       <button class="stab on" data-st="mem">🧠 Memory file</button>
       <button class="stab" data-st="pre">⬆ Prefix prompt</button>
       <button class="stab" data-st="post">⬇ Record prompt</button>
+      <button class="stab" data-st="auto">🛰️ Autopilot</button>
     </div>
     <div class="confirm-body">
       <div class="spane on" id="spane-mem">
@@ -773,6 +848,37 @@ export function renderPage(prefs = {}) {
         <p class="ph-note">Keep the <code>record_finding</code> call. Ask only for what the model must judge —
         skill, report paths and cost are filled in automatically, and an unknown severity is coerced to
         <code>info</code>. Leave this empty to stop recording findings.</p>
+      </div>
+      <div class="spane" id="spane-auto">
+        <p>Autopilot clicks the top follow-up on each recorded finding for you, one hop at a time, until a
+        governor trips. The judgement already happened when the agent wrote that recommendation — this just
+        stops you having to press the button. It <b>always pauses on a <code>critical</code> finding</b> and waits
+        for your approval, and it never runs a fleet.</p>
+        <div class="ap-set">
+          <label for="apRuns">Max runs</label>
+          <input type="number" id="apRuns" min="1" max="25" />
+          <label for="apAic">Max AIC</label>
+          <input type="number" id="apAic" min="50" max="20000" step="50" />
+          <label for="apDepth">Max chain depth</label>
+          <input type="number" id="apDepth" min="1" max="6" />
+          <label for="apSev">Chase findings ≥</label>
+          <select id="apSev">
+            <option value="critical">critical</option>
+            <option value="high">high</option>
+            <option value="medium">medium</option>
+            <option value="low">low</option>
+            <option value="info">info</option>
+          </select>
+          <label for="apOut">Report output</label>
+          <select id="apOut"></select>
+        </div>
+        <p class="ph-note">Whichever limit trips first wins. At the ~150 AIC a run typically costs, the run cap is
+        the dial you'll actually feel and the budget is a backstop (1 AIC ≈ $0.01). Hard ceilings of 25 runs /
+        20,000 AIC / depth 6 apply regardless. Resuming after a <em>budget</em> or <em>runs</em> pause starts a
+        fresh allowance. <em>Report output</em> applies to runs autopilot launches itself. Inline is the default
+        because Markdown costs materially more per run — the same budget buys noticeably fewer investigations.
+        Switch to Markdown when you want a saved report linked from each finding and are willing to trade hops
+        for it.</p>
       </div>
       <div class="confirm-actions">
         <span class="grow" id="memFileMeta"></span>
@@ -958,10 +1064,12 @@ function lookbackOptionsHTML() {
 function fillLookback(el) { if (el) el.innerHTML = lookbackOptionsHTML(); }
 
 // Output-mode <option> markup from the single source of truth (DATA.outputModes).
-// Inline is the default (first entry); Markdown augments the prompt to also save a report file.
+// DATA.defaultOutput decides which one is preselected; the list order is left
+// alone so the dropdown still reads cheap-to-rich.
 function outputOptionsHTML() {
   const opts = (DATA && DATA.outputModes) || [{ value: "inline", label: "💬 Inline" }];
-  return opts.map(o => '<option value="' + o.value + '">' + o.label + '</option>').join("");
+  const def = (DATA && DATA.defaultOutput) || "inline";
+  return opts.map(o => '<option value="' + o.value + '"' + (o.value === def ? " selected" : "") + ">" + o.label + "</option>").join("");
 }
 function fillOutput(el) { if (el) el.innerHTML = outputOptionsHTML(); }
 
@@ -1325,6 +1433,56 @@ document.getElementById("confirmOk").onclick = function () { var cb = CONFIRM_CB
 document.getElementById("confirmAlt").onclick = function () { var cb = CONFIRM_ALT_CB; closeConfirm(); if (cb) cb(); };
 bindBackdropClose("confirmModal", closeConfirm);
 
+// --- Autopilot stop-reason capture ---
+var AP_STOP_CB = null;
+function askReason(cb) {
+  AP_STOP_CB = cb;
+  document.getElementById("apReasonInput").value = "";
+  document.querySelectorAll("#apReasons .btn").forEach(function (b) { b.classList.remove("on"); });
+  document.getElementById("apStopModal").classList.add("on");
+}
+function closeApStop() { document.getElementById("apStopModal").classList.remove("on"); AP_STOP_CB = null; }
+document.querySelectorAll("#apReasons .btn").forEach(function (b) {
+  b.onclick = function () {
+    var was = b.classList.contains("on");
+    document.querySelectorAll("#apReasons .btn").forEach(function (o) { o.classList.remove("on"); });
+    if (!was) { b.classList.add("on"); document.getElementById("apReasonInput").value = b.dataset.r; }
+    else { document.getElementById("apReasonInput").value = ""; }
+  };
+});
+document.getElementById("apReasonInput").oninput = function () {
+  document.querySelectorAll("#apReasons .btn").forEach(function (o) { o.classList.remove("on"); });
+};
+document.getElementById("apStopCancel").onclick = closeApStop;
+document.getElementById("apStopClose").onclick = closeApStop;
+document.getElementById("apStopOk").onclick = function () {
+  var cb = AP_STOP_CB, reason = document.getElementById("apReasonInput").value.trim();
+  closeApStop();
+  if (cb) cb(reason);
+};
+bindBackdropClose("apStopModal", closeApStop);
+
+document.getElementById("apStartClose").onclick = closeApStart;
+document.getElementById("apStartWait").onclick = function () { closeApStart(); apArm(false); };
+document.getElementById("apStartNow").onclick = function () { closeApStart(); apArm(true); };
+bindBackdropClose("apStartModal", closeApStart);
+
+document.getElementById("apChip").onclick = function () {
+  var s = AP.state || {};
+  if (s.status === "off") { apArmFlow(); return; }
+  if (s.status === "paused") { apStopFlow(); return; }
+  openConfirm({
+    title: "Stop autopilot",
+    message: "Autopilot stops chasing follow-ups. Anything it already queued is dropped; runs you queued by hand are left alone.",
+    okLabel: "Stop autopilot",
+    onOk: function () {
+      apPost("stop").then(function (j) {
+        if (j && j.ok) toast(j.dropped ? "🛰️ Autopilot off · " + j.dropped + " queued dropped" : "🛰️ Autopilot off");
+      });
+    },
+  });
+};
+
 // --- Compact findings to memory (with date-range scoping) ---
 var compactRangeVal = "all";
 
@@ -1475,17 +1633,17 @@ var SETTINGS_TAB = "mem";
 function setSettingsTab(t) {
   SETTINGS_TAB = t;
   document.querySelectorAll("#memFileModal .stab").forEach(function (b) { b.classList.toggle("on", b.dataset.st === t); });
-  ["mem", "pre", "post"].forEach(function (k) {
+  ["mem", "pre", "post", "auto"].forEach(function (k) {
     document.getElementById("spane-" + k).classList.toggle("on", k === t);
   });
   var reset = document.getElementById("promptReset");
-  reset.style.display = t === "mem" ? "none" : "";
+  reset.style.display = (t === "mem" || t === "auto") ? "none" : "";
   syncResetBtn();
 }
 // Greyed out when the box already matches the built-in wording.
 function syncResetBtn() {
   var reset = document.getElementById("promptReset");
-  if (SETTINGS_TAB === "mem") return;
+  if (SETTINGS_TAB === "mem" || SETTINGS_TAB === "auto") return;
   var ta = document.getElementById(SETTINGS_TAB === "pre" ? "preTa" : "postTa");
   var def = SETTINGS_TAB === "pre" ? PROMPTS.memoryDefault : PROMPTS.recordDefault;
   reset.disabled = ta.value === def;
@@ -1496,9 +1654,36 @@ function openMemFile() {
   document.getElementById("preTa").value = PROMPTS.memory || "";
   document.getElementById("postTa").value = PROMPTS.record || "";
   document.getElementById("memFileMeta").textContent = memConfigured() ? "Memory file set in config.json" : "Memory file using a default name";
+  fillAutopilotSettings();
   setSettingsTab("mem");
   document.getElementById("memFileModal").classList.add("on");
   setTimeout(function () { inp.focus(); inp.select(); }, 30);
+}
+// Autopilot limits come from the server (clamped there), not localStorage — the
+// canvas binds to port 0, so its origin changes on every load.
+function fillAutopilotSettings() {
+  var l = AP.limits || {};
+  document.getElementById("apRuns").value = l.maxRuns || 8;
+  document.getElementById("apAic").value = l.maxAic || 2000;
+  document.getElementById("apDepth").value = l.maxDepth || 3;
+  document.getElementById("apSev").value = l.minSeverity || "medium";
+  const outSel = document.getElementById("apOut");
+  if (outSel) { fillOutput(outSel); outSel.value = l.output || (DATA && DATA.defaultOutput) || "inline"; }
+}
+function readAutopilotSettings() {
+  return {
+    maxRuns: document.getElementById("apRuns").value,
+    maxAic: document.getElementById("apAic").value,
+    maxDepth: document.getElementById("apDepth").value,
+    minSeverity: document.getElementById("apSev").value,
+    output: (document.getElementById("apOut") || {}).value || "",
+  };
+}
+function autopilotDirty() {
+  var l = AP.limits || {}, n = readAutopilotSettings();
+  return Number(n.maxRuns) !== l.maxRuns || Number(n.maxAic) !== l.maxAic ||
+    Number(n.maxDepth) !== l.maxDepth || n.minSeverity !== l.minSeverity ||
+    n.output !== (l.output || "");
 }
 function closeMemFile() { document.getElementById("memFileModal").classList.remove("on"); }
 async function saveMemFile() {
@@ -1532,6 +1717,16 @@ async function saveMemFile() {
       DATA.tenant.memoryFile = j.memoryFile;
       DATA.tenant.memoryFileConfigured = true;
       done.push("memory file");
+    }
+    if (autopilotDirty()) {
+      var ares = await fetch("/api/autopilot", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "settings", limits: readAutopilotSettings() }),
+      });
+      var aj = await ares.json();
+      if (!aj.ok) { setSettingsTab("auto"); meta.textContent = "⚠️ autopilot: " + (aj.error || "save failed"); return; }
+      AP.limits = aj.limits;
+      done.push("autopilot limits");
     }
     closeMemFile();
     syncMemUI();
@@ -1681,6 +1876,26 @@ function findCounts() {
   return (s && s.counts) || {};
 }
 
+// Jump to the finding autopilot is holding on. It may be filtered out of the
+// current view, so clear the filters first rather than silently doing nothing.
+function revealFinding(id) {
+  if (!id) return;
+  if (currentView !== "findings") switchView("findings");
+  const find = function () { return document.querySelector('[data-fid="' + id + '"]'); };
+  if (!find()) {
+    sevFilter.clear();
+    findSearch = "";
+    const s = document.getElementById("findSearch");
+    if (s) s.value = "";
+    renderFindings();
+  }
+  const el = find();
+  if (!el) { toast("Finding is not in this view"); return; }
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("flash");
+  setTimeout(function () { el.classList.remove("flash"); }, 1800);
+}
+
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 function switchView(view) {
@@ -1713,7 +1928,194 @@ async function loadActivity() {
     const res = await fetch("/api/activity");
     ACTIVITY = await res.json();
   } catch (e) { return; }
+  if (ACTIVITY.autopilot) AP.state = ACTIVITY.autopilot;
+  else if (AP.state && AP.state.status !== "off") AP.state = { status: "off", trail: AP.state.trail || [] };
   renderLiveStrip();
+  renderAutopilot();
+}
+
+// ---- Autopilot -------------------------------------------------------------
+// The state machine lives server-side, in the session that owns the agent. The
+// canvas is a view over it plus four buttons; every transition round-trips so
+// two canvases watching the same session can never disagree.
+let AP = { state: { status: "off", trail: [] }, limits: {} };
+let apTrailOpen = false;
+
+async function apPost(action, extra) {
+  try {
+    const res = await fetch("/api/autopilot", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign({ action: action }, extra || {})),
+    });
+    const j = await res.json();
+    if (j.autopilot) AP.state = j.autopilot;
+    if (j.limits) AP.limits = j.limits;
+    renderAutopilot();
+    return j;
+  } catch (e) { toast("⚠️ " + e.message); return null; }
+}
+
+async function loadAutopilot() {
+  try {
+    const res = await fetch("/api/autopilot");
+    const j = await res.json();
+    AP.state = j.autopilot || AP.state;
+    AP.limits = j.limits || {};
+  } catch (e) { return; }
+  renderAutopilot();
+}
+
+function apChipLabel(s) {
+  if (s.status === "paused") return "⛔ Paused";
+  if (s.status === "off") return "🛰️ Autopilot";
+  const bits = [s.runsUsed + "/" + (s.limits && s.limits.maxRuns)];
+  if (s.spentAic) bits.push(s.spentAic + " AIC");
+  if (s.depth) bits.push("d" + s.depth);
+  return "🛰️ " + bits.join(" · ");
+}
+
+const AP_TRAIL_LABEL = {
+  enabled: "armed",
+  "chain-end": "branch ended",
+  complete: "complete",
+  paused: "held",
+  resumed: "resumed",
+  stopped: "stopped",
+};
+
+// What actually stopped the chain. A governor pause is about the limit, not the
+// finding that happened to trip it — showing the finding title there (as the
+// banner used to) reads as if that finding were the problem.
+const AP_PAUSE_MSG = {
+  critical: function () { return "A critical finding needs your eyes before the chain continues."; },
+  runs: function (s) {
+    return "Run limit reached (" + s.runsUsed + "/" + ((s.limits && s.limits.maxRuns) || "?") +
+      "). Resuming starts a fresh allowance.";
+  },
+  budget: function (s) {
+    return "AIC budget spent (" + Math.round(s.spentAic || 0) + "/" + ((s.limits && s.limits.maxAic) || "?") +
+      " AIC). Resuming starts a fresh allowance.";
+  },
+};
+
+function apPauseText(s) {
+  const fn = AP_PAUSE_MSG[s.reason];
+  const reason = fn ? fn(s) : (s.reason || "");
+  // Critical is the one case where the finding IS the message.
+  if (s.reason === "critical") return { main: s.findingTitle || reason, sub: "" };
+  return { main: reason, sub: s.findingTitle || "" };
+}
+
+function renderAutopilot() {
+  const s = AP.state || { status: "off", trail: [] };
+  const chip = document.getElementById("apChip");
+  if (chip) {
+    chip.textContent = apChipLabel(s);
+    chip.classList.toggle("on", s.status === "armed" || s.status === "running");
+    chip.classList.toggle("held", s.status === "paused");
+    chip.title = s.status === "off"
+      ? "Autopilot — chase recommended follow-ups automatically"
+      : "click to stop";
+  }
+  const ban = document.getElementById("apBanner");
+  // Chip text changes every poll (credits tick), but the banner and trail must
+  // only be rebuilt when they actually change — otherwise a 2.5s innerHTML swap
+  // eats hover and focus on the approve/stop buttons.
+  const sig = [s.status, s.reason, s.findingId, s.findingTitle,
+    // The banner quotes live numbers when paused; while running it must NOT be
+    // part of the signature or the trail would re-render on every credit tick.
+    s.status === "paused" ? Math.round(s.spentAic || 0) + "/" + s.runsUsed : "",
+    (s.trail || []).length, (s.trail || [])[0] ? (s.trail || [])[0].ts : "", apTrailOpen ? 1 : 0].join("|");
+  if (sig === AP._sig) return;
+  AP._sig = sig;
+  if (ban) {
+    if (s.status === "paused") {
+      const pt = apPauseText(s);
+      ban.className = "ap-banner" + (s.reason === "critical" ? "" : " gov");
+      ban.style.display = "";
+      ban.innerHTML =
+        '<span class="ap-t">' + (s.reason === "critical" ? "⛔ Autopilot held for review" : "⚠️ Autopilot paused") + "</span>" +
+        '<span class="ap-msg">' + esc(pt.main) + "</span>" +
+        (pt.sub ? '<span class="ap-sub">stopped at: ' + esc(pt.sub) + "</span>" : "") +
+        '<span class="ap-acts">' +
+          (s.findingId ? '<button class="btn ghost" id="apRev">Review</button>' : "") +
+          '<button class="btn ghost" id="apStop">Stop</button>' +
+          '<button class="btn" id="apGo">' + (s.reason === "critical" ? "Approve &amp; continue" : "Resume") + "</button>" +
+        "</span>";
+      const rev = document.getElementById("apRev");
+      if (rev) rev.onclick = () => revealFinding(s.findingId);
+      const go = document.getElementById("apGo");
+      if (go) go.onclick = () => { apPost("resume"); };
+      const st = document.getElementById("apStop");
+      if (st) st.onclick = apStopFlow;
+    } else {
+      ban.style.display = "none";
+      ban.innerHTML = "";
+    }
+  }
+  const tr = document.getElementById("apTrail");
+  if (tr) {
+    const rows = (s.trail || []).slice(0, 8);
+    if (!apTrailOpen || !rows.length) { tr.style.display = "none"; tr.innerHTML = ""; }
+    else {
+      tr.style.display = "";
+      tr.innerHTML = rows.map(function (t) {
+        // Launch rows are labelled by what they launched; the rest carry no
+        // skill, so using the kind as the label just repeats the badge.
+        const who = t.skill ? t.skill + (t.entity ? " (" + t.entity + ")" : "") : (AP_TRAIL_LABEL[t.kind] || t.kind);
+        return '<div class="tr"><b>' + esc(who) + "</b><span>" + esc(t.note || "") + "</span>" +
+          '<span class="d">' + (t.depth != null ? "d" + t.depth + " · " : "") + esc(t.kind) + "</span></div>";
+      }).join("");
+    }
+  }
+}
+
+// Arming is two questions in one click: turn autopilot on, and decide whether
+// the findings already on the board count as work. Asking is better than
+// guessing either way — silently chasing a stale board would spend credits the
+// analyst didn't ask for, and silently ignoring it strands real leads.
+function apArm(coldStart) {
+  apPost("enable", { coldStart: coldStart === true }).then(function (j) {
+    if (j && j.ok) {
+      apTrailOpen = true;
+      toast("🛰️ Autopilot armed");
+      renderAutopilot();
+    } else if (j) toast("⚠️ " + (j.error || "could not arm autopilot"));
+  });
+}
+
+async function apArmFlow() {
+  let board = null;
+  try {
+    const res = await fetch("/api/autopilot");
+    const j = await res.json();
+    if (j && j.limits) AP.limits = j.limits;
+    board = j && j.board;
+  } catch (e) { board = null; }
+
+  // Nothing eligible on the board — offering a cold start here would be an
+  // offer that does nothing, so just arm and wait.
+  if (!board || !board.count) { apArm(false); return; }
+
+  const n = board.count;
+  document.getElementById("apStartMsg").innerHTML =
+    "<b>" + n + " open finding" + (n === 1 ? "" : "s") + "</b> still " +
+    (n === 1 ? "has" : "have") + " untried follow-ups. Start working " +
+    (n === 1 ? "it" : "them") + " now, or wait for the next finding to come in?";
+  document.getElementById("apStartLead").textContent =
+    "First up: " + board.skill + (board.entity ? " (" + board.entity + ")" : "") +
+    " — from the " + board.severity + ' finding "' + board.title + '".';
+  document.getElementById("apStartModal").classList.add("on");
+}
+
+function closeApStart() { document.getElementById("apStartModal").classList.remove("on"); }
+
+// Stopping asks why. The answer is written onto the finding autopilot paused at,
+// so the judgement survives as a signal rather than evaporating with the banner.
+function apStopFlow() {
+  const s = AP.state || {};
+  if (s.status !== "paused") { apPost("stop"); return; }
+  askReason(function (reason) { apPost("stop", { reason: reason }); });
 }
 
 function fmtElapsed(ms) {
@@ -2026,6 +2428,7 @@ function renderFindings() {
     const sev = (f.severity || "info").toLowerCase();
     const card = document.createElement("div");
     card.className = "finding b-" + sev;
+    if (f.id) card.dataset.fid = f.id;
 
     const metrics = (f.metrics || []).map(m =>
       '<span class="metric m-' + (m.severity || "") + '">' + esc(m.label) + ' <b>' + esc(m.value) + '</b></span>').join("");
@@ -3270,6 +3673,7 @@ setInterval(loadFindings, 5000);
 // and skipped while the window is hidden) plus a 1s local tick so the elapsed
 // timers move smoothly rather than jumping every poll.
 loadActivity();
+loadAutopilot();
 setInterval(loadActivity, 2500);
 setInterval(tickElapsed, 1000);
 loadCostingData();
