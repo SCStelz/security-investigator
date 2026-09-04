@@ -1,8 +1,13 @@
 // The canvas renderer: a single self-contained HTML document (inline CSS + JS).
 // It fetches /api/data for skills/domains/tenant and POSTs /api/run when the
 // analyst launches a skill. No build step, no external assets.
+//
+// `prefs` is the server-persisted UI settings map (see prefs.mjs). It is inlined
+// into the document and seeded into localStorage before any init code runs,
+// because this server's port — and thus the origin owning localStorage —
+// changes on every extension load.
 
-export function renderPage() {
+export function renderPage(prefs = {}) {
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -792,6 +797,62 @@ export function renderPage() {
 </div>
 
 <script>
+// ---- Durable preferences ----
+// This server binds to port 0, so the canvas origin (and therefore its
+// localStorage) changes on every extension load. Settings are persisted
+// server-side and inlined here; we seed localStorage from them before any
+// module-level init reads it, then mirror later writes back to disk. Every
+// existing localStorage call site keeps working unchanged.
+(function () {
+  var seed = ${JSON.stringify(prefs || {})};
+  var ls;
+  try { ls = window.localStorage; } catch (e) { return; }
+  if (!ls) return;
+  var nativeSet = ls.setItem.bind(ls);
+  var nativeRemove = ls.removeItem.bind(ls);
+  try {
+    for (var k in seed) {
+      if (Object.prototype.hasOwnProperty.call(seed, k)) nativeSet(k, seed[k]);
+    }
+  } catch (e) {}
+
+  // Coalesce bursts (dragging the rail width fires continuously).
+  var pending = null, timer = null;
+  function flush() {
+    timer = null;
+    var patch = pending; pending = null;
+    if (!patch) return;
+    fetch("/api/prefs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patch: patch })
+    }).catch(function () {});
+  }
+  function queue(key, value) {
+    if (typeof key !== "string" || key.indexOf("mc.") !== 0) return;
+    if (!pending) pending = {};
+    pending[key] = value;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(flush, 400);
+  }
+  ls.setItem = function (key, value) {
+    nativeSet(key, value);
+    queue(String(key), String(value));
+  };
+  ls.removeItem = function (key) {
+    nativeRemove(key);
+    queue(String(key), null);
+  };
+  // Don't lose a pref that was changed moments before the panel closed.
+  window.addEventListener("pagehide", function () {
+    if (!pending) return;
+    try {
+      var blob = new Blob([JSON.stringify({ patch: pending })], { type: "application/json" });
+      navigator.sendBeacon("/api/prefs", blob);
+      pending = null;
+    } catch (e) {}
+  });
+})();
 const ICONS = ${JSON.stringify(domainIconsForClient())};
 let DATA = { skills: [], domains: [], queries: [], tenant: {} };
 let activeDomains = new Set();

@@ -13,6 +13,7 @@ import { homedir } from "node:os";
 import { joinSession, createCanvas } from "@github/copilot-sdk/extension";
 import { renderPage } from "./ui.mjs";
 import { loadCanvasData, composePrompt, lookbackPhrase, outputPhrase } from "./manifest.mjs";
+import { loadPrefs, savePrefs } from "./prefs.mjs";
 import { renderMarkdown, htmlReportPage } from "./md.mjs";
 import {
     loadFindings,
@@ -499,8 +500,19 @@ async function handle(req, res) {
     const url = new URL(req.url, "http://127.0.0.1");
     try {
         if (req.method === "GET" && url.pathname === "/") {
+            // Prefs are inlined into the document rather than fetched, so they
+            // are already present when the client's module-level init reads
+            // localStorage — no first-paint flash of default settings.
             res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-            res.end(renderPage());
+            res.end(renderPage(await loadPrefs(REPO_ROOT)));
+            return;
+        }
+        if (req.method === "POST" && url.pathname === "/api/prefs") {
+            // Durable UI settings. The canvas server binds to port 0, so its
+            // origin changes on every load and localStorage alone would reset
+            // every time.
+            const body = await readBody(req);
+            json(res, 200, { ok: true, prefs: await savePrefs(REPO_ROOT, body?.patch) });
             return;
         }
         if (req.method === "GET" && url.pathname === "/api/data") {
