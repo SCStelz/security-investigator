@@ -1589,7 +1589,7 @@ function doCompact() {
   p += "Evidence sources to review:\\n";
   p += "1. Current memory file '" + file + "' (if it exists).\\n";
   p += "2. Mission Control findings at .github/extensions/skills-canvas/state/findings.json (" + total + " recorded finding(s) total" + (scoped ? ", " + inRange + " within the selected window" : "") + " — first-party, each from an actual skill drill-down). Treat these as the PRIMARY evidence source and prioritize them.\\n";
-  p += "3. Reports under reports/ are SECONDARY — open only the specific report(s) a finding's `reports` field cites, or that you need to clarify an ambiguous finding. Do not sweep reports/ broadly or read every file in the window.\\n\\n";
+  p += "3. Reports under reports/ are SECONDARY — open only the specific report(s) a finding's \`reports\` field cites, or that you need to clarify an ambiguous finding. Do not sweep reports/ broadly or read every file in the window.\\n\\n";
   p += "Produce a PROPOSE-ONLY review document for human approval: list candidate ADD / MODIFY / FLAG changes with the supporting evidence for each. Do NOT edit the memory file, and do NOT commit — applying approved changes is a separate manual step. Honor the feedback-loop guard and keep all tenant PII local (never in committed docs).";
   closeCompact();
   openCompose("context-memory-review", "", p, true);
