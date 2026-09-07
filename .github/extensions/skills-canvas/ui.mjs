@@ -530,8 +530,11 @@ export function renderPage(prefs = {}) {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); background: var(--panel, #10151c);
     border: 1px solid var(--border, #2a3441); border-radius: 6px; outline: none; }
   .memfile-input:focus { border-color: var(--accent); }
-  /* Settings dialog: memory file + the two prompt wrappers, one tab each */
+  /* Settings dialog: memory (file + preamble), the other prompts, autopilot */
   .modal-box.confirm.settings { width: min(680px, 96vw); }
+  .sgroup { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); }
+  .sgroup.split { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border, #2a3441); }
   .stabs { display: flex; gap: 4px; padding: 0 18px; border-bottom: 1px solid var(--border, #2a3441); }
   .stab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted);
     font-size: 12.5px; padding: 9px 10px; cursor: pointer; font-family: inherit; white-space: nowrap; }
@@ -824,26 +827,25 @@ export function renderPage(prefs = {}) {
       <span class="x" id="memFileClose" title="Close">×</span>
     </div>
     <div class="stabs">
-      <button class="stab on" data-st="mem">🧠 Memory file</button>
-      <button class="stab" data-st="pre">⬆ Prefix prompt</button>
+      <button class="stab on" data-st="mem">🧠 Memory</button>
       <button class="stab" data-st="post">⬇ Record prompt</button>
       <button class="stab" data-st="compact">🗜 Compact prompt</button>
       <button class="stab" data-st="auto">🛰️ Autopilot</button>
     </div>
     <div class="confirm-body">
       <div class="spane on" id="spane-mem">
+        <p class="sgroup">Context file</p>
         <p>Names your tenant context-memory file under <code>.copilot/memories/repo/</code> — the notes an
         investigation should check before it judges anything. Saved to <code>config.json</code>, so it survives a
-        tenant switch and needs no manual editing. The <b>Prefix prompt</b> tab controls how the agent is told to
-        use it.</p>
+        tenant switch and needs no manual editing.</p>
         <input type="text" id="memFileInput" class="memfile-input" spellcheck="false" autocomplete="off" placeholder="tenant-context.md" />
-      </div>
-      <div class="spane" id="spane-pre">
-        <p>Added <b>in front of</b> every launch, but only while the 🧠 <b>Use memory</b> toggle in the launch box is
-        ticked. Its job is to make the agent read your tenant context <em>before</em> forming a verdict, so
-        known-good IPs, automation fingerprints and documented false positives don't come back as findings.</p>
+        <p class="sgroup split">Prefix prompt</p>
+        <p>How the agent is told to use that file. Added <b>in front of</b> every launch, but only while the 🧠
+        <b>Use memory</b> toggle in the launch box is ticked. Its job is to make the agent read your tenant context
+        <em>before</em> forming a verdict, so known-good IPs, automation fingerprints and documented false positives
+        don't come back as findings.</p>
         <textarea id="preTa" class="prompt-ta" spellcheck="false"></textarea>
-        <p class="ph-note"><code>{file}</code> is replaced with the memory filename from the first tab.
+        <p class="ph-note"><code>{file}</code> is replaced with the filename above.
         Leave this empty to send launches with no memory preamble at all.</p>
       </div>
       <div class="spane" id="spane-post">
@@ -899,7 +901,7 @@ export function renderPage(prefs = {}) {
       </div>
       <div class="confirm-actions">
         <span class="grow" id="memFileMeta"></span>
-        <button class="lnk" id="promptReset">Reset to default</button>
+        <button class="lnk" id="promptReset">Reset prompt</button>
         <button class="btn ghost" id="memFileCancel">Cancel</button>
         <button class="btn" id="memFileSave">Save</button>
       </div>
@@ -1373,7 +1375,7 @@ function syncMemUI() {
   chk.checked = has && memEnabled();
   wrap.title = has
     ? ("Prepend a directive to review " + memFile() + " before investigating" + (memConfigured() ? "" : " (default name — click ⚙ to set)"))
-    : (hasTpl ? "Set a memory file (⚙ → Memory file) to enable" : "Prefix prompt is empty (⚙ → Prefix prompt) — memory preamble disabled");
+    : (hasTpl ? "Set a memory file (⚙ → Memory) to enable" : "Prefix prompt is empty (⚙ → Memory) — memory preamble disabled");
 }
 document.getElementById("memChk").addEventListener("change", function () {
   try { localStorage.setItem("mc.useMemory", this.checked ? "1" : "0"); } catch (e) {}
@@ -1652,34 +1654,39 @@ function openMemPreview() {
 document.getElementById("memOpen").onclick = openMemPreview;
 
 // --- Memory file setter (⚙) — writes config.json server-side, no manual JSON ---
-// --- Settings (⚙): memory file + the three editable prompts, one tab each ---
+// --- Settings (⚙): memory (file + preamble), record/compact prompts, autopilot ---
 // The filename persists to config.json; the prompts persist to state/prefs.json.
 // Save commits whichever actually changed, so switching tabs to read a
 // description never rewrites anything.
 var SETTINGS_TAB = "mem";
-// The prompt tabs, and which PROMPTS keys each one edits. Everything else about
-// a prompt tab (textarea wiring, dirty tracking, Reset) falls out of this map.
+// The tabs carrying an editable prompt, and which PROMPTS keys each one edits.
+// Everything else about such a tab (textarea wiring, dirty tracking, Reset)
+// falls out of this map. The memory tab pairs its prompt with the filename
+// input — they're one setting in two halves, so they share a pane.
 var PROMPT_TABS = {
-  pre: { ta: "preTa", cur: "memory", def: "memoryDefault", key: "mc.prompt.memory", label: "prefix prompt" },
+  mem: { ta: "preTa", cur: "memory", def: "memoryDefault", key: "mc.prompt.memory", label: "prefix prompt" },
   post: { ta: "postTa", cur: "record", def: "recordDefault", key: "mc.prompt.record", label: "record prompt" },
   compact: { ta: "compactTa", cur: "compact", def: "compactDefault", key: "mc.prompt.compact", label: "compact prompt" },
 };
 function setSettingsTab(t) {
   SETTINGS_TAB = t;
   document.querySelectorAll("#memFileModal .stab").forEach(function (b) { b.classList.toggle("on", b.dataset.st === t); });
-  ["mem", "pre", "post", "compact", "auto"].forEach(function (k) {
+  ["mem", "post", "compact", "auto"].forEach(function (k) {
     document.getElementById("spane-" + k).classList.toggle("on", k === t);
   });
   var reset = document.getElementById("promptReset");
   reset.style.display = PROMPT_TABS[t] ? "" : "none";
   syncResetBtn();
 }
-// Greyed out when the box already matches the built-in wording.
+// Greyed out when the box already matches the built-in wording. The label names
+// its target — on the memory tab the pane holds a filename too, and "Reset to
+// default" next to it reads like it might clear that.
 function syncResetBtn() {
   var cfg = PROMPT_TABS[SETTINGS_TAB];
   if (!cfg) return;
-  document.getElementById("promptReset").disabled =
-    document.getElementById(cfg.ta).value === PROMPTS[cfg.def];
+  var reset = document.getElementById("promptReset");
+  reset.textContent = "Reset " + cfg.label;
+  reset.disabled = document.getElementById(cfg.ta).value === PROMPTS[cfg.def];
 }
 function openMemFile() {
   var inp = document.getElementById("memFileInput");
