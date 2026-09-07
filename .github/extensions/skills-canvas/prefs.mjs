@@ -58,8 +58,39 @@ export const DEFAULT_RECORD_PROMPT =
     "evidence. Only recommend actions you can safely do with your existing tools and skills. Always record, " +
     "even clean results.";
 
+// The prompt behind Findings → 🧠 Compact. Unlike the two wrappers above this
+// one is a whole prompt rather than a fragment, and it is composed entirely on
+// the client — nothing server-side sends it. It still lives here so Settings,
+// the Reset button and the composer all read the same source of truth.
+//
+// Placeholders, all substituted at click time:
+//   {file}    the configured tenant memory filename
+//   {scope}   the date-window sentence, or empty for "all time"
+//   {inRange} findings inside the selected window
+//   {total}   findings recorded overall
+//   {window}  the window label, e.g. "last 30 days"
+// A {scope} that resolves to nothing leaves no blank gap behind — runs of blank
+// lines are collapsed after substitution.
+export const DEFAULT_COMPACT_PROMPT =
+    "Run the context-memory-review skill (.github/skills/context-memory-review/SKILL.md) to compact accumulated " +
+    "investigation evidence into the tenant context-memory file '{file}' (under ~/.copilot/memories/repo/).\n\n" +
+    "{scope}\n\n" +
+    "Evidence sources to review:\n" +
+    "1. Current memory file '{file}' (if it exists).\n" +
+    "2. Mission Control findings at .github/extensions/skills-canvas/state/findings.json ({inRange} of {total} " +
+    "recorded finding(s) in scope — first-party, each from an actual skill drill-down). Treat these as the " +
+    "PRIMARY evidence source and prioritize them.\n" +
+    "3. Reports under reports/ are SECONDARY — open only the specific report(s) a finding's `reports` field " +
+    "cites, or that you need to clarify an ambiguous finding. Do not sweep reports/ broadly or read every file " +
+    "in the window.\n\n" +
+    "Produce a PROPOSE-ONLY review document for human approval: list candidate ADD / MODIFY / FLAG changes with " +
+    "the supporting evidence for each. Do NOT edit the memory file, and do NOT commit — applying approved " +
+    "changes is a separate manual step. Honor the feedback-loop guard and keep all tenant PII local (never in " +
+    "committed docs).";
+
 export const MEMORY_PROMPT_KEY = "mc.prompt.memory";
 export const RECORD_PROMPT_KEY = "mc.prompt.record";
+export const COMPACT_PROMPT_KEY = "mc.prompt.compact";
 // The compose-bar "use memory" checkbox. Written by the client through the
 // localStorage mirror, but read on the server too — autopilot launches never
 // pass through the compose bar, so the server has to apply the preamble itself.
@@ -143,6 +174,11 @@ export function memoryEnabled(prefs) {
 /** The record-finding directive in force. */
 export function recordPromptTemplate(prefs) {
     return resolve(prefs, RECORD_PROMPT_KEY, DEFAULT_RECORD_PROMPT);
+}
+
+/** The findings-compaction prompt in force (may contain the {…} placeholders). */
+export function compactPromptTemplate(prefs) {
+    return resolve(prefs, COMPACT_PROMPT_KEY, DEFAULT_COMPACT_PROMPT);
 }
 
 // Only the client's own namespaced keys are accepted, so a stray setItem from

@@ -7,7 +7,7 @@
 // because this server's port — and thus the origin owning localStorage —
 // changes on every extension load.
 
-import { memoryPromptTemplate, recordPromptTemplate, DEFAULT_MEMORY_PROMPT, DEFAULT_RECORD_PROMPT } from "./prefs.mjs";
+import { memoryPromptTemplate, recordPromptTemplate, compactPromptTemplate, DEFAULT_MEMORY_PROMPT, DEFAULT_RECORD_PROMPT, DEFAULT_COMPACT_PROMPT } from "./prefs.mjs";
 
 export function renderPage(prefs = {}) {
     return `<!doctype html>
@@ -827,6 +827,7 @@ export function renderPage(prefs = {}) {
       <button class="stab on" data-st="mem">🧠 Memory file</button>
       <button class="stab" data-st="pre">⬆ Prefix prompt</button>
       <button class="stab" data-st="post">⬇ Record prompt</button>
+      <button class="stab" data-st="compact">🗜 Compact prompt</button>
       <button class="stab" data-st="auto">🛰️ Autopilot</button>
     </div>
     <div class="confirm-body">
@@ -853,6 +854,17 @@ export function renderPage(prefs = {}) {
         <p class="ph-note">Keep the <code>record_finding</code> call. Ask only for what the model must judge —
         skill, report paths and cost are filled in automatically, and an unknown severity is coerced to
         <code>info</code>. Leave this empty to stop recording findings.</p>
+      </div>
+      <div class="spane" id="spane-compact">
+        <p>The whole prompt sent by <b>🧠 Compact</b> on the Findings tab. It asks the agent to fold accumulated
+        findings into your tenant memory file as a <em>propose-only</em> review — nothing is written or committed
+        for you. This one is a complete prompt, not a wrapper, so it is sent on its own.</p>
+        <textarea id="compactTa" class="prompt-ta" spellcheck="false"></textarea>
+        <p class="ph-note">Placeholders: <code>{file}</code> memory filename ·
+        <code>{scope}</code> the date-window sentence (empty for <em>all time</em>) ·
+        <code>{inRange}</code> findings in the window · <code>{total}</code> findings overall ·
+        <code>{window}</code> the window label. Blank lines left by an empty <code>{scope}</code> are collapsed.
+        Leave this empty to disable the Compact button.</p>
       </div>
       <div class="spane" id="spane-auto">
         <p>Autopilot clicks the top follow-up on each recorded finding for you, one hop at a time, until a
@@ -1015,14 +1027,16 @@ export function renderPage(prefs = {}) {
   });
 })();
 const ICONS = ${JSON.stringify(domainIconsForClient())};
-// The two editable prompt wrappers (Settings). memory/record are what is in
+// The three editable prompts (Settings). memory/record/compact are what is in
 // force now; the Default copies back the Reset button. Defaults live in
 // prefs.mjs so the editor, this compose preview and the server-side send agree.
 const PROMPTS = ${JSON.stringify({
         memory: memoryPromptTemplate(prefs),
         record: recordPromptTemplate(prefs),
+        compact: compactPromptTemplate(prefs),
         memoryDefault: DEFAULT_MEMORY_PROMPT,
         recordDefault: DEFAULT_RECORD_PROMPT,
+        compactDefault: DEFAULT_COMPACT_PROMPT,
     })};
 let DATA = { skills: [], domains: [], queries: [], tenant: {} };
 let activeDomains = new Set();
@@ -1579,18 +1593,22 @@ function doCompact() {
   var inRange = compactMatchCount(win);
   if (inRange === 0) { toast("No findings in range"); return; }
   compactRangeVal = document.getElementById("compactRange").value;
-  var scoped = !!(win.promptScope && win.promptScope.length);
-
-  var p = "";
-  p += "Run the context-memory-review skill (.github/skills/context-memory-review/SKILL.md) to compact accumulated investigation evidence into the tenant context-memory file '" + file + "' (under ~/.copilot/memories/repo/).\\n\\n";
-  if (scoped) {
-    p += win.promptScope + " " + inRange + " of " + total + " recorded finding(s) fall within this window — focus the review on those.\\n\\n";
+  var scope = "";
+  if (win.promptScope && win.promptScope.length) {
+    scope = win.promptScope + " " + inRange + " of " + total +
+      " recorded finding(s) fall within this window — focus the review on those.";
   }
-  p += "Evidence sources to review:\\n";
-  p += "1. Current memory file '" + file + "' (if it exists).\\n";
-  p += "2. Mission Control findings at .github/extensions/skills-canvas/state/findings.json (" + total + " recorded finding(s) total" + (scoped ? ", " + inRange + " within the selected window" : "") + " — first-party, each from an actual skill drill-down). Treat these as the PRIMARY evidence source and prioritize them.\\n";
-  p += "3. Reports under reports/ are SECONDARY — open only the specific report(s) a finding's \`reports\` field cites, or that you need to clarify an ambiguous finding. Do not sweep reports/ broadly or read every file in the window.\\n\\n";
-  p += "Produce a PROPOSE-ONLY review document for human approval: list candidate ADD / MODIFY / FLAG changes with the supporting evidence for each. Do NOT edit the memory file, and do NOT commit — applying approved changes is a separate manual step. Honor the feedback-loop guard and keep all tenant PII local (never in committed docs).";
+  var p = (PROMPTS.compact || "")
+    .split("{file}").join(file)
+    .split("{scope}").join(scope)
+    .split("{inRange}").join(String(inRange))
+    .split("{total}").join(String(total))
+    .split("{window}").join(win.label || "")
+    // An empty {scope} would otherwise leave a hole where its paragraph was.
+    .replace(/[ \\t]+$/gm, "")
+    .replace(/\\n{3,}/g, "\\n\\n")
+    .trim();
+  if (!p) { toast("Compact prompt is empty (⚙ → Compact prompt)"); return; }
   closeCompact();
   openCompose("context-memory-review", "", p, true);
 }
@@ -1599,8 +1617,12 @@ function syncCompactBtn() {
   if (!b) return;
   var has = !!memFile();
   var n = (FINDINGS.findings || []).length;
-  b.disabled = !has || n === 0;
-  b.title = !has ? "Set a memory file (⚙) to enable" : (n === 0 ? "No findings to compact" : "Compact findings + reports into " + memFile() + (memConfigured() ? "" : " (default name — click ⚙ to customize)"));
+  var tpl = !!(PROMPTS.compact || "").trim();
+  b.disabled = !has || n === 0 || !tpl;
+  b.title = !has ? "Set a memory file (⚙) to enable"
+    : (n === 0 ? "No findings to compact"
+    : (!tpl ? "Compact prompt is empty (⚙ → Compact prompt)"
+    : "Compact findings + reports into " + memFile() + (memConfigured() ? "" : " (default name — click ⚙ to customize)")));
   var o = document.getElementById("memOpen");
   if (o) {
     o.disabled = !has;
@@ -1630,34 +1652,42 @@ function openMemPreview() {
 document.getElementById("memOpen").onclick = openMemPreview;
 
 // --- Memory file setter (⚙) — writes config.json server-side, no manual JSON ---
-// --- Settings (⚙): memory file + the two prompt wrappers, one tab each ---
+// --- Settings (⚙): memory file + the three editable prompts, one tab each ---
 // The filename persists to config.json; the prompts persist to state/prefs.json.
-// Save commits whichever of the three actually changed, so switching tabs to
-// read a description never rewrites anything.
+// Save commits whichever actually changed, so switching tabs to read a
+// description never rewrites anything.
 var SETTINGS_TAB = "mem";
+// The prompt tabs, and which PROMPTS keys each one edits. Everything else about
+// a prompt tab (textarea wiring, dirty tracking, Reset) falls out of this map.
+var PROMPT_TABS = {
+  pre: { ta: "preTa", cur: "memory", def: "memoryDefault", key: "mc.prompt.memory", label: "prefix prompt" },
+  post: { ta: "postTa", cur: "record", def: "recordDefault", key: "mc.prompt.record", label: "record prompt" },
+  compact: { ta: "compactTa", cur: "compact", def: "compactDefault", key: "mc.prompt.compact", label: "compact prompt" },
+};
 function setSettingsTab(t) {
   SETTINGS_TAB = t;
   document.querySelectorAll("#memFileModal .stab").forEach(function (b) { b.classList.toggle("on", b.dataset.st === t); });
-  ["mem", "pre", "post", "auto"].forEach(function (k) {
+  ["mem", "pre", "post", "compact", "auto"].forEach(function (k) {
     document.getElementById("spane-" + k).classList.toggle("on", k === t);
   });
   var reset = document.getElementById("promptReset");
-  reset.style.display = (t === "mem" || t === "auto") ? "none" : "";
+  reset.style.display = PROMPT_TABS[t] ? "" : "none";
   syncResetBtn();
 }
 // Greyed out when the box already matches the built-in wording.
 function syncResetBtn() {
-  var reset = document.getElementById("promptReset");
-  if (SETTINGS_TAB === "mem" || SETTINGS_TAB === "auto") return;
-  var ta = document.getElementById(SETTINGS_TAB === "pre" ? "preTa" : "postTa");
-  var def = SETTINGS_TAB === "pre" ? PROMPTS.memoryDefault : PROMPTS.recordDefault;
-  reset.disabled = ta.value === def;
+  var cfg = PROMPT_TABS[SETTINGS_TAB];
+  if (!cfg) return;
+  document.getElementById("promptReset").disabled =
+    document.getElementById(cfg.ta).value === PROMPTS[cfg.def];
 }
 function openMemFile() {
   var inp = document.getElementById("memFileInput");
   inp.value = memFile() || "";
-  document.getElementById("preTa").value = PROMPTS.memory || "";
-  document.getElementById("postTa").value = PROMPTS.record || "";
+  Object.keys(PROMPT_TABS).forEach(function (k) {
+    var cfg = PROMPT_TABS[k];
+    document.getElementById(cfg.ta).value = PROMPTS[cfg.cur] || "";
+  });
   document.getElementById("memFileMeta").textContent = memConfigured() ? "Memory file set in config.json" : "Memory file using a default name";
   fillAutopilotSettings();
   setSettingsTab("mem");
@@ -1693,23 +1723,31 @@ function autopilotDirty() {
 function closeMemFile() { document.getElementById("memFileModal").classList.remove("on"); }
 async function saveMemFile() {
   var name = document.getElementById("memFileInput").value.trim();
-  var pre = document.getElementById("preTa").value;
-  var post = document.getElementById("postTa").value;
   var meta = document.getElementById("memFileMeta");
   if (!name) { setSettingsTab("mem"); meta.textContent = "Enter a filename"; return; }
+  // Only the prompts the analyst actually touched go in the patch.
+  var patch = {}, changed = [], dirty = false;
+  Object.keys(PROMPT_TABS).forEach(function (k) {
+    var cfg = PROMPT_TABS[k], v = document.getElementById(cfg.ta).value;
+    if (v === PROMPTS[cfg.cur]) return;
+    patch[cfg.key] = v;
+    changed.push(k);
+    dirty = true;
+  });
   var done = [];
   try {
-    if (pre !== PROMPTS.memory || post !== PROMPTS.record) {
+    if (dirty) {
       var pres = await fetch("/api/prefs", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ patch: { "mc.prompt.memory": pre, "mc.prompt.record": post } }),
+        body: JSON.stringify({ patch: patch }),
       });
       var pj = await pres.json();
       if (!pj.ok) { meta.textContent = "⚠️ prompts: " + (pj.error || "save failed"); return; }
-      if (pre !== PROMPTS.memory) done.push("prefix prompt");
-      if (post !== PROMPTS.record) done.push("record prompt");
-      PROMPTS.memory = pre;
-      PROMPTS.record = post;
+      changed.forEach(function (k) {
+        var cfg = PROMPT_TABS[k];
+        PROMPTS[cfg.cur] = patch[cfg.key];
+        done.push(cfg.label);
+      });
     }
     if (name !== memFile()) {
       var res = await fetch("/api/memory-file", {
@@ -1750,12 +1788,14 @@ document.querySelectorAll("#memFileModal .stab").forEach(function (b) {
   b.onclick = function () { setSettingsTab(b.dataset.st); };
 });
 document.getElementById("promptReset").onclick = function () {
-  var isPre = SETTINGS_TAB === "pre";
-  document.getElementById(isPre ? "preTa" : "postTa").value = isPre ? PROMPTS.memoryDefault : PROMPTS.recordDefault;
+  var cfg = PROMPT_TABS[SETTINGS_TAB];
+  if (!cfg) return;
+  document.getElementById(cfg.ta).value = PROMPTS[cfg.def];
   syncResetBtn();
 };
-document.getElementById("preTa").addEventListener("input", syncResetBtn);
-document.getElementById("postTa").addEventListener("input", syncResetBtn);
+Object.keys(PROMPT_TABS).forEach(function (k) {
+  document.getElementById(PROMPT_TABS[k].ta).addEventListener("input", syncResetBtn);
+});
 
 document.getElementById("search").addEventListener("input", (e) => { searchTerm = e.target.value.toLowerCase(); renderGrid(); renderQueries(); });
 document.getElementById("refresh").onclick = () => { toast("Reloading manifest…"); load(); };
