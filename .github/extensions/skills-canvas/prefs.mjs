@@ -55,7 +55,8 @@ export const DEFAULT_RECORD_PROMPT =
     "When done, record the result: `invoke_canvas_action` on the Mission Control panel with `actionName` " +
     "`record_finding`. Pass a `title`, `severity`, and a 1-3 sentence `summary`; add `metrics`/`entities` where " +
     "relevant, and give each `recommended` follow-up a `reason` and a tailored `prompt` carrying this finding's " +
-    "evidence. Always record, even clean results.";
+    "evidence. Only recommend actions you can safely do with your existing tools and skills. Always record, " +
+    "even clean results.";
 
 export const MEMORY_PROMPT_KEY = "mc.prompt.memory";
 export const RECORD_PROMPT_KEY = "mc.prompt.record";
