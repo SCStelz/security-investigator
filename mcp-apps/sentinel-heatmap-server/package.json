@@ -30,5 +30,8 @@
   "overrides": {
     "rollup": ">=4.59.0",
     "esbuild": "^0.28.1"
+  },
+  "allowScripts": {
+    "esbuild": false
   }
 }
