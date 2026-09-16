@@ -4,6 +4,8 @@
 // lists, and horizontal rules. Not a full CommonMark implementation — just
 // enough to render investigation reports legibly inside the canvas modal.
 
+import { renderMermaid } from "./mermaid.mjs";
+
 function escapeHtml(s) {
     return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
@@ -136,6 +138,21 @@ export function renderMarkdown(md, basePath) {
                 i++;
             }
             i++; // skip closing fence
+            // Mermaid flowcharts render to inline SVG. Unsupported diagram
+            // types (and any parse failure) return null and fall through to
+            // the plain code block below.
+            if (/^mermaid$/i.test(lang)) {
+                let svg = null;
+                try {
+                    svg = renderMermaid(buf.join("\n"));
+                } catch {
+                    svg = null;
+                }
+                if (svg) {
+                    out.push('<div class="mermaid">' + svg + "</div>");
+                    continue;
+                }
+            }
             out.push('<pre class="code' + (lang ? " lang-" + escapeHtml(lang) : "") + '"><code>' + escapeHtml(buf.join("\n")) + "</code></pre>");
             continue;
         }
@@ -261,6 +278,9 @@ export function htmlReportPage(title, bodyHtml) {
     font-family: "SF Mono", "Cascadia Code", Consolas, monospace; color: #d2a8ff; }
   pre.code { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 14px 16px; overflow: auto; }
   pre.code code { background: none; border: none; padding: 0; color: #c9d1d9; }
+  .mermaid { margin: 1.2em 0; padding: 14px 12px; background: #0f141a; border: 1px solid #21262d;
+    border-radius: 10px; overflow-x: auto; text-align: center; }
+  .mermaid svg { max-width: 100%; height: auto; }
   blockquote { border-left: 3px solid #30363d; margin: .8em 0; padding: .2em 14px; color: #8b949e; }
   hr { border: none; border-top: 1px solid #21262d; margin: 1.6em 0; }
   ul, ol { padding-left: 1.5em; margin: .5em 0; }
