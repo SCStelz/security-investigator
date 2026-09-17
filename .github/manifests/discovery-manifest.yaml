@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-09-03T23:25:16Z'
+generated: '2026-09-17T18:48:09Z'
 valid_domains:
 - admin
 - cloud
@@ -87,7 +87,7 @@ skills:
   path: .github/skills/incident-investigation/SKILL.md
   domains:
   - incidents
-  prompt: Investigate incident {entity} — alert details, entity extraction, timeline reconstruction
+  prompt: Investigate incident {entity} — alert cohesion sweep, entity investigation, verdict gates
 - name: ioc-investigation
   path: .github/skills/ioc-investigation/SKILL.md
   domains:

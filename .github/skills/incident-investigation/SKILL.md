@@ -2,7 +2,7 @@
 name: incident-investigation
 description: Use this skill when asked to investigate a security incident by ID from Microsoft Defender XDR or Microsoft Sentinel. Triggers on keywords like "investigate incident", "incident ID", "incident investigation", "analyze incident", "triage incident", or when an incident number/ID is mentioned with investigation context. This skill provides comprehensive incident analysis including metadata retrieval, alert listing, asset enumeration, evidence filtering, and deep entity investigation using Sentinel MCP tools and specialized skills.
 threat_pulse_domains: [incidents]
-drill_down_prompt: 'Investigate incident {entity} — alert details, entity extraction, timeline reconstruction'
+drill_down_prompt: 'Investigate incident {entity} — alert cohesion sweep, entity investigation, verdict gates'
 ---
 
 # Incident Investigation - Instructions
