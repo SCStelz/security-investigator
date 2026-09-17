@@ -690,17 +690,22 @@ Also state **telemetry gaps** — tables unavailable, licences absent, retention
 
 ### Verdict Block Format
 
-Emit **one block per cluster** identified in §1.5 — not one blended verdict for the whole incident:
+Emit **one block per cluster** identified in §1.5 — not one blended verdict for the whole incident.
 
-> **Cluster A — `<entity>` · `<verdict>`** 🟢 / 🟡 / 🟠 / 🔴
-> - **Classification:** TruePositive / BenignPositive / FalsePositive / Inconclusive
-> - **Confidence:** High / Medium / Low
-> - **Baseline:** *one line — what normal looks like for this entity*
-> - **Decisive evidence:** *1–3 bullets*
-> - **Not found:** *negative-findings summary*
-> - **Recommendation:** *action, or "no action required"*
+Use plain headings and bullets, matching the rest of the report. **Do not wrap verdict blocks in blockquotes or code fences** — Gate 2's hypothesis table and any supporting evidence tables must nest beneath the block without a `>` prefix on every row.
 
-Then provide consolidated recommendations across clusters and offer the JSON export.
+```markdown
+#### Cluster A — `<entity>` · `<verdict>` 🟢 / 🟡 / 🟠 / 🔴
+
+- **Classification:** TruePositive / BenignPositive / FalsePositive / Inconclusive
+- **Confidence:** High / Medium / Low
+- **Baseline:** *one line — what normal looks like for this entity*
+- **Decisive evidence:** *1–3 bullets*
+- **Not found:** *negative-findings summary*
+- **Recommendation:** *action, or "no action required"*
+```
+
+After the last cluster block, close with an `#### Overall Assessment` heading in the same idiom — not a loose bold line — carrying the cross-cluster risk statement. Then provide consolidated recommendations across clusters and offer the JSON export.
 
 ---
 
