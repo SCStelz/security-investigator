@@ -455,6 +455,55 @@ export function renderPage(prefs = {}) {
   .seg button.on { background: var(--accent); color: #04121f; font-weight: 640; }
   .seg button:not(.on):hover { color: var(--text); background: var(--panel); }
 
+  /* ---- Reports tab: file browser + inline preview ---- */
+  .rephead { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; flex-wrap: wrap; }
+  .rephead .repsearch { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: #0d1626; color: var(--text); font-size: 12.5px; font-family: inherit;
+    flex: 1 1 200px; min-width: 140px; max-width: 280px; outline: none; }
+  .rephead .repsearch:focus { border-color: var(--accent2); }
+  .rephead .repsearch::placeholder { color: #5c6b83; }
+  .rephead .repcount { color: var(--muted); font-size: 11.5px; margin-left: auto; white-space: nowrap; }
+  /* Height is set precisely by sizeRepSplit() once the view is visible; this
+     calc is only a pre-JS fallback so the pane never renders collapsed. .main
+     is the page scroller, so without a bounded height the iframe would have
+     nothing to fill and the tree would scroll the whole page. */
+  .repsplit { display: grid; grid-template-columns: var(--rep-w, 330px) 1fr; position: relative;
+    height: calc(100vh - 216px); min-height: 320px;
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--panel2); }
+  .reptree { overflow: auto; border-right: 1px solid var(--border); padding: 6px 0 10px; background: var(--panel2); }
+  .rep-resize { position: absolute; top: 0; bottom: 0; left: var(--rep-w, 330px); width: 7px; margin-left: -3px;
+    cursor: col-resize; z-index: 4; }
+  .rep-resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px;
+    background: transparent; transition: background .12s; }
+  .rep-resize:hover::after, .rep-resize.dragging::after { background: var(--accent2); }
+  .repnode { display: flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 12.5px;
+    cursor: pointer; white-space: nowrap; border: none; background: none; color: inherit;
+    font-family: inherit; width: 100%; text-align: left; }
+  .repdir { color: var(--text); font-weight: 560; }
+  .repdir:hover, .repfile:hover { background: var(--panel); }
+  .repdir .caret { color: var(--muted); font-size: 10px; width: 9px; flex: none; }
+  .repdir .dcount { color: var(--muted); font-size: 10.5px; font-weight: 400; margin-left: 2px; }
+  .repfile { color: var(--muted); }
+  .repfile .fname { overflow: hidden; text-overflow: ellipsis; }
+  .repfile.on { background: #16283f; color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
+  .repnode .ico { flex: none; font-size: 11px; width: 14px; }
+  .rep-empty { color: var(--muted); font-size: 12.5px; padding: 18px 12px; text-align: center; }
+  .reppane { display: flex; flex-direction: column; min-width: 0; background: #0d1117; }
+  .reppane-head { display: flex; align-items: center; gap: 9px; padding: 8px 12px;
+    border-bottom: 1px solid var(--border); background: var(--panel); flex: none; }
+  .reppane-head .rt { font-weight: 620; font-size: 12.5px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .reppane-head .rp { color: var(--muted); font-size: 11px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
+  .reppane-head a.raw, .reppane-head button.rbtn { color: var(--muted); font-size: 11.5px; text-decoration: none;
+    border: 1px solid var(--border); border-radius: 7px; padding: 3px 8px; background: none;
+    font-family: inherit; cursor: pointer; flex: none; }
+  .reppane-head a.raw:hover, .reppane-head button.rbtn:hover { color: var(--text); border-color: var(--accent2); }
+  .reppane iframe { border: 0; width: 100%; flex: 1 1 auto; background: #0d1117; }
+  .rep-blank { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 6px; color: var(--muted); font-size: 12.5px; padding: 20px; text-align: center; }
+  .rep-blank .em { font-size: 32px; }
+
   .cost-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
   .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; }
   .kpi-l { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
@@ -605,6 +654,7 @@ export function renderPage(prefs = {}) {
         <div class="tab" id="tab-queries" data-view="queries">🔎 Queries <span class="badge" id="queryCount">0</span></div>
         <div class="tab" id="tab-findings" data-view="findings">📌 Findings <span class="badge zero" id="findCount">0</span></div>
         <div class="tab" id="tab-costing" data-view="costing">💰 Costing</div>
+        <div class="tab" id="tab-reports" data-view="reports">📄 Reports <span class="badge zero" id="reportCount">0</span></div>
         <div class="tabtools" id="memTools">
           <button class="btn ghost" id="memSet" title="Set the tenant context-memory filename">⚙️</button>
           <button class="btn ghost" id="memOpen" title="Open the tenant context-memory file in markdown preview">📖</button>
@@ -703,6 +753,41 @@ export function renderPage(prefs = {}) {
             </select>
             <span class="cost-sub" id="costSkillSub">total AIC in view window</span></div>
           <div id="costBySkill"></div>
+        </div>
+      </div>
+
+      <div id="reportsView" style="display:none">
+        <div class="rephead">
+          <div class="seg" id="repViewToggle">
+            <button data-mode="tree" class="on">🗂 Tree</button>
+            <button data-mode="recent">🕒 Recent</button>
+          </div>
+          <input class="repsearch" id="repSearch" placeholder="Filter reports…" />
+          <select class="lookback" id="repTypeSel" title="Filter by file type">
+            <option value="all">All types</option>
+            <option value="md">📝 Markdown</option>
+            <option value="svg">📊 SVG</option>
+            <option value="html">🌐 HTML</option>
+          </select>
+          <button class="btn ghost" id="repRefresh" title="Re-scan the reports folder">⟳</button>
+          <span class="repcount" id="repCount"></span>
+        </div>
+        <div class="repsplit" id="repSplit">
+          <div class="reptree" id="repTree"></div>
+          <div class="rep-resize" id="repResize" title="Drag to resize"></div>
+          <div class="reppane">
+            <div class="reppane-head">
+              <span class="rt" id="repTitle">No report selected</span>
+              <span class="rp" id="repPath"></span>
+              <a class="raw" id="repRaw" target="_blank" rel="noopener" style="display:none">Raw ↗</a>
+              <button class="rbtn" id="repExpand" title="Open in the full-screen viewer" style="display:none">⤢ Expand</button>
+            </div>
+            <div class="rep-blank" id="repBlank">
+              <span class="em">📄</span>
+              <span>Pick a report on the left to preview it here.</span>
+            </div>
+            <iframe id="repFrame" title="Report preview" style="display:none"></iframe>
+          </div>
         </div>
       </div>
     </main>
@@ -1956,13 +2041,18 @@ function switchView(view) {
   document.getElementById("findingsView").style.display = view === "findings" ? "" : "none";
   document.getElementById("queriesView").style.display = view === "queries" ? "" : "none";
   document.getElementById("costingView").style.display = view === "costing" ? "" : "none";
+  document.getElementById("reportsView").style.display = view === "reports" ? "" : "none";
   document.getElementById("tab-skills").classList.toggle("on", view === "skills");
   document.getElementById("tab-findings").classList.toggle("on", view === "findings");
   document.getElementById("tab-queries").classList.toggle("on", view === "queries");
   document.getElementById("tab-costing").classList.toggle("on", view === "costing");
+  document.getElementById("tab-reports").classList.toggle("on", view === "reports");
   if (view === "findings") { renderFindings(); loadActivity(); }
   if (view === "queries") renderQueries();
   if (view === "costing") { renderCosting(); loadCostingData(); }
+  // Scanning reports/ is cheap but pointless until the tab is actually opened,
+  // so the listing is fetched lazily on first entry (⟳ re-scans on demand).
+  if (view === "reports") { if (!REPORTS.scannedAt) loadReports(); sizeRepSplit(); }
 }
 
 // ---- Live investigation status (cross-session) -----------------------------
@@ -3059,6 +3149,7 @@ document.getElementById("tab-skills").onclick = () => switchView("skills");
 document.getElementById("tab-findings").onclick = () => switchView("findings");
 document.getElementById("tab-queries").onclick = () => switchView("queries");
 document.getElementById("tab-costing").onclick = () => switchView("costing");
+document.getElementById("tab-reports").onclick = () => switchView("reports");
 (function wireCostPeriod() {
   const seg = document.getElementById("costPeriodToggle");
   if (!seg) return;
@@ -3619,6 +3710,251 @@ function closeReport() {
 document.getElementById("reportClose").onclick = closeReport;
 bindBackdropClose("reportModal", closeReport);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeReport(); closeCompose(); closeConfirm(); closeMemFile(); } });
+
+// ---- Reports tab: browse reports/ and preview inline ------------------------
+// The rendering half already exists: /api/report serves any repo file (markdown
+// through md.mjs, SVG/HTML with a real content type) and openReport() pops it
+// full-screen. This section only adds the *browser* — /api/reports lists what is
+// on disk, and the tree/list feeds the same URL into an inline iframe.
+let REPORTS = { files: [], dirs: [], total: 0, scannedAt: 0 };
+let repMode = "tree";        // "tree" | "recent"
+let repFilter = "";
+let repType = "all";         // all | md | svg | html
+let repSelected = null;      // { path, name }
+let repOpenDirs = new Set(); // expanded folders, by repo-relative dir path
+try {
+  const m = localStorage.getItem("mc.reports.mode");
+  if (m === "tree" || m === "recent") repMode = m;
+  const t = localStorage.getItem("mc.reports.type");
+  if (t === "all" || t === "md" || t === "svg" || t === "html") repType = t;
+  const d = JSON.parse(localStorage.getItem("mc.reports.dirs") || "[]");
+  if (Array.isArray(d)) repOpenDirs = new Set(d.map(String));
+} catch (e) {}
+
+const REP_ICON = { md: "\uD83D\uDCDD", svg: "\uD83D\uDCCA", html: "\uD83C\uDF10" };
+
+function saveRepDirs() {
+  try { localStorage.setItem("mc.reports.dirs", JSON.stringify([...repOpenDirs])); } catch (e) {}
+}
+
+// Pin the split pane to the bottom of the viewport. A fixed calc() can't survive
+// the tabs row or the filter row wrapping on a narrow panel, so the real height
+// is measured from wherever the split actually lands. Only meaningful while the
+// tab is visible — getBoundingClientRect() reads 0 on a display:none element.
+function sizeRepSplit() {
+  if (currentView !== "reports") return;
+  const split = document.getElementById("repSplit");
+  if (!split) return;
+  const main = document.querySelector(".main");
+  const pad = main ? parseFloat(getComputedStyle(main).paddingBottom) || 0 : 16;
+  split.style.height = Math.max(320, Math.round(window.innerHeight - split.getBoundingClientRect().top - pad)) + "px";
+}
+window.addEventListener("resize", sizeRepSplit);
+// The rail collapsing or being dragged also reflows .main, which can wrap the
+// tabs/filter rows and move the split. A ResizeObserver catches every one of
+// those without each caller having to remember to re-measure.
+try {
+  const main = document.querySelector(".main");
+  if (main && window.ResizeObserver) new ResizeObserver(sizeRepSplit).observe(main);
+} catch (e) {}
+
+async function loadReports(refresh) {
+  try {
+    const res = await fetch("/api/reports" + (refresh ? "?refresh=1" : ""));
+    REPORTS = await res.json();
+  } catch (e) {
+    REPORTS = { files: [], dirs: [], total: 0, scannedAt: Date.now() };
+    toast("\u26A0\uFE0F " + e.message);
+  }
+  const badge = document.getElementById("reportCount");
+  badge.textContent = REPORTS.total || 0;
+  badge.classList.toggle("zero", !REPORTS.total);
+  renderReports();
+}
+
+// Files surviving the search box and the type dropdown. The server already
+// returns newest-first, so both view modes inherit that ordering.
+function repVisible() {
+  const q = repFilter.trim().toLowerCase();
+  return (REPORTS.files || []).filter(f => {
+    if (repType !== "all" && f.kind !== repType) return false;
+    if (!q) return true;
+    return f.path.toLowerCase().includes(q);
+  });
+}
+
+function fmtRepSize(bytes) {
+  const n = Number(bytes) || 0;
+  return n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+}
+
+function renderReports() {
+  document.querySelectorAll("#repViewToggle button").forEach(b => b.classList.toggle("on", b.dataset.mode === repMode));
+  const files = repVisible();
+  const count = document.getElementById("repCount");
+  const filtered = files.length !== (REPORTS.total || 0);
+  count.textContent = REPORTS.total
+    ? (filtered ? files.length + " of " + REPORTS.total : REPORTS.total + " report" + (REPORTS.total === 1 ? "" : "s"))
+    : "";
+  const tree = document.getElementById("repTree");
+  // Expanding a folder rebuilds every row, which would otherwise snap a
+  // scrolled-down tree back to the top and lose the analyst's place.
+  const keepScroll = tree.scrollTop;
+  tree.innerHTML = "";
+  if (!files.length) {
+    const d = document.createElement("div");
+    d.className = "rep-empty";
+    d.textContent = REPORTS.total ? "No reports match this filter." : "No reports found under reports/.";
+    tree.appendChild(d);
+    return;
+  }
+  if (repMode === "recent") renderRepList(tree, files); else renderRepTree(tree, files);
+  tree.scrollTop = keepScroll;
+}
+
+// Flat "most recent first" list — folder shown as a dim prefix so the origin is
+// still readable without the tree.
+function renderRepList(host, files) {
+  for (const f of files) {
+    host.appendChild(repFileRow(f, f.dir ? f.dir + "/" + f.name : f.name, 0));
+  }
+}
+
+// Collapsible folder tree. Folders are derived from the *visible* files so an
+// active filter prunes empty branches instead of leaving dead folders behind.
+function renderRepTree(host, files) {
+  const byDir = new Map();
+  for (const f of files) {
+    if (!byDir.has(f.dir)) byDir.set(f.dir, []);
+    byDir.get(f.dir).push(f);
+  }
+  // Every directory that holds visible files, plus its ancestors.
+  const dirs = new Set();
+  for (const d of byDir.keys()) {
+    if (!d) continue;
+    const parts = d.split("/");
+    for (let i = 1; i <= parts.length; i++) dirs.add(parts.slice(0, i).join("/"));
+  }
+  // Filtering implies intent to find something, so auto-expand rather than
+  // making the analyst click through folders to see what matched.
+  const forceOpen = !!repFilter.trim();
+  const children = (parent) => [...dirs]
+    .filter(d => (parent ? d.startsWith(parent + "/") : true) && d.split("/").length === (parent ? parent.split("/").length + 1 : 1))
+    .sort();
+
+  const emit = (dir, depth) => {
+    const kids = children(dir);
+    const own = byDir.get(dir) || [];
+    if (dir) {
+      const open = forceOpen || repOpenDirs.has(dir);
+      // Count includes nested files so a collapsed parent still advertises its size.
+      let n = 0;
+      for (const [d, arr] of byDir) if (d === dir || d.startsWith(dir + "/")) n += arr.length;
+      host.appendChild(repDirRow(dir, depth, open, n));
+      if (!open) return;
+    }
+    for (const k of kids) emit(k, dir ? depth + 1 : 0);
+    for (const f of own) host.appendChild(repFileRow(f, f.name, dir ? depth + 1 : 0));
+  };
+  emit("", 0);
+}
+
+function repDirRow(dir, depth, open, n) {
+  const b = document.createElement("button");
+  b.className = "repnode repdir";
+  b.style.paddingLeft = (10 + depth * 14) + "px";
+  b.innerHTML = '<span class="caret">' + (open ? "\u25BE" : "\u25B8") + '</span>' +
+    '<span class="ico">\uD83D\uDCC1</span>' +
+    '<span class="fname">' + esc(dir.split("/").pop()) + '</span>' +
+    '<span class="dcount">' + n + '</span>';
+  b.title = dir;
+  b.onclick = () => {
+    if (repOpenDirs.has(dir)) repOpenDirs.delete(dir); else repOpenDirs.add(dir);
+    saveRepDirs();
+    renderReports();
+  };
+  return b;
+}
+
+function repFileRow(f, label, depth) {
+  const b = document.createElement("button");
+  b.className = "repnode repfile" + (repSelected && repSelected.path === f.path ? " on" : "");
+  b.dataset.path = f.path; // lets selectReport move the highlight without a rebuild
+  b.style.paddingLeft = (10 + depth * 14) + "px";
+  b.innerHTML = '<span class="ico">' + (REP_ICON[f.kind] || "\uD83D\uDCC4") + '</span>' +
+    '<span class="fname">' + esc(label) + '</span>';
+  b.title = f.path + "  \u00b7  " + fmtRepSize(f.size);
+  b.onclick = () => selectReport(f);
+  return b;
+}
+
+// Load a report into the inline preview. The path is repo-relative, so it goes
+// straight to the same endpoint the full-screen modal uses.
+function selectReport(f) {
+  repSelected = { path: f.path, name: f.name };
+  const q = "/api/report?path=" + encodeURIComponent(f.path);
+  const frame = document.getElementById("repFrame");
+  frame.src = q;
+  frame.style.display = "";
+  document.getElementById("repBlank").style.display = "none";
+  document.getElementById("repTitle").textContent = f.name;
+  document.getElementById("repPath").textContent = f.dir ? "reports/" + f.dir : "reports";
+  const raw = document.getElementById("repRaw");
+  raw.href = q + "&raw=1";
+  raw.style.display = "";
+  document.getElementById("repExpand").style.display = "";
+  // Selection only moves a highlight, so nudge the two affected rows rather
+  // than rebuilding several hundred of them (which would also fight scrolling).
+  document.querySelectorAll("#repTree .repfile.on").forEach(el => el.classList.remove("on"));
+  const row = document.querySelector('#repTree .repfile[data-path="' + CSS.escape(f.path) + '"]');
+  if (row) row.classList.add("on");
+}
+
+document.getElementById("repSearch").addEventListener("input", (e) => { repFilter = e.target.value; renderReports(); });
+document.getElementById("repTypeSel").addEventListener("change", (e) => {
+  repType = e.target.value;
+  try { localStorage.setItem("mc.reports.type", repType); } catch (err) {}
+  renderReports();
+});
+document.getElementById("repTypeSel").value = repType;
+document.getElementById("repRefresh").onclick = () => { toast("Re-scanning reports\u2026"); loadReports(true); };
+document.getElementById("repExpand").onclick = () => { if (repSelected) openReport(repSelected.path, repSelected.name); };
+document.querySelectorAll("#repViewToggle button").forEach(b => b.addEventListener("click", () => {
+  repMode = b.dataset.mode;
+  try { localStorage.setItem("mc.reports.mode", repMode); } catch (e) {}
+  renderReports();
+}));
+
+// --- Resizable tree/preview divider (mirrors the left rail's drag handle) ---
+(function () {
+  const MIN = 200, MAX = 620;
+  let w = 330;
+  try { const s = parseInt(localStorage.getItem("mc.reports.width"), 10); if (s >= MIN && s <= MAX) w = s; } catch (e) {}
+  const split = document.getElementById("repSplit");
+  const handle = document.getElementById("repResize");
+  const setW = (px) => {
+    w = Math.max(MIN, Math.min(MAX, Math.round(px)));
+    if (split) split.style.setProperty("--rep-w", w + "px");
+  };
+  setW(w);
+  if (!handle || !split) return;
+  let dragging = false;
+  handle.addEventListener("mousedown", (e) => {
+    dragging = true; handle.classList.add("dragging");
+    document.body.style.userSelect = "none"; document.body.style.cursor = "col-resize";
+    e.preventDefault();
+  });
+  window.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    setW(e.clientX - split.getBoundingClientRect().left);
+  });
+  window.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false; handle.classList.remove("dragging");
+    document.body.style.userSelect = ""; document.body.style.cursor = "";
+    try { localStorage.setItem("mc.reports.width", String(w)); } catch (e) {}
+  });
+})();
 // --- Prune findings dialog (age + severity) ---
 let pruneSel = new Set(SEV_ORDER); // selected severities to prune; all by default
 function pruneMatchCount() {

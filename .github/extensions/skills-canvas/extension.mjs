@@ -15,6 +15,7 @@ import { renderPage } from "./ui.mjs";
 import { loadCanvasData, composePrompt, lookbackPhrase, outputPhrase } from "./manifest.mjs";
 import { loadPrefs, savePrefs, memoryPromptTemplate, memoryEnabled, recordPromptTemplate, DEFAULT_MEMORY_PROMPT, DEFAULT_RECORD_PROMPT, autopilotLimits, AUTOPILOT_DEFAULTS, AUTOPILOT_CEILINGS, AUTOPILOT_KEYS } from "./prefs.mjs";
 import { renderMarkdown, htmlReportPage } from "./md.mjs";
+import { listReports } from "./reports.mjs";
 import {
     loadFindings,
     addFinding,
@@ -836,6 +837,13 @@ async function handle(req, res) {
         }
         if (req.method === "POST" && url.pathname === "/api/memory-file") {
             json(res, 200, await setMemoryFile((await readBody(req)).file));
+            return;
+        }
+        if (req.method === "GET" && url.pathname === "/api/reports") {
+            // Directory listing for the Reports tab browser. The singular
+            // /api/report below is what actually serves a file — this route
+            // only says which files exist.
+            json(res, 200, await listReports(REPO_ROOT, { refresh: url.searchParams.get("refresh") === "1" }));
             return;
         }
         if (req.method === "GET" && url.pathname === "/api/report") {
