@@ -235,7 +235,7 @@ AgentsInfo
 | order by AgentPublishedStatus asc, CreatedDateTime desc
 ```
 
-**Notes:** Every row here is Published + open to the whole tenant. `AccountObjectId` is the creator's Entra Object ID — click straight through to confirm who built it. Cross-reference against AH-10 (sensitive operations) and AH-11 (email capability) — an agent that's both broadly accessible *and* can write or send mail is a high-priority governance gap.
+**Notes:** Every row here is Published + open to the whole tenant. `AccountObjectId` is the creator's Entra Object ID — click straight through to confirm who built it. Cross-reference against AH-10 (sensitive operations) and AH-11 (email capability) — an agent that's both broadly accessible *and* can write or send mail is a high-priority governance gap. **Handle `Description` with care when sharing results** — validated live: agent descriptions are free text authored by whoever built the agent, and one was found containing a real internal contact email address left over from authoring. Advanced Hunting renders this text verbatim in the grid — screenshot or export with the same care you'd use for any analyst-facing free-text field, not sanitized metadata.
 
 ---
 
@@ -258,6 +258,7 @@ let CurrentUsers = IdentityInfo
     | where isnotempty(AccountObjectId)
     | where IsAccountEnabled == 1                          // must be enabled as of its MOST RECENT snapshot, not just "seen sometime in 30d"
     | distinct AccountObjectId;
+let EverSeenIdentities = IdentityInfo | distinct AccountObjectId;   // any identity that has EVER had an IdentityInfo snapshot, at any point, regardless of enabled state or time window
 AgentsInfo
 | where Timestamp > ago(30d)
 | summarize arg_max(Timestamp, *) by AgentId
@@ -265,7 +266,10 @@ AgentsInfo
 | mv-expand OwnerGuid = parse_json(tostring(Owners)) to typeof(string)
 | where isnotempty(OwnerGuid)
 | where OwnerGuid !in (CurrentUsers)
-| extend OwnerCategory = iff(OwnerGuid == "00000000-0000-0000-0000-000000000000", "No Owner Assigned (placeholder)", "Owner Departed")
+| extend OwnerCategory = case(
+    OwnerGuid == "00000000-0000-0000-0000-000000000000", "No Owner Assigned (placeholder)",
+    OwnerGuid !in (EverSeenIdentities), "Non-Human/Service Owner (never in IdentityInfo)",
+    "Owner Departed")
 | summarize
     OrphanedAgentCount = dcount(AgentId),
     DistinctDepartedOwnerCount = dcount(OwnerGuid),
@@ -281,6 +285,8 @@ AgentsInfo
 
 **✅ Validated in a lab tenant:** without the `arg_max`/`IsAccountEnabled` dedup, a presence-only check under-counted real orphans. **With** the dedup above, the count rose measurably — an additional owner turned out to be *disabled but not yet hard-deleted*, so their old `IdentityInfo` rows inside the 30d window were letting them count as "current" under a presence-only check. The dedup catches that class too.
 
+**⚠️ Third category — a repeated, never-resolvable GUID is a service identity, not N departed employees.** A departed *employee's* GUID will have existed in `IdentityInfo` at some point in its history, even if it's since aged out or been disabled. Validated live: on two different platforms, `DistinctDepartedOwnerCount` came back as **exactly 1** while `OrphanedAgentCount` was in the double digits — a single owner GUID accounted for every "departed" orphan on that platform. A direct, unfiltered `IdentityInfo | where AccountObjectId == "<that GUID>"` lookup returned **zero rows in the table's entire history** — that GUID was never a real identity to begin with. That pattern (one repeated GUID, especially across agents created seconds/minutes apart) is far more consistent with a **service principal / managed identity / bulk-provisioning pipeline identity** stamped into every agent an automation created, than with one person leaving the company. `OwnerCategory` now separates this out as `"Non-Human/Service Owner (never in IdentityInfo)"` so it isn't silently counted as N employee departures. **Detection tip:** if `DistinctDepartedOwnerCount == 1` while `OrphanedAgentCount` is large for a given platform, drill into AH-4b before reporting "N departures" — that shape is the signature of a shared provisioning identity, not individual departures.
+
 <a id="ah-4b"></a>
 
 **AH-4b — Per-agent detail (drill-down):**
@@ -292,6 +298,7 @@ let CurrentUsers = IdentityInfo
     | where isnotempty(AccountObjectId)
     | where IsAccountEnabled == 1                          // gate on latest known state, not mere presence in the window
     | distinct AccountObjectId;
+let EverSeenIdentities = IdentityInfo | distinct AccountObjectId;   // any identity that has EVER had an IdentityInfo snapshot, at any point
 AgentsInfo
 | where Timestamp > ago(30d)
 | summarize arg_max(Timestamp, *) by AgentId
@@ -300,7 +307,10 @@ AgentsInfo
 | mv-expand OwnerGuid = parse_json(tostring(Owners)) to typeof(string)
 | where isnotempty(OwnerGuid)                     // an owner IS assigned...
 | where OwnerGuid !in (CurrentUsers)              // ...but no longer a current, enabled directory user = departed
-| extend OwnerCategory = iff(OwnerGuid == "00000000-0000-0000-0000-000000000000", "No Owner Assigned (placeholder)", "Owner Departed")
+| extend OwnerCategory = case(
+    OwnerGuid == "00000000-0000-0000-0000-000000000000", "No Owner Assigned (placeholder)",
+    OwnerGuid !in (EverSeenIdentities), "Non-Human/Service Owner (never in IdentityInfo)",
+    "Owner Departed")
 | project AgentDisplayName = Name,
           OwnerCategory,
           AccountObjectId = OwnerGuid,
@@ -312,9 +322,9 @@ AgentsInfo
 | order by OwnerCategory asc, AgentPlatform asc, CreatedDateTime asc
 ```
 
-**Tuning — real departures only:** to drop the zero-GUID noise entirely and see only agents whose owner was a real, once-valid account that's since gone, add `| where OwnerCategory == "Owner Departed"` right after the `extend` line above (or filter `AccountObjectId != "00000000-0000-0000-0000-000000000000"` directly).
+**Tuning — real departures only:** to drop the zero-GUID noise entirely and see only agents whose owner was a real, once-valid account that's since gone, add `| where OwnerCategory == "Owner Departed"` right after the `extend` line above (or filter `AccountObjectId != "00000000-0000-0000-0000-000000000000"` directly). Note this now also excludes the `"Non-Human/Service Owner"` bucket, which is what you want when the goal is a genuine departed-employee list.
 
-**Notes:** `AccountObjectId` here is the departed/disabled owner's Entra Object ID — click it live; for a genuinely hard-deleted owner expect the flyout to come back empty or "not found," which is itself the confirmation (a disabled-but-present owner will still resolve, just flagged disabled). Check `OwnerCategory` **before** clicking, though — rows tagged `No Owner Assigned (placeholder)` will never resolve to anything because there's no real account behind the zero-GUID. `AgentPublishedStatus == 'Published'` rows are live and unowned; treat those as the priority queue. *(`IdentityInfo` presence + latest `IsAccountEnabled` state is a proxy for "departed," not a guarantee — corroborate a specific owner before any block/delete action.)*
+**Notes:** `AccountObjectId` here is the departed/disabled owner's Entra Object ID — click it live; for a genuinely hard-deleted owner expect the flyout to come back empty or "not found," which is itself the confirmation (a disabled-but-present owner will still resolve, just flagged disabled). Check `OwnerCategory` **before** clicking, though — rows tagged `No Owner Assigned (placeholder)` or `Non-Human/Service Owner (never in IdentityInfo)` will never resolve to anything because there's no real account behind the GUID (zero-GUID placeholder, or a service principal `IdentityInfo` doesn't track). `AgentPublishedStatus == 'Published'` rows are live and unowned; treat those as the priority queue. *(`IdentityInfo` presence + latest `IsAccountEnabled` state is a proxy for "departed," not a guarantee — corroborate a specific owner before any block/delete action.)*
 
 **⚠️ Portal vs. API discrepancy — validated root cause.** Running the presence-only version of this query via the API and running the *same* KQL in the Defender portal can return very different row counts even with identical KQL text — ruling out a query-logic bug. The cause: **the Defender portal's time-range picker can be set narrower than 30 days**, silently shrinking the `IdentityInfo`-derived `CurrentUsers` population — any enabled account whose snapshot row falls outside that narrower window gets wrongly excluded from `CurrentUsers`, and shows up as falsely "departed." Both queries above pin an explicit `Timestamp > ago(30d)` on `IdentityInfo`/`AgentsInfo` — but the portal's picker can still impose an additional, more restrictive filter on top of that regardless of KQL text. Separately, deduping `IdentityInfo` to each identity's latest snapshot via `arg_max` and gating on `IsAccountEnabled == 1` (rather than mere presence anywhere in the 30d window) correctly catches owners who are disabled-but-not-yet-deleted — a real governance gap a presence-only check misses. **Practical rule:** before trusting AH-4's result count, confirm the portal's time-range selector reads "Last 30 days" (or wider); if the orphan count looks implausibly high (order-of-magnitude jump vs. a prior run) or a clicked `AccountObjectId` resolves to a live, populated flyout, suspect the picker first and re-run after resetting it, rather than escalating the finding.
 
@@ -534,6 +544,8 @@ CloudAppEvents
 
 **Notes:** `AccountObjectId` is native to `CloudAppEvents` — it's the first column here specifically so you can one-click into a user's identity flyout straight from the grid. If it's ever empty for a row, fall back to `HumanUserPrincipalName` and confirm whether population varies for that `ActionType`. `DistinctSourceIpCount` is a Defender-only bonus over the Data Lake version of this query — flag any user prompting from an unusually wide IP spread for `enrich_ips.py`-style follow-up.
 
+**⚠️ M365 Copilot channel IP churn — validated live, don't over-read it.** For the `M365 Copilot`/`msteams:COPILOT` channels specifically, `ClientIP` frequently reflects **Microsoft's own backend service infrastructure**, not the user's device — a single conversation for a single user was observed rotating across **six distinct client IPs within a ~3-minute window**, which is not plausible human movement. A high `DistinctSourceIpCount` on these channels is expected noise, not a travel signal by itself. Corroborate with a directly-attributed channel (`Microsoft Teams`, `Copilot Studio Test Pane`) before escalating an IP-spread finding as suspicious.
+
 <a id="ah-8b"></a>
 
 **AH-8b — Drill-down: per-IP breakdown for one user.** Once a user stands out in AH-8 (unusually high `DistinctSourceIpCount`, or one worth checking directly), paste their UPN into this follow-up to see every distinct IP they invoked agents from, how many prompts came from each, and which agent/channel — the "is this impossible travel or just a laptop + a phone" check.
@@ -572,7 +584,7 @@ CloudAppEvents
 | order by UserPromptCount desc
 ```
 
-**Notes:** One row per source IP for this user — `FirstSeenUtc`/`LastSeenUtc` per IP is what separates "they switched from office Wi-Fi to VPN" from "two IPs on two continents an hour apart." Any IP that's genuinely unfamiliar is a candidate for `enrich_ips.py` (or manual ipinfo/AbuseIPDB lookup) to check ISP, geolocation, and abuse history before deciding whether it's benign.
+**Notes:** One row per source IP for this user — `FirstSeenUtc`/`LastSeenUtc` per IP is what separates "they switched from office Wi-Fi to VPN" from "two IPs on two continents an hour apart." Any IP that's genuinely unfamiliar is a candidate for `enrich_ips.py` (or manual ipinfo/AbuseIPDB lookup) to check ISP, geolocation, and abuse history before deciding whether it's benign. **Filter or group by `ChannelsObserved` first** — per the M365 Copilot IP-churn caveat above, IPs seen only on `M365 Copilot`/`msteams:COPILOT` rows are more likely Microsoft backend infrastructure than the user's own network; weight IPs seen on `Microsoft Teams` or `Copilot Studio Test Pane` more heavily when assessing genuine travel.
 
 ---
 
@@ -823,6 +835,8 @@ union AgentToTool, AgentToAgent
 
 🔴 **Schema differs by platform — validated, do not assume one shape.** Copilot Studio entries look like `{"agentType":"Internal","agentName":"...","agentId":{"id":"MicrosoftCopilotStudio_Default-<tenant>_<guid>","type":"AgentRegistrationId"}}`. Amazon Bedrock entries look completely different: `{"agentType":"SUPERVISOR","agentName":"...","agentInstructions":"...","agentToolsCount":11}` — no `agentId` at all, but adds `agentInstructions` and `agentToolsCount`. `ConnectedAgents` itself is a `Collection(String)` (JSON-encoded strings), not native dynamic — `parse_json(tostring(...))` each element after `mv-expand`.
 
+**⚠️ A third `agentType` value exists on Copilot Studio itself — validated live.** Alongside `"Internal"` (cross-bot handoff, `ConnectedAgentToolsCount` always empty), Copilot Studio also emits `agentType: "Inline"` entries that — unlike `"Internal"` — carry a populated `ConnectedAgentToolsCount`, closer in shape to the Bedrock entries. This is consistent with `"Inline"` representing a same-bot child/inline topic relationship rather than a true cross-bot agent-to-agent handoff — treat `"Inline"` rows differently from `"Internal"` rows when feeding AH-12c's declared-vs-observed cross-reference, since an inline child topic isn't the kind of handoff AH-12's `ConversationId`-based runtime detection is built to observe.
+
 **AH-12a — Prevalence check (run first):**
 
 ```kql
@@ -977,6 +991,8 @@ This table answers a question none of AH-1 through AH-12 can: not just *that* an
 | `ba147552-2ed1-4a8f-a441-981e94ab1895` | All Credential Types |
 | `065bdd91-ef07-40d3-b8a4-0aea722eaa49` | All Medical Terms and Conditions |
 
+⚠️ **This table is a starting reference, not an exhaustive list — validated live.** In one tenant, the two SIT GUIDs actually **dominating** real prompt-side activity (thousands of matching events) were not in this table at all and surfaced only as `Unmapped (<guid>)` in AH-13's output. Always run **AH-13** first and check `SampleSensitiveInfoTypeNames` for high-volume `Unmapped (<guid>)` entries before assuming this table covers your tenant's dominant SITs — resolve any unmapped-but-frequent GUID via `Get-DlpSensitiveInformationType` (Purview PowerShell) or the Purview compliance portal and add it to this table for next time.
+
 Quick inline resolution pattern for any of the AH-14/15/16 queries — this join is already embedded in AH-13, AH-14, AH-15, and AH-16 below, so you don't need to add it yourself unless adapting one of these queries further:
 
 ```kql
@@ -1117,6 +1133,8 @@ DataSecurityEvents
 
 **Notes:** This is the "agent accidentally exposes sensitive content" scenario from the human side — the user handed the agent the sensitive data before the agent ever touched a data source. `SensitiveInfoTypeNames` resolves the common built-in SITs inline; entries showing `Unmapped (<guid>)` are less-common built-ins or tenant-specific custom SITs — run the `data-security-analysis` skill for full resolution of those. Flip `FilterToHighValueSitsOnly` to `false` to see every SIT match with no noise reduction (useful for a first pass to see what's actually firing before deciding whether the high-value list needs adjusting for a given tenant).
 
+**🔴 If this query returns zero rows, do not conclude "no risk" — validated live.** The default `FilterToHighValueSitsOnly = true` restricts matches to four hardcoded SIT GUIDs (SSN, Credit Card, Credentials, Password). In one tenant this returned **zero rows** even though there was massive real prompt-side sensitive-data activity — the tenant's two most-frequent SITs simply weren't on the four-item shortlist. A zero-row result from this query's default filter is not, by itself, evidence of a clean environment. **Always re-run with `FilterToHighValueSitsOnly = false` first** (or check AH-13's `SampleSensitiveInfoTypeNames` for high-volume `Unmapped (<guid>)` entries) before reporting "no sensitive data typed into agent prompts."
+
 ---
 
 <a id="ah-15"></a>
@@ -1214,10 +1232,12 @@ DataSecurityEvents
 | join kind=leftouter SitNames on $left.SITId == $right.SensitiveInfoTypeId
 | extend SITName = coalesce(SensitiveInfoTypeName, strcat("Unmapped (", SITId, ")"))
 | extend AccessedResource = parse_json(tostring(RiskyAIUsageAccessedResourceInfo[0]))
+| extend BestGuessUpn = case(AccountUpn has "@", AccountUpn, AccountObjectId has "@", AccountObjectId, "")   // defensive fallback — see identity-swap caveat below
 | project Timestamp,
           EventTime,
           HumanUserPrincipalName = AccountUpn,
           HumanAccountIdentifier = AccountObjectId,
+          BestGuessUpn,
           InteractionWorkload = Workload,
           ConnectedAppName = ApplicationNames,
           AgentAppCategory = RiskyAIUsageAppCategory,
@@ -1239,7 +1259,7 @@ DataSecurityEvents
 
 **Notes:** If AH-9 and this query both light up for the same user/timeframe, that's two independent Microsoft classifiers agreeing an agent was targeted — a strong basis for opening an incident, not just a single-source alert. `SensitiveInfoTypeName` resolves the common built-in SITs inline; `Unmapped (<guid>)` means a less-common built-in or tenant-specific custom SIT fired. `PromptOrResponse` tells you which side of the exchange the SIT was found in — the flagged prompt itself, or the agent's response back. `AgentAppCategory` is the best available agent/app identifier this table carries (e.g. `ConnectedAIApp.AzureAI.<app-name>`) — it's not a true agent name/ID like `AgentsInfo.Name`, but it's usually enough to tell which connected AI app grouping fired. `AccessedFileId`/`AccessedFileName`/`AccessedSiteUrl` come from `RiskyAIUsageAccessedResourceInfo` — the resource the agent referenced around the time of the risky prompt, when populated.
 
-⚠️ **`AccountObjectId` here is not always a true GUID — validated live.** For `ConnectedAIApp` events this column can come back populated with a UPN-formatted string (e.g. `user@contoso.com`) rather than an Entra Object ID, despite the schema description. That's why it's projected here as `HumanAccountIdentifier`, not `AccountObjectId` — per this pack's convention, only rename to the literal `AccountObjectId` when the value is confirmed to be a real GUID (it triggers a clickable identity-flyout in the Advanced Hunting grid; a UPN-shaped string in that column won't resolve the same way). `AccountUpn` is frequently blank on these rows, so `HumanAccountIdentifier` is often the only usable human identifier — check both.
+⚠️ **`AccountObjectId` here is not always a true GUID — validated live, and broader than originally scoped.** For `ConnectedAIApp` events this column can come back populated with a UPN-formatted string (e.g. `user@contoso.com`) rather than an Entra Object ID, despite the schema description. **Testing found the same swap also occurs on `Workload == "Copilot"` rows** — specifically for a Copilot Studio custom-engine agent surfaced through Office — with `AccountUpn` empty and `AccountObjectId` holding the UPN string on a row whose `Workload` was `"Copilot"`, not `"ConnectedAIApp"`. Don't assume `Workload` predicts which field is reliably populated — check both regardless. That's why it's projected here as `HumanAccountIdentifier`, not `AccountObjectId` — per this pack's convention, only rename to the literal `AccountObjectId` when the value is confirmed to be a real GUID (it triggers a clickable identity-flyout in the Advanced Hunting grid; a UPN-shaped string in that column won't resolve the same way). `AccountUpn` is frequently blank on these rows, so `HumanAccountIdentifier` is often the only usable human identifier — check both, or use the `BestGuessUpn` column above, which picks whichever field actually looks like a UPN (`has "@"`).
 
 ---
 
@@ -1401,8 +1421,12 @@ CloudAppEvents
 | extend ClientApp = trim(" ", tostring(coalesce(RawEventData.AppAccessContext.ClientAppName, RawEventData.ApplicationDisplayName)))
 | where ClientApp in ("Power Virtual Agents", "Enterprise Copilot Platform")
 | extend SiteUrl = tostring(RawEventData.SiteUrl), ClientIP = tostring(RawEventData.ClientIP)
+| extend SharePointEventRowId = new_guid()                                     // unique key per SharePoint event — lets the fan-out fix below collapse back to one agent per event
 | join kind=inner agentInteractions on $left.AccountObjectId == $right.ActorUserId
 | where abs(datetime_diff('minute', Timestamp, InteractionTime)) <= 5
+| extend TimeDiffMinutes = abs(datetime_diff('minute', Timestamp, InteractionTime))
+| summarize arg_min(TimeDiffMinutes, AgentName, AgentId, AccountDisplayName, AccountObjectId, SiteUrl, ObjectName, ActionType, ClientIP)
+    by SharePointEventRowId                                                    // keep only the CLOSEST-in-time agent match per SharePoint event
 | summarize
     Events = count(),
     Sites = make_set(SiteUrl, 20),
@@ -1422,7 +1446,9 @@ CloudAppEvents
 | order by SharePointEventCount desc
 ```
 
-**Notes:** One row per (agent, human) pair with the complete site/file/IP/action detail attached to a named agent — this is the closing proof point: not "agents *could* overshare," but "here is exactly what Agent X read, when, and from where." Widen the 5-minute window if a longer tool-call chain runs before the SharePoint touch.
+**🔴 Join fan-out — fixed, validated live.** The original version of this query (a plain `join kind=inner` with no tie-breaking) over-attributes SharePoint access when a user invokes **more than one agent within the same 5-minute window**: every matching `agentInteractions` row gets joined to the *same* SharePoint event, so two (or more) agents each end up showing the identical `SharePointEventCount`/`FilesAccessed`/`SourceIpAddressesObserved` in the output — a real many-to-many duplication, confirmed against live data, not a coincidental tie. The `SharePointEventRowId` + `arg_min(TimeDiffMinutes, ...)` step above keeps only the single **closest-in-time** agent match per SharePoint event before the final rollup, so each SharePoint access is attributed to exactly one agent. If your tenant shows the same agent name attached to a suspiciously identical file/IP list as another agent, that's the fan-out bug on the old query — re-run with the fix above.
+
+**Notes:** One row per (agent, human) pair with the complete site/file/IP/action detail attached to a named agent — this is the closing proof point: not "agents *could* overshare," but "here is exactly what Agent X read, when, and from where." Widen the 5-minute window if a longer tool-call chain runs before the SharePoint touch — but note a wider window makes correct single-agent attribution (via the closest-match fix above) more important, not less, since more agents become candidates within the window.
 
 ---
 
