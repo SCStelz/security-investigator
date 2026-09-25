@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-09-25T18:34:56Z'
+generated: '2026-09-25T18:48:31Z'
 valid_domains:
 - admin
 - cloud
@@ -1113,6 +1113,22 @@ queries:
   - T1553.001
   - T1555.001
   - T1071.001
+- title: AI-Assisted Executive Impersonation and Vendor Invoice Fraud (ACH) — Threat Hunts
+  path: queries/threat-intelligence/2026-09/ai_assisted_executive_impersonation_invoice_fraud.md
+  domains:
+  - email
+  - identity
+  mitre:
+  - T1591
+  - T1598
+  - T1583.001
+  - T1585.002
+  - T1566
+  - T1566.001
+  - T1566.003
+  - T1036
+  - T1656
+  - T1657
 - title: ASCII Smuggling — Invisible Unicode Tag Characters for Phishing Filter Evasion — Threat Hunts
   path: queries/threat-intelligence/2026-09/ascii_smuggling_phishing_evasion.md
   domains:
