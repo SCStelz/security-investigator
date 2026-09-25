@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-09-25T17:05:14Z'
+generated: '2026-09-25T18:34:56Z'
 valid_domains:
 - admin
 - cloud
@@ -1170,6 +1170,30 @@ queries:
   - TA0006
   - TA0007
   - TA0009
+- title: Passkey-Themed Social Engineering → MFA Persistence, Graph Reconnaissance and Cloud Data Collection — Threat Hunts
+  path: queries/threat-intelligence/2026-09/passkey_themed_social_engineering_cloud_compromise.md
+  domains:
+  - identity
+  - email
+  - cloud
+  mitre:
+  - T1598.004
+  - T1583.001
+  - T1566.002
+  - T1566.004
+  - T1557
+  - T1528
+  - T1078.004
+  - T1098.005
+  - T1556.006
+  - T1087.004
+  - T1069.003
+  - T1526
+  - T1213.002
+  - T1530
+  - T1114.002
+  - T1567
+  - T1534
 - title: Storm-2570 — Cross-RaaS Ransomware Affiliate Tradecraft (Qilin, DragonForce, Anubis, BERT) — Threat Hunts
   path: queries/threat-intelligence/2026-09/storm_2570_ransomware_affiliate_tradecraft.md
   domains:
