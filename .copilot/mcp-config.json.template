@@ -3,26 +3,17 @@
     "sentinel-data-mcp": {
       "tools": ["*"],
       "type": "http",
-      "url": "https://sentinel.microsoft.com/mcp/data-exploration",
-      "headers": {
-        "x-mcp-client-tenant-id": "YOUR_TENANT_ID"
-      }
+      "url": "https://sentinel.microsoft.com/mcp/data-exploration"
     },
     "Graph-mcp-server": {
       "tools": ["*"],
       "type": "http",
-      "url": "https://mcp.svc.cloud.microsoft/enterprise",
-      "headers": {
-        "x-mcp-client-tenant-id": "YOUR_TENANT_ID"
-      }
+      "url": "https://mcp.svc.cloud.microsoft/enterprise"
     },
     "sentinel-triage-mcp": {
       "tools": ["*"],
       "type": "http",
-      "url": "https://sentinel.microsoft.com/mcp/triage",
-      "headers": {
-        "x-mcp-client-tenant-id": "YOUR_TENANT_ID"
-      }
+      "url": "https://sentinel.microsoft.com/mcp/triage"
     },
     "kql-search": {
       "tools": ["*"],

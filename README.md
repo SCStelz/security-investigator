@@ -33,7 +33,7 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 # All platform servers are pre-configured — just needs a GitHub PAT on first use
 # GitHub Copilot app / CLI instead? Use the user-scope template:
 #   copy .copilot\mcp-config.json.template $env:USERPROFILE\.copilot\mcp-config.json
-#   (replace YOUR_TENANT_ID — see "Running in the GitHub Copilot App" below)
+#   (works as-is — see "Running in the GitHub Copilot App" below)
 
 # 5. Open Copilot Chat (Ctrl+Shift+I) in Agent mode and start with:
 #    "Run a threat pulse scan"
@@ -519,10 +519,19 @@ cp .copilot/mcp-config.json.template ~/.copilot/mcp-config.json
 ```
 
 Then:
-1. Replace every `YOUR_TENANT_ID` with your Entra tenant ID (same value as `tenant_id` in `config.json`). This pins the Sentinel / Graph sign-in to the right tenant.
-2. Set a `GITHUB_TOKEN` environment variable ([GitHub PAT](https://github.com/settings/tokens/new), `public_repo` scope) — `kql-search` reads it via `${env:GITHUB_TOKEN}`.
-3. Run `az login --tenant <tenant_id>` for `azure-mcp-server` (uses `AzureCliCredential`).
-4. Restart the app / CLI and sign in once interactively so OAuth tokens cache for scheduled runs.
+1. Set a `GITHUB_TOKEN` environment variable ([GitHub PAT](https://github.com/settings/tokens/new), `public_repo` scope) — `kql-search` reads it via `${env:GITHUB_TOKEN}`.
+2. Run `az login --tenant <tenant_id>` for `azure-mcp-server` (uses `AzureCliCredential`).
+3. Restart the app / CLI and sign in once interactively so OAuth tokens cache for scheduled runs.
+
+**Multi-tenant (optional):** If your account has access to multiple tenants (e.g., guest/B2B or CSP), pin the Sentinel and Graph servers to a specific tenant by adding a header to `sentinel-data-mcp`, `sentinel-triage-mcp`, and `Graph-mcp-server`:
+
+```json
+"headers": {
+  "x-mcp-client-tenant-id": "<your-tenant-id>"
+}
+```
+
+Without it, sign-in uses your account's home tenant.
 
 **Optional MCP Apps** (geomap, heatmap, incident-comment) need absolute paths in user scope. After [building them](#4-build-mcp-apps-optional--visualization-skills), add entries like the following to `mcpServers`:
 
