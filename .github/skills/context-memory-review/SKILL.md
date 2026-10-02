@@ -78,7 +78,7 @@ proceed with the defaults shown.
 | `context_file` | Relative filename (under `.copilot/memories/repo/`) or absolute path to the tenant-context memory file to review | (must be provided) |
 | `reports_dir` | Directory (or glob) holding the scan reports to review | `reports/` |
 | `reports_glob` | Filename pattern for the reports of interest | `*.md` |
-| `findings_file` | Mission Control findings log (structured analyst drill-down records) | `.github/extensions/skills-canvas/state/findings.json` |
+| `findings_file` | Mission Control findings log (structured analyst drill-down records) | `.mission-control/findings.json` |
 | `lookback_days` | How far back to include reports (by filename date or mtime) | `7` |
 | `output_dir` | Where to write the review document (must be gitignored) | `reports/context-reviews` |
 

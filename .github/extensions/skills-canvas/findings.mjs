@@ -6,6 +6,7 @@
 
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
+import { stateRoot } from "./paths.mjs";
 
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4, clean: 5 };
 const VALID_SEVERITY = new Set(Object.keys(SEVERITY_ORDER));
@@ -43,7 +44,7 @@ const DOMAIN_SKILL = {
 };
 
 function storePath(repoRoot) {
-    return path.join(repoRoot, ".github", "extensions", "skills-canvas", "state", "findings.json");
+    return path.join(stateRoot(repoRoot), "findings.json");
 }
 
 export function normalizeSeverity(s) {
@@ -302,11 +303,11 @@ export async function pruneFindings(repoRoot, { olderThanDays = 0, severities = 
 
 // --- Archive: preserve evidence instead of deleting it ---------------------
 // An "archive" is a timestamped JSON snapshot of the findings that were removed
-// from the live ledger, written under state/archive/. This lets the analyst
+// from the live ledger, written under .mission-control/archive/. This lets the analyst
 // clear the working view while keeping a dated, browsable copy of the evidence.
 
 function archiveDir(repoRoot) {
-    return path.join(repoRoot, ".github", "extensions", "skills-canvas", "state", "archive");
+    return path.join(stateRoot(repoRoot), "archive");
 }
 
 // Filename stamp: YYYYMMDD-HHMMSS (local time), sortable lexicographically.

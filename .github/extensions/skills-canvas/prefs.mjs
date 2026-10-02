@@ -14,6 +14,7 @@
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { stateRoot } from "./paths.mjs";
 
 // Guard rails: prefs are small scalars (a currency code, a width, a JSON array
 // of favorites). Anything larger is a bug or an abuse of the endpoint.
@@ -21,7 +22,7 @@ const MAX_KEYS = 200;
 const MAX_VALUE_LEN = 20000;
 
 function storePath(repoRoot) {
-    return path.join(repoRoot, ".github", "extensions", "skills-canvas", "state", "prefs.json");
+    return path.join(stateRoot(repoRoot), "prefs.json");
 }
 
 // ---- Customisable launch prompts ----
@@ -77,7 +78,7 @@ export const DEFAULT_COMPACT_PROMPT =
     "{scope}\n\n" +
     "Evidence sources to review:\n" +
     "1. Current memory file '{file}' (if it exists).\n" +
-    "2. Mission Control findings at .github/extensions/skills-canvas/state/findings.json ({inRange} of {total} " +
+    "2. Mission Control findings at .mission-control/findings.json ({inRange} of {total} " +
     "recorded finding(s) in scope — first-party, each from an actual skill drill-down). Treat these as the " +
     "PRIMARY evidence source and prioritize them.\n" +
     "3. Reports under reports/ are SECONDARY — open only the specific report(s) a finding's `reports` field " +

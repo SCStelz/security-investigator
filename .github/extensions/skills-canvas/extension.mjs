@@ -16,6 +16,7 @@ import { loadCanvasData, composePrompt, lookbackPhrase, outputPhrase } from "./m
 import { loadPrefs, savePrefs, memoryPromptTemplate, memoryEnabled, recordPromptTemplate, DEFAULT_MEMORY_PROMPT, DEFAULT_RECORD_PROMPT, autopilotLimits, AUTOPILOT_DEFAULTS, AUTOPILOT_CEILINGS, AUTOPILOT_KEYS } from "./prefs.mjs";
 import { renderMarkdown, htmlReportPage } from "./md.mjs";
 import { listReports } from "./reports.mjs";
+import { migrateLegacyState } from "./paths.mjs";
 import {
     loadFindings,
     addFinding,
@@ -76,6 +77,8 @@ import {
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // .github/extensions/skills-canvas -> repo root is three levels up.
 const REPO_ROOT = path.resolve(HERE, "..", "..", "..");
+// Move pre-existing state out of .github/extensions/ before anything reads it.
+migrateLegacyState(REPO_ROOT);
 
 // Set after joinSession resolves; HTTP handlers read it at request time.
 let sessionRef = null;

@@ -1,19 +1,20 @@
 // Cross-session activity ledger for Mission Control.
 //
 // Every Copilot session forks its own extension process (SESSION_ID in env) and
-// all of them resolve the same repo root — so the shared `state/` directory is a
+// all of them resolve the same repo root — so the shared `.mission-control/` directory is a
 // zero-infrastructure bus between sessions. Each process writes ONLY its own
-// `state/activity/<sessionId>.json`, so there is a single writer per file: no
+// `.mission-control/activity/<sessionId>.json`, so there is a single writer per file: no
 // locking, no races. Readers merge the whole directory, which is how the
 // Findings tab in any one session can show investigations running in all the
 // others (even sessions that never opened the canvas — event subscriptions are
 // registered at module load, independent of the canvas HTTP server).
 //
-// This is ephemeral runtime state and lives under the already-gitignored
-// `state/` dir, mirroring findings.mjs / costing.mjs conventions.
+// This is ephemeral runtime state and lives under the gitignored
+// `.mission-control/` dir (see paths.mjs), mirroring findings.mjs / costing.mjs.
 
 import { readFile, writeFile, mkdir, readdir, unlink, rename } from "node:fs/promises";
 import path from "node:path";
+import { stateRoot } from "./paths.mjs";
 import { autopilotSnapshot } from "./autopilot.mjs";
 
 // Coalesce disk writes: tool.execution_start / assistant.usage fire in bursts.
@@ -32,7 +33,7 @@ const MAX_RECENT = 8;
 const MAX_QUEUE = 10;
 
 function activityDir(repoRoot) {
-    return path.join(repoRoot, ".github", "extensions", "skills-canvas", "state", "activity");
+    return path.join(stateRoot(repoRoot), "activity");
 }
 
 function safeId(id) {

@@ -19,7 +19,7 @@ import { parseSequence } from "./sequence.mjs";
 import { htmlReportPage } from "./md.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-const SKIP = new Set(["node_modules", ".git", "temp", "state"]);
+const SKIP = new Set(["node_modules", ".git", "temp", "state", ".mission-control"]);
 
 async function walk(dir, out = []) {
     let entries;

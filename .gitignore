@@ -73,5 +73,8 @@ prompts/
 AGENTS.md
 CLAUDE.md
 
-# Mission Control canvas — runtime findings ledger (session-local)
+# Mission Control canvas — runtime state (findings, archive, activity, costing, prefs).
+# Kept outside .github/extensions/ so writes don't invalidate Copilot App repo trust.
+.mission-control/
+# Legacy location (pre-relocation); safe to delete once migrated.
 .github/extensions/skills-canvas/state/

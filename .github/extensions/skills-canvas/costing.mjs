@@ -7,9 +7,10 @@
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { stateRoot } from "./paths.mjs";
 
 function storePath(repoRoot) {
-    return path.join(repoRoot, ".github", "extensions", "skills-canvas", "state", "costing.json");
+    return path.join(stateRoot(repoRoot), "costing.json");
 }
 
 /** Load the persisted cost ledger array (chronological, oldest first). Never throws. */

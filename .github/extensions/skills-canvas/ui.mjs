@@ -1740,7 +1740,7 @@ document.getElementById("memOpen").onclick = openMemPreview;
 
 // --- Memory file setter (⚙) — writes config.json server-side, no manual JSON ---
 // --- Settings (⚙): memory (file + preamble), record/compact prompts, autopilot ---
-// The filename persists to config.json; the prompts persist to state/prefs.json.
+// The filename persists to config.json; the prompts persist to .mission-control/prefs.json.
 // Save commits whichever actually changed, so switching tabs to read a
 // description never rewrites anything.
 var SETTINGS_TAB = "mem";
@@ -2057,7 +2057,7 @@ function switchView(view) {
 
 // ---- Live investigation status (cross-session) -----------------------------
 // Fed by /api/activity, which merges one ledger file per Copilot session from
-// the shared repo state/ dir. Runs started in OTHER sessions show up here too,
+// the shared repo .mission-control/ dir. Runs started in OTHER sessions show up here too,
 // so an analyst running several investigations in parallel can watch all of
 // them from whichever session happens to have Mission Control open. Nothing
 // here depends on the agent reporting progress — the extension observes the run.
