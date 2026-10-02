@@ -31,6 +31,9 @@ copy .env.template .env
 # 4. Configure MCP servers
 copy .vscode\mcp.json.template .vscode\mcp.json
 # All platform servers are pre-configured — just needs a GitHub PAT on first use
+# GitHub Copilot app / CLI instead? Use the user-scope template:
+#   copy .copilot\mcp-config.json.template $env:USERPROFILE\.copilot\mcp-config.json
+#   (replace YOUR_TENANT_ID — see "Running in the GitHub Copilot App" below)
 
 # 5. Open Copilot Chat (Ctrl+Shift+I) in Agent mode and start with:
 #    "Run a threat pulse scan"
@@ -222,7 +225,9 @@ security-investigator/
 ├── requirements.txt             # Python dependencies
 ├── requirements.lock            # Hash-verified dependency lockfile
 ├── .vscode/
-│   └── mcp.json.template       # MCP server config template (copy to mcp.json)
+│   └── mcp.json.template       # VS Code MCP server config template (copy to mcp.json)
+├── .copilot/
+│   └── mcp-config.json.template # GitHub Copilot app/CLI MCP config template (copy to ~/.copilot/mcp-config.json)
 ├── .github/
 │   ├── copilot-instructions.md  # Skill detection, universal patterns, routing
 │   ├── manifests/               # Auto-generated discovery indexes
@@ -429,6 +434,8 @@ The template includes inline documentation for each server. On first use, VS Cod
 - **Entra ID login** — browser-based auth for Sentinel Data Lake, Graph, and Triage servers
 - **[GitHub PAT](https://github.com/settings/tokens/new)** — for KQL Search MCP (schema intelligence and query discovery). Needs `public_repo` scope.
 
+> **Using the GitHub Copilot app or CLI?** Use [`.copilot/mcp-config.json.template`](.copilot/mcp-config.json.template) instead — see [MCP config for the app](#mcp-config-for-the-app).
+
 See [MCP Server Setup](#-mcp-server-setup) below for per-server permissions and installation guides.
 
 ### 4. Build MCP Apps (Optional — Visualization Skills)
@@ -493,10 +500,42 @@ The app behaves slightly differently from VS Code. The most important difference
 
 | Concern | VS Code | GitHub Copilot app |
 |---|---|---|
-| **MCP config** | `.vscode/mcp.json` (per workspace) | **User scope:** `~/.copilot/mcp-config.json`. The platform servers and the `kql-search` `GITHUB_TOKEN` go here, not in `.vscode/mcp.json`. Authenticate once interactively so OAuth tokens cache and refresh silently in scheduled runs. |
+| **MCP config** | `.vscode/mcp.json` (per workspace) | **User scope:** `~/.copilot/mcp-config.json` — start from [`.copilot/mcp-config.json.template`](.copilot/mcp-config.json.template) (see [MCP config for the app](#mcp-config-for-the-app) below). The platform servers and the `kql-search` `GITHUB_TOKEN` go here, not in `.vscode/mcp.json`. Authenticate once interactively so OAuth tokens cache and refresh silently in scheduled runs. |
 | **`config.json` / `.env`** | One copy in your workspace folder | Gitignored, so **absent in each new worktree** — must be copied in per session (see below). |
 | **Memory / tenant context** | VS Code AppData memory store (auto-loads ~200 lines) | `~/.copilot/memories/` (user) and `~/.copilot/memories/repo/` (repo). **Scheduled runs are non-interactive, so repo memory does NOT auto-load** — automation prompts must read the context file explicitly by path (the `automations/` definitions do this in STEP 1.5). |
 | **Sessions / workspace** | Single workspace folder, one branch | One git **worktree + branch per session**, created under your worktrees root (e.g. `~/copilot-worktrees/<repo>/<branch>`). Operate only inside the session worktree — never the main checkout. |
+
+#### MCP config for the app
+
+The app (and Copilot CLI) reads MCP servers from **user scope** (`~/.copilot/mcp-config.json`), not `.vscode/mcp.json`. The format differs from VS Code: top-level `mcpServers` key, strict JSON (no comments / `inputs` block), and no `${workspaceFolder}` variable. A ready-to-use template with all platform servers is provided:
+
+```powershell
+# Windows (merge manually if you already have a mcp-config.json)
+copy .copilot\mcp-config.json.template $env:USERPROFILE\.copilot\mcp-config.json
+```
+```bash
+# macOS/Linux
+cp .copilot/mcp-config.json.template ~/.copilot/mcp-config.json
+```
+
+Then:
+1. Replace every `YOUR_TENANT_ID` with your Entra tenant ID (same value as `tenant_id` in `config.json`). This pins the Sentinel / Graph sign-in to the right tenant.
+2. Set a `GITHUB_TOKEN` environment variable ([GitHub PAT](https://github.com/settings/tokens/new), `public_repo` scope) — `kql-search` reads it via `${env:GITHUB_TOKEN}`.
+3. Run `az login --tenant <tenant_id>` for `azure-mcp-server` (uses `AzureCliCredential`).
+4. Restart the app / CLI and sign in once interactively so OAuth tokens cache for scheduled runs.
+
+**Optional MCP Apps** (geomap, heatmap, incident-comment) need absolute paths in user scope. After [building them](#4-build-mcp-apps-optional--visualization-skills), add entries like the following to `mcpServers`:
+
+```json
+"custom-sentinel-geomap": {
+  "tools": ["*"],
+  "type": "stdio",
+  "command": "node",
+  "args": ["C:/path/to/security-investigator/mcp-apps/sentinel-geomap-server/dist/main.js", "--stdio"]
+}
+```
+
+Use `mcp-apps/sentinel-heatmap-server/dist/main.js` for the heatmap, and `mcp-apps/sentinel-incident-comment/dist/index.js` (plus `"env": { "SENTINEL_COMMENT_WEBHOOK_URL": "<your Logic App URL>" }`) for incident comments.
 
 #### Post-checkout workflow (persist config into each session)
 
@@ -522,7 +561,7 @@ For **scheduled automations**, the workflow prompts in [`automations/`](automati
 
 ## 🔌 MCP Server Setup
 
-The system uses several Model Context Protocol (MCP) servers. All are **pre-configured** in [.vscode/mcp.json.template](.vscode/mcp.json.template) — copy it to `.vscode/mcp.json` to get started (see [Step 3 above](#3-configure-mcp-servers)). The sections below document permissions, tools, and installation guides for each server.
+The system uses several Model Context Protocol (MCP) servers. All are **pre-configured** in [.vscode/mcp.json.template](.vscode/mcp.json.template) — copy it to `.vscode/mcp.json` to get started (see [Step 3 above](#3-configure-mcp-servers)). For the GitHub Copilot app / CLI, use [.copilot/mcp-config.json.template](.copilot/mcp-config.json.template) instead (see [MCP config for the app](#mcp-config-for-the-app)). The sections below document permissions, tools, and installation guides for each server.
 
 ### At a Glance
 

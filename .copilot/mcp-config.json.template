@@ -1,0 +1,52 @@
+{
+  "mcpServers": {
+    "sentinel-data-mcp": {
+      "tools": ["*"],
+      "type": "http",
+      "url": "https://sentinel.microsoft.com/mcp/data-exploration",
+      "headers": {
+        "x-mcp-client-tenant-id": "YOUR_TENANT_ID"
+      }
+    },
+    "Graph-mcp-server": {
+      "tools": ["*"],
+      "type": "http",
+      "url": "https://mcp.svc.cloud.microsoft/enterprise",
+      "headers": {
+        "x-mcp-client-tenant-id": "YOUR_TENANT_ID"
+      }
+    },
+    "sentinel-triage-mcp": {
+      "tools": ["*"],
+      "type": "http",
+      "url": "https://sentinel.microsoft.com/mcp/triage",
+      "headers": {
+        "x-mcp-client-tenant-id": "YOUR_TENANT_ID"
+      }
+    },
+    "kql-search": {
+      "tools": ["*"],
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "kql-search-mcp@1.0.5"],
+      "env": {
+        "GITHUB_TOKEN": "${env:GITHUB_TOKEN}",
+        "FAVORITE_REPOS": "Azure/Azure-Sentinel,microsoft/Microsoft-365-Defender-Hunting-Queries"
+      }
+    },
+    "microsoft-learn": {
+      "tools": ["*"],
+      "type": "http",
+      "url": "https://learn.microsoft.com/api/mcp"
+    },
+    "azure-mcp-server": {
+      "tools": ["*"],
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@azure/mcp@latest", "server", "start"],
+      "env": {
+        "AZURE_TOKEN_CREDENTIALS": "AzureCliCredential"
+      }
+    }
+  }
+}
