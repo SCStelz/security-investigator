@@ -1196,6 +1196,9 @@ async function load() {
   renderGrid();
   document.getElementById("queryCount").textContent = (DATA.queries || []).length;
   renderQueries();
+  // loadFindings() races this fetch and usually syncs the memory buttons while
+  // DATA.tenant is still empty; its unchanged-payload guard then never re-syncs.
+  syncCompactBtn();
 }
 
 function renderDomains() {
