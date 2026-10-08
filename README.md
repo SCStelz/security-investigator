@@ -2,7 +2,9 @@
 
 **Comprehensive, automated security investigations powered by Microsoft Sentinel, Defender XDR, Graph API, and threat intelligence — with 25 specialized Agent Skills**
 
-> 📺 **Video Walkthrough:** See this project in action — [Watch on YouTube](https://youtu.be/3UFqWA4cmoE?t=1470) (starts at the Security Investigator demo). Covers the end-to-end workflow: natural language investigations, MCP server integration, KQL query execution, threat intelligence enrichment, and automated report generation.
+> 🎛️ **Walkthrough using GitHub Copilot (15 min):** See the new Mission Control canvas app in action — [Watch on LinkedIn](https://lnkd.in/p/gm4yB-9Y). A guided tour of the launchable skills dashboard: filter investigation skills by domain, search, and one-click launch skills or route an entity to the right investigation.
+
+> 📺 **Walkthrough using VS Code:** See this project in action — [Watch on YouTube](https://youtu.be/3UFqWA4cmoE?t=1470) (starts at the Security Investigator demo). Covers the end-to-end workflow: natural language investigations, MCP server integration, KQL query execution, threat intelligence enrichment, and automated report generation.
 
 An investigation automation framework that combines **GitHub Copilot**, **VS Code Agent Skills**, and **Model Context Protocol (MCP) servers** to enable natural language security investigations. Ask questions like *"Investigate this user for the last 7 days"* or *"Is this IP malicious?"* and get comprehensive analysis with KQL queries, threat intelligence correlation, and professional reports.
 
