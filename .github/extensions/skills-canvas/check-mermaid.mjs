@@ -102,6 +102,12 @@ const FIXTURES = [
   Bob-->>Alice: hi back`],
     ["fixture:single-slice-pie", `pie showData title Only one category
   "Everything" : 42`],
+    // Several statements per line, as real mermaid allows. Regressing this
+    // renders every node uncoloured plus a stray node named "class".
+    ["fixture:semicolon-statements", `flowchart LR
+  A["Agent; v2"]-->B; B-->|x;y|C
+  classDef good fill:#14532d,stroke:#22c55e,color:#fff; classDef bad fill:#7f1d1d,stroke:#ef4444,color:#fff
+  class A,B good; class C bad;`],
 ];
 
 const work = FIXTURES.map(([where, src]) => ({ where, src }));
@@ -183,6 +189,27 @@ for (const { where, src } of work) {
     if (blank.length) {
         broken++;
         console.log("BROKEN   " + where + "  " + blank.length + " node(s) lost their label: " + blank.map((n) => n.id).join(", "));
+        continue;
+    }
+    // Styling regressions render fine but uncoloured, which is easy to miss by
+    // eye (the `class A x; class B y;` one-liner did exactly this).
+    const reserved = g.nodes.filter((n) => /^(class|classDef|style|linkStyle|click|direction)$/i.test(n.id));
+    if (reserved.length) {
+        broken++;
+        console.log("BROKEN   " + where + "  config statement parsed as node(s): " + reserved.map((n) => n.id).join(", "));
+        continue;
+    }
+    const known = new Set(g.classDefs.keys());
+    const undef = [...new Set(g.nodes.flatMap((n) => n.classes).filter((c) => !known.has(c)))];
+    if (undef.length) {
+        broken++;
+        console.log("BROKEN   " + where + "  class(es) used but never defined: " + undef.join(", "));
+        continue;
+    }
+    const realDefs = [...known].filter((k) => k !== "default");
+    if (realDefs.length && !g.nodes.some((n) => n.classes.some((c) => known.has(c)))) {
+        broken++;
+        console.log("BROKEN   " + where + "  " + realDefs.length + " classDef(s) defined but no node is styled");
         continue;
     }
     console.log("OK       " + where + "  " + g.nodes.length + " nodes, " + g.edges.length + " edges, " + g.dir);

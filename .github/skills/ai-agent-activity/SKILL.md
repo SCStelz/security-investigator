@@ -670,7 +670,9 @@ flowchart LR
     classDef user fill:#1e3a5f,stroke:#3b82f6,color:#fff;
     classDef agent fill:#14532d,stroke:#22c55e,color:#fff;
     classDef flag fill:#78350f,stroke:#f59e0b,color:#fff;
-    class U user; class A agent; class PS,OUT flag;
+    class U user;
+    class A agent;
+    class PS,OUT flag;
 ```
 
 ---

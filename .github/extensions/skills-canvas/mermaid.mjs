@@ -149,6 +149,44 @@ function parseStyleProps(s) {
     return out;
 }
 
+// Mermaid treats `;` as a statement separator, so `class A x; class B y;` or
+// `A-->B; B-->C` on one line is valid. Split on `;` that sits outside quotes,
+// brackets/parens/braces and `|edge labels|` (entities like `&amp;` are not
+// separators either).
+export function splitStatements(line) {
+    const out = [];
+    let cur = "";
+    let depth = 0;
+    let quote = false;
+    let pipe = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') quote = !quote;
+        else if (!quote) {
+            if (ch === "[" || ch === "(" || ch === "{") depth++;
+            else if (ch === "]" || ch === ")" || ch === "}") depth = Math.max(0, depth - 1);
+            else if (ch === "|" && depth === 0) pipe = !pipe;
+            else if (ch === "&" && /^&#?\w+;/.test(line.slice(i))) {
+                const m = /^&#?\w+;/.exec(line.slice(i));
+                cur += m[0];
+                i += m[0].length - 1;
+                continue;
+            } else if (ch === ";" && depth === 0 && !pipe) {
+                if (cur.trim()) out.push(cur.trim());
+                cur = "";
+                continue;
+            }
+        }
+        cur += ch;
+    }
+    if (cur.trim()) out.push(cur.trim());
+    return out;
+}
+
+// Statements that configure the diagram rather than declare nodes. If one of
+// these ever reaches the node parser it would become a node named "class".
+const RESERVED_STATEMENT = /^(?:class|classDef|style|linkStyle|click|direction|accTitle|accDescr)\b/i;
+
 // Parse a whole flowchart body. Returns the graph model, or null when the
 // source isn't a flowchart at all.
 export function parseFlowchart(src) {
@@ -163,6 +201,8 @@ export function parseFlowchart(src) {
 
     const head = /^(?:flowchart|graph)(?:\s+(TB|TD|BT|RL|LR))?\s*;?$/i.exec(lines[0]);
     if (!head) return null;
+    const stmts = [];
+    for (let li = 1; li < lines.length; li++) stmts.push(...splitStatements(lines[li]));
     const dir = (head[1] || "TB").toUpperCase();
 
     const nodes = new Map();
@@ -186,8 +226,7 @@ export function parseFlowchart(src) {
         return n;
     };
 
-    for (let li = 1; li < lines.length; li++) {
-        const line = lines[li].replace(/;+$/, "").trim();
+    for (const line of stmts) {
         if (!line) continue;
 
         let m;
@@ -212,7 +251,7 @@ export function parseFlowchart(src) {
             Object.assign(n.style, parseStyleProps(m[2]));
             continue;
         }
-        if (/^linkStyle\b/i.test(line) || /^direction\b/i.test(line)) continue;
+        if (RESERVED_STATEMENT.test(line)) continue;
         if ((m = /^subgraph\s+(.+)$/i.exec(line))) {
             const ref = parseNodeRef(m[1], 0);
             const title = ref && ref.text != null ? ref.text : m[1].replace(/^"|"$/g, "").trim();
@@ -512,6 +551,8 @@ const THEME = {
 
 function nodeStyle(n, classDefs) {
     const s = { fill: THEME.fill, stroke: THEME.stroke, color: THEME.text };
+    // Mermaid's `classDef default` is the base style for every node.
+    Object.assign(s, classDefs.get("default") || {});
     for (const c of n.classes) Object.assign(s, classDefs.get(c) || {});
     Object.assign(s, n.style);
     return s;
