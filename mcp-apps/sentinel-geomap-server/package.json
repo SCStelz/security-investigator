@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.0.1",
-    "@modelcontextprotocol/sdk": "^1.11.2",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "leaflet": "^1.9.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "zod": "^3.24.1"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.12",
