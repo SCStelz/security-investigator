@@ -28,7 +28,7 @@ pip install --require-hashes -r requirements.lock   # Hash-verified (recommended
 copy config.json.template config.json
 # Edit config.json → add your Sentinel workspace ID, tenant ID
 copy .env.template .env
-# Edit .env → add your API tokens (ipinfo, AbuseIPDB, vpnapi, Shodan)
+# Edit .env → add your API tokens (ipinfo, AbuseIPDB, vpnapi, VPNDetection, Shodan)
 
 # 4. Configure MCP servers
 copy .vscode\mcp.json.template .vscode\mcp.json
@@ -412,6 +412,7 @@ copy .env.template .env
 IPINFO_TOKEN=your_token_here
 ABUSEIPDB_TOKEN=your_token_here
 VPNAPI_TOKEN=your_token_here
+VPNDETECTION_TOKEN=your_token_here
 SHODAN_TOKEN=your_token_here
 ```
 
@@ -422,6 +423,7 @@ These are auto-loaded by `enrich_ips.py` via `python-dotenv` — no manual sourc
 | `IPINFO_TOKEN` | Recommended | [ipinfo.io](https://ipinfo.io/) API token — geolocation, ASN, org. Free: 1K/day; token: 50K/month; paid plans include VPN detection |
 | `ABUSEIPDB_TOKEN` | Recommended | [AbuseIPDB](https://www.abuseipdb.com/) API token — IP reputation scoring (0-100 confidence). Free: 1K/day |
 | `VPNAPI_TOKEN` | Optional | [vpnapi.io](https://vpnapi.io/) API token — VPN/proxy/Tor detection. Not needed if ipinfo.io is on a paid plan |
+| `VPNDETECTION_TOKEN` | Optional | [VPNDetection](https://vpndetection.io/) API key — VPN, Tor and iCloud Private Relay detection. Free key, no lookup cap; paid plans add proxy flags. Skipped when unset |
 | `SHODAN_TOKEN` | Optional | [Shodan](https://account.shodan.io/) API key — open ports, services, CVEs, OS detection, tags. Free InternetDB fallback if no key or credits exhausted |
 
 ### 3. Configure MCP Servers
@@ -698,6 +700,7 @@ If any server fails, check the **MCP Servers** panel in VS Code (click the `{}` 
 | **ipinfo.io** | 1,000/day (geo, org, ASN) | 50,000/month; paid plans include VPN detection |
 | **AbuseIPDB** | 1,000/day | 10,000/day ($20/month) |
 | **vpnapi.io** | 1,000/month | 10,000/month ($9.99/month) |
+| **VPNDetection** | Not called without a token | Free key: no lookup cap; paid plans add proxy flags |
 | **Shodan** | InternetDB (unlimited, ports/vulns/tags) | $49 one-time membership: 100 queries/month (adds services, banners, SSL, OS) |
 
 **Token priority:** If `ipinfo_token` is a paid plan, VPN detection is included and `vpnapi_token` is optional. Shodan uses the full API when a paid key is available; on 403/429 it automatically falls back to the free InternetDB.

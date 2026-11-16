@@ -6,7 +6,7 @@ Usage:
     python enrich_ips.py --file investigation.json
     python enrich_ips.py 203.0.113.42 198.51.100.10
 
-Enriches IP addresses using ipinfo.io, vpnapi.io, AbuseIPDB, and Shodan.
+Enriches IP addresses using ipinfo.io, vpnapi.io, VPNDetection, AbuseIPDB, and Shodan.
 """
 
 import json
@@ -50,6 +50,7 @@ def load_config() -> dict:
         'ipinfo_token': 'IPINFO_TOKEN',
         'abuseipdb_token': 'ABUSEIPDB_TOKEN',
         'vpnapi_token': 'VPNAPI_TOKEN',
+        'vpndetection_token': 'VPNDETECTION_TOKEN',
         'shodan_token': 'SHODAN_TOKEN',
     }
     for config_key, env_var in env_token_map.items():
@@ -79,6 +80,10 @@ def enrich_single_ip(ip: str, config: dict) -> dict:
         'vpnapi_security_proxy': False,
         'vpnapi_security_tor': False,
         'vpnapi_security_relay': False,
+        'vpndetection_vpn': False,
+        'vpndetection_proxy': False,
+        'vpndetection_tor': False,
+        'vpndetection_relay': False,
         'abuse_confidence_score': 0,
         'total_reports': 0,
         'is_whitelisted': False,
@@ -151,7 +156,27 @@ def enrich_single_ip(ip: str, config: dict) -> dict:
     except Exception as e:
         print(f"  [vpnapi.io] Error for {ip}: {str(e)}", file=sys.stderr)
     
-    # 3. AbuseIPDB enrichment
+    # 3. VPNDetection enrichment (only with a token, like AbuseIPDB)
+    vpndetection_token = config.get('vpndetection_token')
+    if vpndetection_token:
+        try:
+            url = f"https://api.vpndetection.io/{ip}"
+            headers = {'Authorization': f'Bearer {vpndetection_token}'}
+            response = session.get(url, headers=headers, timeout=REQUEST_TOTAL_TIMEOUT)
+            
+            if response.status_code == 200:
+                vpnd_data = response.json()
+                result['vpndetection_vpn'] = bool(vpnd_data.get('is_vpn'))
+                result['vpndetection_tor'] = bool(vpnd_data.get('is_tor'))
+                result['vpndetection_relay'] = bool(vpnd_data.get('is_relay'))
+                # The proxy flags come with paid plans; a free token omits them
+                result['vpndetection_proxy'] = any(
+                    vpnd_data.get(flag) for flag in ('is_resproxy', 'is_dcproxy', 'is_mobproxy', 'is_pubproxy')
+                )
+        except Exception as e:
+            print(f"  [vpndetection.io] Error for {ip}: {str(e)}", file=sys.stderr)
+    
+    # 4. AbuseIPDB enrichment
     abuseipdb_token = config.get('abuseipdb_token')
     if abuseipdb_token:
         try:
@@ -177,7 +202,7 @@ def enrich_single_ip(ip: str, config: dict) -> dict:
         except Exception as e:
             print(f"  [AbuseIPDB] Error for {ip}: {str(e)}", file=sys.stderr)
         
-        # 4. Fetch AbuseIPDB comments/reports (separate API call)
+        # 5. Fetch AbuseIPDB comments/reports (separate API call)
         if result['total_reports'] > 0:
             try:
                 reports_url = "https://api.abuseipdb.com/api/v2/reports"
@@ -202,7 +227,7 @@ def enrich_single_ip(ip: str, config: dict) -> dict:
             except Exception as e:
                 print(f"  [AbuseIPDB Reports] Error for {ip}: {str(e)}", file=sys.stderr)
     
-    # 5. Shodan enrichment (full API primary, InternetDB fallback)
+    # 6. Shodan enrichment (full API primary, InternetDB fallback)
     shodan_token = config.get('shodan_token')
     shodan_full_ok = False
     
@@ -273,7 +298,7 @@ def enrich_ips(ip_list: list[str], max_workers: int = 3) -> list[dict]:
     config = load_config()
     results = []
     
-    print(f"Enriching {len(ip_list)} IPs using ipinfo.io, vpnapi.io, AbuseIPDB, Shodan...\n")
+    print(f"Enriching {len(ip_list)} IPs using ipinfo.io, vpnapi.io, VPNDetection, AbuseIPDB, Shodan...\n")
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_ip = {executor.submit(enrich_single_ip, ip, config): ip for ip in ip_list}
@@ -286,13 +311,13 @@ def enrich_ips(ip_list: list[str], max_workers: int = 3) -> list[dict]:
                 
                 # Show inline status
                 flags = []
-                if result['is_vpn'] or result['vpnapi_security_vpn']:
+                if result['is_vpn'] or result['vpnapi_security_vpn'] or result['vpndetection_vpn']:
                     flags.append("VPN")
-                if result['is_proxy'] or result['vpnapi_security_proxy']:
+                if result['is_proxy'] or result['vpnapi_security_proxy'] or result['vpndetection_proxy']:
                     flags.append("Proxy")
-                if result['is_tor'] or result['vpnapi_security_tor']:
+                if result['is_tor'] or result['vpnapi_security_tor'] or result['vpndetection_tor']:
                     flags.append("Tor")
-                if result['vpnapi_security_relay']:
+                if result['vpnapi_security_relay'] or result['vpndetection_relay']:
                     flags.append("Relay")
                 if result['abuse_confidence_score'] > 0:
                     flags.append(f"Abuse:{result['abuse_confidence_score']}%")
@@ -322,16 +347,24 @@ def print_detailed_results(results: list[dict]):
             flags.append("ipinfo:VPN")
         if item['vpnapi_security_vpn']:
             flags.append("vpnapi:VPN")
+        if item['vpndetection_vpn']:
+            flags.append("vpndetection:VPN")
         if item['is_proxy']:
             flags.append("ipinfo:Proxy")
         if item['vpnapi_security_proxy']:
             flags.append("vpnapi:Proxy")
+        if item['vpndetection_proxy']:
+            flags.append("vpndetection:Proxy")
         if item['is_tor']:
             flags.append("ipinfo:Tor")
         if item['vpnapi_security_tor']:
             flags.append("vpnapi:Tor")
+        if item['vpndetection_tor']:
+            flags.append("vpndetection:Tor")
         if item['vpnapi_security_relay']:
             flags.append("vpnapi:Relay")
+        if item['vpndetection_relay']:
+            flags.append("vpndetection:Relay")
         if item['abuse_confidence_score'] > 0:
             flags.append(f"Abuse:{item['abuse_confidence_score']}%")
         if item['total_reports'] > 0:
@@ -451,6 +484,11 @@ def print_summary(results: list[dict]):
     print(f"    Proxy IPs: {sum(1 for x in results if x['vpnapi_security_proxy'])}")
     print(f"    Tor IPs: {sum(1 for x in results if x['vpnapi_security_tor'])}")
     print(f"    Relay IPs: {sum(1 for x in results if x['vpnapi_security_relay'])}")
+    print("\n  VPNDetection:")
+    print(f"    VPN IPs: {sum(1 for x in results if x['vpndetection_vpn'])}")
+    print(f"    Proxy IPs: {sum(1 for x in results if x['vpndetection_proxy'])}")
+    print(f"    Tor IPs: {sum(1 for x in results if x['vpndetection_tor'])}")
+    print(f"    Relay IPs: {sum(1 for x in results if x['vpndetection_relay'])}")
     print("\n  AbuseIPDB Detection:")
     print(f"    IPs with reports: {sum(1 for x in results if x['total_reports'] > 0)}")
     print(f"    High confidence (>75%): {sum(1 for x in results if x['abuse_confidence_score'] > 75)}")
@@ -472,7 +510,7 @@ def print_summary(results: list[dict]):
     if honeypot_ips:
         print(f"    🟡 Honeypot tagged IPs: {', '.join(honeypot_ips)}")
     print("\n  Overall:")
-    print(f"    Clean residential IPs: {sum(1 for x in results if not any([x['is_vpn'], x['vpnapi_security_vpn'], x['is_proxy'], x['vpnapi_security_proxy'], x['is_tor'], x['vpnapi_security_tor'], x['abuse_confidence_score'] > 0]))}")
+    print(f"    Clean residential IPs: {sum(1 for x in results if not any([x['is_vpn'], x['vpnapi_security_vpn'], x['is_proxy'], x['vpnapi_security_proxy'], x['is_tor'], x['vpnapi_security_tor'], x['vpndetection_vpn'], x['vpndetection_proxy'], x['vpndetection_tor'], x['abuse_confidence_score'] > 0]))}")
 
 
 def extract_ips_from_investigation(json_path: str) -> list[str]:
@@ -559,11 +597,11 @@ def main():
     print(f"{'='*80}")
     for item in sorted(results, key=lambda x: x['abuse_confidence_score'], reverse=True):
         flags = []
-        if item['is_vpn'] or item['vpnapi_security_vpn']:
+        if item['is_vpn'] or item['vpnapi_security_vpn'] or item['vpndetection_vpn']:
             flags.append("VPN")
-        if item['is_proxy'] or item['vpnapi_security_proxy']:
+        if item['is_proxy'] or item['vpnapi_security_proxy'] or item['vpndetection_proxy']:
             flags.append("Proxy")
-        if item['is_tor'] or item['vpnapi_security_tor']:
+        if item['is_tor'] or item['vpnapi_security_tor'] or item['vpndetection_tor']:
             flags.append("Tor")
         if item['abuse_confidence_score'] > 0:
             flags.append(f"Abuse:{item['abuse_confidence_score']}%")
