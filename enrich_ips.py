@@ -173,6 +173,9 @@ def enrich_single_ip(ip: str, config: dict) -> dict:
                 result['vpndetection_proxy'] = any(
                     vpnd_data.get(flag) for flag in ('is_resproxy', 'is_dcproxy', 'is_mobproxy', 'is_pubproxy')
                 )
+            else:
+                # A bad key (401) or rate limit (429) would otherwise read as "not a VPN"
+                print(f"  [vpndetection.io] HTTP {response.status_code} for {ip}: flags not populated", file=sys.stderr)
         except Exception as e:
             print(f"  [vpndetection.io] Error for {ip}: {str(e)}", file=sys.stderr)
     

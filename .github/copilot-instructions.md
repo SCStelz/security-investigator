@@ -48,9 +48,10 @@ When you need environment values (especially for Azure MCP Server calls), **read
 | `IPINFO_TOKEN` | `enrich_ips.py` | ipinfo.io API key |
 | `ABUSEIPDB_TOKEN` | `enrich_ips.py` | AbuseIPDB API key |
 | `VPNAPI_TOKEN` | `enrich_ips.py` | vpnapi.io API key |
+| `VPNDETECTION_TOKEN` | `enrich_ips.py` | VPNDetection API key (optional; the lookup is skipped when unset) |
 | `SHODAN_TOKEN` | `enrich_ips.py` | Shodan API key |
 
-> **Fallback:** `enrich_ips.py` also reads `ipinfo_token`/`abuseipdb_token`/`vpnapi_token`/`shodan_token` from `config.json` if the environment variables are not set. `.env` takes precedence.
+> **Fallback:** `enrich_ips.py` also reads `ipinfo_token`/`abuseipdb_token`/`vpnapi_token`/`vpndetection_token`/`shodan_token` from `config.json` if the environment variables are not set. `.env` takes precedence.
 
 ### Prerequisites
 
@@ -785,7 +786,7 @@ Every query in a `queries/` file MUST include a `<!-- cd-metadata -->` HTML comm
 
 ### IP Enrichment Utility (`enrich_ips.py`)
 
-Use `enrich_ips.py` to enrich IP addresses with **3rd-party threat intelligence** from ipinfo.io, vpnapi.io, AbuseIPDB, and Shodan. This provides VPN/proxy/Tor detection, ISP/ASN details, hosting provider identification, abuse confidence scores, recent community-reported attack activity, open port enumeration, service/banner detection, known CVEs, and Shodan tags (e.g., honeypot, C2, self-signed).
+Use `enrich_ips.py` to enrich IP addresses with **3rd-party threat intelligence** from ipinfo.io, vpnapi.io, VPNDetection (optional token), AbuseIPDB, and Shodan. This provides VPN/proxy/Tor detection, ISP/ASN details, hosting provider identification, abuse confidence scores, recent community-reported attack activity, open port enumeration, service/banner detection, known CVEs, and Shodan tags (e.g., honeypot, C2, self-signed).
 
 **When to use:**
 - Whenever the user asks to enrich, investigate, or check IPs
