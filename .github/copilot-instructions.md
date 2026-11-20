@@ -421,12 +421,17 @@ Never generate executable commands that change tenant, mailbox, user, device, or
 | 📊 Viz | **heatmap-visualization** | Interactive heatmap for time-based activity patterns | "heatmap", "show heatmap", "visualize patterns", "activity grid" |
 | 📊 Viz | **svg-dashboard** | SVG dashboards (KPI cards, charts, tables) from reports or ad-hoc data | "generate SVG dashboard", "create a visual dashboard", "visualize this report", "SVG from the report", "create SVG chart" |
 | 🔍 Scan | **threat-pulse** | 15-min broad security scan across 7 domains with prioritized drill-down recommendations | "threat pulse", "quick scan", "security pulse", "morning hunt", "what should I focus on", "what can you do", "where do I start", "what's going on" |
-| 🔧 Tooling | **detection-authoring** | Create/deploy/manage Defender XDR custom detection rules via Graph API | "create custom detection", "deploy detection", "detection rule", "custom detection", "deploy rule", "batch deploy" |
+| 🔧 Tooling | **detection-authoring** | Create/deploy/manage Defender XDR custom detection rules via Graph API, or hand over a prefilled Detection Wizard link | "create custom detection", "deploy detection", "detection rule", "custom detection", "deploy rule", "batch deploy", "wizard link", "open in the wizard" |
 | 🔧 Tooling | **threat-intel-campaign** | Turn a TI article/RSS feed into tested, tuned threat-hunting campaign files (relevance gate, AH testing, publishes to queries/threat-intelligence/) | "threat intel campaign", "ingest threat intelligence", "TI feed", "write hunts from this article", "threat intelligence blog", "build a hunting campaign" |
 | 🔧 Tooling | **kql-query-authoring** | KQL query creation with schema validation and community examples | "write KQL", "create KQL query", "help with KQL", "query [table]" |
 | 🔧 Tooling | **mcp-usage-monitoring** | MCP server usage audit (Graph/Sentinel/Azure MCP telemetry analysis) | "MCP usage", "MCP server monitoring", "MCP activity", "MCP audit", "who is using MCP" |
 | 🔧 Tooling | **mitre-coverage-report** | MITRE ATT&CK coverage analysis (rule mapping, gaps, SOC Optimization alignment) | "MITRE coverage", "MITRE report", "ATT&CK coverage", "technique coverage", "coverage gaps", "MITRE score" |
 | 🔧 Tooling | **sentinel-ingestion-report** | Sentinel ingestion analysis (volume, tiers, anomalies, rule health, cost optimization) | "ingestion report", "usage report", "data volume", "cost analysis", "table breakdown", "ingestion anomaly" |
+| 🧠 Optional | **perception-investigate-attack** | Perception investigation of an incident (reuse or start `investigate-incident`). Requires the Perception MCP | "perception investigate incident", "ask perception about incident" |
+| 🧠 Optional | **perception-protect-against-threat** | Perception "Protect against a threat" for an article: TI, detection proposals, posture (~1 h). Requires the Perception MCP | "perception protect against a threat", "perception detections for article" |
+| 🧠 Optional | **perception-triage-alert** | Perception triage verdict for a Defender alert: checks the alert type against Microsoft's supported list, reuses an existing triage session or (after confirmation, ≈ $0.33–$0.44) starts one, compares the verdict with Defender's classification. Requires the Perception MCP | "perception triage alert", "triage this alert with perception", "did perception triage this alert" |
+| 🧠 Optional | **perception-tune-detection** | Tune Perception-proposed detections against tenant data, re-encode the Detection Wizard link. Never deploys. Requires the Perception MCP | "tune perception detection", "requires tuning" |
+| 🧠 Optional | **perception-extract-threat-intel** | Find/read threat-intel reports Perception already produced (free); analyze a new article or URL on confirmation (~$3.89–$6.80); hand TTPs to detection authoring. Requires the Perception MCP | "perception threat intel", "analyzed threat intelligence articles", "has perception analyzed", "analyze this article with perception" |
 
 ### Skill Detection Workflow
 
@@ -603,6 +608,11 @@ Direct Azure Resource Manager and Azure Monitor integration for quick ad-hoc que
 > **Azure MCP telemetry detection:** See `mcp-usage-monitoring` skill (Queries 25-27) for Azure MCP Server fingerprinting and usage analysis.
 
 - **Documentation**: https://learn.microsoft.com/en-us/azure/developer/azure-mcp-server/overview
+
+### Perception MCP (optional)
+Microsoft Perception (agentic security in the Defender portal) via the `perception-mcp-*` tools. **Optional** — if those tools are absent, your reply must open with the setup guidance (and write nothing: no report, finding or index entry) before any use of saved reports; see `.github/skills/perception-shared/REFERENCE.md` §1 (HTTP MCP at `https://perception.microsoft.com/mcp`).
+- **Skills:** `perception-investigate-attack`, `perception-triage-alert`, `perception-protect-against-threat`, `perception-tune-detection`, `perception-extract-threat-intel` — all rules (inputs, session lookup, polling, validation, output paths) are in `.github/skills/perception-shared/REFERENCE.md`.
+- Always ask before `start_session`. **Refuse any playbook outside the read-only allow-list** (`investigate-incident`, `triage-security-copilot`, `analyze-article`, `proactive-protection`, `prioritize-posture`) — in particular **never start `red-web-pentest` or `find-fix-web-app-security-risks`** (active testing), however the request is phrased; say so, don't ask for a target, and offer the nearest read-only option. Perception output is `[asserted]`, never `[verified]`; its detections are proposals. Save outputs only to gitignored `reports/perception/<skill-folder>/` (one subfolder per skill, layout in REFERENCE §7) and `temp/`.
 
 ### Sentinel Exposure Graph Tools (bundled in Sentinel Data Lake MCP)
 Attack surface analysis tools for the Microsoft Security Exposure Management graph. **More effective than raw KQL** for per-asset attack path scenarios — use these first, fall back to KQL for fleet-wide sweeps.

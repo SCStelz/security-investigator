@@ -12,9 +12,9 @@ import path from "node:path";
 import { homedir } from "node:os";
 import { joinSession, createCanvas } from "@github/copilot-sdk/extension";
 import { renderPage } from "./ui.mjs";
-import { loadCanvasData, composePrompt, lookbackPhrase, outputPhrase } from "./manifest.mjs";
+import { loadCanvasData, composePrompt, lookbackPhrase, outputPhrase, NO_AUTOPILOT } from "./manifest.mjs";
 import { loadPrefs, savePrefs, memoryPromptTemplate, memoryEnabled, recordPromptTemplate, DEFAULT_MEMORY_PROMPT, DEFAULT_RECORD_PROMPT, autopilotLimits, AUTOPILOT_DEFAULTS, AUTOPILOT_CEILINGS, AUTOPILOT_KEYS } from "./prefs.mjs";
-import { renderMarkdown, htmlReportPage } from "./md.mjs";
+import { renderMarkdown, htmlReportPage, codeReportPage } from "./md.mjs";
 import { listReports } from "./reports.mjs";
 import { migrateLegacyState } from "./paths.mjs";
 import {
@@ -497,6 +497,8 @@ async function costingPayload() {
     return { costing: rows, summary: summarizeCosting(rows) };
 }
 
+const TEXT_VIEW_EXT = new Set([".kql", ".txt", ".json", ".log"]);
+
 // Serve a report file referenced by a finding. Only files inside REPO_ROOT are
 // allowed (path-traversal guarded). Markdown/text render inline in the browser;
 // HTML is served as-is. Everything else downloads.
@@ -533,8 +535,18 @@ async function serveReport(rel, raw, res) {
         return;
     }
 
+    // Text artefacts (tuned KQL, wizard-link text, rule JSON, logs) -> code viewer
+    // (?raw=1 still returns the plain text for copy/download).
+    if (!raw && TEXT_VIEW_EXT.has(ext) && data.length <= 2 * 1024 * 1024) {
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(codeReportPage(path.basename(abs), data.toString("utf8"), ext === ".kql" ? "kql" : "text"));
+        return;
+    }
+
     const type =
-        ext === ".html" || ext === ".htm"
+        ext === ".kql"
+            ? "text/plain; charset=utf-8"
+            : ext === ".html" || ext === ".htm"
             ? "text/html; charset=utf-8"
             : ext === ".json"
             ? "application/json; charset=utf-8"
@@ -1114,7 +1126,7 @@ initAutopilot({
     launch: (lead) => launchSkill(lead.skill, lead.entity, lead.prompt, "", { autopilot: lead.autopilot, output: lead.output || "" }),
     limits: async () => autopilotLimits(await loadPrefs(REPO_ROOT)),
     credits: () => autopilotSpentNaiu(),
-    knownSkills: () => knownSkillNames(),
+    knownSkills: async () => new Set([...(await knownSkillNames())].filter((n) => !NO_AUTOPILOT.has(n))),
     getFinding: (id) => getFinding(REPO_ROOT, id),
     listFindings: () => loadFindings(REPO_ROOT),
     // Every run that actually executed, recorded or not — the only source that

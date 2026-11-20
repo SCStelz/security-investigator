@@ -1,6 +1,6 @@
 ---
 name: detection-authoring
-description: "Create, deploy, update, and manage custom detection rules in Microsoft Defender XDR via the Graph API (/beta/security/rules/detectionRules). Covers query adaptation from Sentinel KQL to custom detection format, deployment via PowerShell (Invoke-MgGraphRequest), manifest-driven batch deployment, and lifecycle management (list, enable/disable, delete). Companion script: Deploy-CustomDetections.ps1."
+description: "Create, deploy, update, and manage custom detection rules in Microsoft Defender XDR via the Graph API (/beta/security/rules/detectionRules), or hand the analyst a prefilled Detection Wizard link to review and Save. Covers query adaptation from Sentinel KQL to custom detection format, deployment via PowerShell (Invoke-MgGraphRequest), manifest-driven batch deployment, wizard-link generation/validation (wizard_link.py), and lifecycle management (list, enable/disable, delete). Companion scripts: Deploy-CustomDetections.ps1, wizard_link.py."
 ---
 
 # Custom Detection Authoring — Instructions
@@ -10,12 +10,15 @@ description: "Create, deploy, update, and manage custom detection rules in Micro
 This skill deploys **custom detection rules** to Microsoft Defender XDR via the Microsoft Graph API (`/beta/security/rules/detectionRules`). It handles:
 
 - **Query adaptation** — Converting Sentinel KQL queries into custom detection format
+- **Wizard-link hand-off** — Turning a validated manifest rule into a prefilled Detection Wizard link the analyst reviews and Saves (no Graph consent, no tenant change by the agent)
 - **Single-rule deployment** — Creating one rule via Graph API
 - **Batch deployment** — Deploying multiple rules from a JSON manifest
 - **Lifecycle management** — Listing, updating, enabling/disabling, and deleting rules
 - **Validation** — Dry-run queries in Advanced Hunting before deployment
 
 **Entity Type:** Custom detection rules (Defender XDR)
+
+> **Starting from threat intelligence?** A Microsoft Perception threat-intelligence report (via `perception-extract-threat-intel`) lists TTPs with *Detection opportunity* and *Telemetry*; use a TTP row as the seed for `kql-query-authoring`, then author the rule here (manifest + [wizard link](#deployment-paths--graph-api-vs-detection-wizard-link)).
 
 > **Writing new detection queries from scratch?** This skill focuses on deploying and managing detection rules — not query creation. If you need to write detection KQL from scratch (schema validation, community examples, performance optimization), use the **kql-query-authoring** skill first with CD intent markers (say "create custom detection queries for [scenario]"). It will produce Sentinel-format queries with `cd-metadata` blocks ready for this skill to adapt and deploy.
 
@@ -28,11 +31,12 @@ This skill deploys **custom detection rules** to Microsoft Defender XDR via the 
 3. **[Naming Convention](#naming-convention)** — Standardized `displayName` format (no prefixes, no MITRE IDs, colon separators)
 4. **[API Reference](#api-reference)** — Graph API schema and field values
 4. **[Frequency & Lookback](#frequency--lookback)** — Schedule periods, lookback windows, NRT constraints
+5. **[Deployment Paths](#deployment-paths--graph-api-vs-detection-wizard-link)** — Graph API script vs prefilled Detection Wizard link
 5. **[Deployment Workflow](#deployment-workflow)** — Step-by-step process
 6. **[Batch Deployment](#batch-deployment)** — Manifest-driven multi-rule deployment
 7. **[Lifecycle Management](#lifecycle-management)** — CRUD operations
 8. **[Existing Rule Discovery](#existing-rule-discovery)** — Search Analytic Rules & Custom Detections by table, EventID, or keyword
-9. **[Known Pitfalls](#known-pitfalls)** — Lessons learned (19 pitfalls documented)
+9. **[Known Pitfalls](#known-pitfalls)** — Lessons learned (20 pitfalls documented)
 10. **[CD Metadata Contract](#cd-metadata-contract)** — Schema for query file ↔ detection skill coordination
 
 ---
@@ -69,6 +73,8 @@ Connect-MgGraph -Scopes "CustomDetection.ReadWrite.All" -NoWelcome
 
 [Deploy-CustomDetections.ps1](Deploy-CustomDetections.ps1) — PowerShell script for manifest-driven batch deployment. See [Batch Deployment](#batch-deployment).
 
+[wizard_link.py](wizard_link.py) — Python helper (stdlib only, no Graph scopes) that validates a manifest rule and builds a prefilled **Detection Wizard link**. See [Deployment Paths](#deployment-paths--graph-api-vs-detection-wizard-link).
+
 ---
 
 ## ⚠️ CRITICAL RULES — READ FIRST ⚠️
@@ -79,7 +85,7 @@ Custom detection queries have strict requirements that differ from Sentinel anal
 
 | Requirement | Detail |
 |-------------|--------|
-| **🔴 Author-only by default** | The default behavior is to **author, validate, and write the manifest only** — do NOT call the Graph API to deploy rules unless the user explicitly says "deploy", "create the rule", "push to Defender", or similar deployment-intent language. If deployment intent is ambiguous, ask before calling the API. |
+| **🔴 Author-only by default** | The default behavior is to **author, validate, and write the manifest only** — do NOT call the Graph API to deploy rules unless the user explicitly says "deploy", "create the rule", "push to Defender", or similar deployment-intent language. If deployment intent is ambiguous, ask before calling the API. Generating a **Detection Wizard link** (see [Deployment Paths](#deployment-paths--graph-api-vs-detection-wizard-link)) changes no tenant state and is allowed in author mode. |
 | **Timestamp column must be projected as-is** | The query MUST project the timestamp column **exactly as it appears in the source table** — `TimeGenerated` for Sentinel/LA tables, `Timestamp` for XDR-native tables. Do not alias one to the other (e.g., `Timestamp = TimeGenerated` causes `400 Bad Request`). See [Pitfall 1](#pitfall-1-timestamp-vs-timegenerated). |
 | **Event-unique columns (per table type)** | Required columns that uniquely identify the event differ by table family. A bare `summarize count()` or `make_set()` loses these columns and fails. `summarize` with `arg_max` IS allowed — see [Pitfall 3](#pitfall-3-summarize--allowed-only-with-row-level-output). See table below for per-type requirements. |
 | **Impacted asset identifier column** | The query must project at least one column whose name matches a valid `impactedAssets` identifier (e.g., `AccountUpn`, `DeviceName`, `DeviceId`). See [Impacted Asset Types](#impacted-asset-types) and [Pitfall 9](#pitfall-9-impactedassets-identifier-must-be-a-predefined-api-value). Queries without `project` or `summarize` typically return these columns automatically. |
@@ -393,9 +399,52 @@ For rules based entirely on Sentinel-ingested data, a custom frequency is availa
 
 ---
 
+## Deployment Paths — Graph API vs Detection Wizard Link
+
+A validated rule (manifest entry) can leave this skill by **two paths**. Pick by what the user asked for, not by habit.
+
+| | **A. Graph API (script)** | **B. Detection Wizard link** |
+|---|---|---|
+| Trigger words | "deploy", "create the rule", "push", "make it live", "batch deploy" | "author", "draft", "prepare", "give me a link", "open in the wizard", or no deployment intent stated |
+| Who creates the rule | The agent, via `Deploy-CustomDetections.ps1` / `Invoke-MgGraphRequest` | **The analyst**, by clicking Save in the Defender portal (attributed to them in audit logs) |
+| Needs | PowerShell, `Microsoft.Graph.Authentication`, `CustomDetection.ReadWrite.All`, interactive sign-in | Nothing: a browser signed in to the target tenant |
+| Tenant change by the agent | Yes (gated, see [Deployment Workflow](#deployment-workflow)) | **None** — generating a link is read-only |
+| Rules per run | Many (manifest) | **One per link** (run once per rule) |
+| Best for | Batch, CI, repeatable rollout | Single rule, review-first, environments without Graph consent, demos |
+| Failure mode | `400`/`409` learned after the POST | The wizard shows problems before Save |
+
+**Default:** when the user asked to *author/draft/prepare* a detection, finish with the manifest **and offer the wizard link**. Never deploy via Graph without deployment intent.
+
+### Wizard link commands
+
+```powershell
+python .github/skills/detection-authoring/wizard_link.py validate <manifest.json> [--index N]
+python .github/skills/detection-authoring/wizard_link.py from-manifest <manifest.json> --index N --out-dir temp/wizard_links
+python .github/skills/detection-authoring/wizard_link.py selftest
+```
+
+- `validate` ports the deploy script's pre-flight checks (non-empty `impactedAssets`, case-sensitive identifier enum, ≤ 3 unique `{{Column}}` across title + description, schedule/severity/category enums, no `responseActions`, NRT query rules) so **no link is produced for a rule the API would reject**.
+- `from-manifest` reads the **same manifest** as `Deploy-CustomDetections.ps1` (no second format), refuses rules that fail validation, prints what it could **not** carry, and writes `<slug>.txt` (the link) and `<slug>.rule.json`. `?tid=` defaults to `tenant_id` from `config.json`.
+- Link format: `https://security.microsoft.com/v2/custom_detection?tid=<tenant>#customDetectionRule=<base64url(gzip(JSON))>`. The fragment is client-side only (never sent to a server).
+
+**🔴 Never type, retype or paste a wizard token yourself.** It is 1–3 KB of base64; one altered character silently breaks the link. Generate it with the helper, write it to a file, and put it in Markdown with a placeholder: write `{{WIZARD_LINK}}` where the link belongs, then run `wizard_link.py insert <report.md> --link-file <link.txt>` and `wizard_link.py verify <report.md> --link-file <link.txt>` (exit code 0 required). In chat, point to the saved file; show the raw link only if the user asks.
+
+### What a link carries (and does not)
+
+Carried: rule name, KQL, rule description, **alert title and alert description (including dynamic `{{Column}}` text)**, frequency (**NRT**, 1H, 3H, 12H, 24H), severity, category (tactic), MITRE techniques, recommended actions, impacted/related entities mapped from `impactedAssets` + `entityMappings`.
+**Not carried** (the helper prints a note for each): custom details, response actions (always empty by policy), entity types without a verified wizard mapping (skipped, never guessed). Rule description shows `{{Col}}` placeholders as `<Col>`; the alert description keeps them. Perception provenance keys (`source`, `reportId`, `candidateId`, `sessionId`) are **not** emitted for repo-authored rules. Use path A if a *Not carried* item matters.
+
+> **Observed, not documented.** The link format was reverse-engineered from Perception's reports. The helper fails loudly if a payload no longer decodes, and path A remains the fallback. Experiment status: see [Pitfall 20](#pitfall-20-the-detection-wizard-link-format-is-observed-not-documented).
+
+### After the analyst saves
+
+State clearly that nothing is deployed until they click Save in the portal (review the prefilled entities, schedule and alert details; the first run backfills 30 days, see [Critical Rules](#-critical-rules---read-first-)). On request, confirm the rule exists with a **read-only** `GET /beta/security/rules/detectionRules` (see [List All Rules](#list-all-rules)) and run the existing duplicate-`displayName` check.
+
+---
+
 ## Deployment Workflow
 
-> **🔴 DEPLOYMENT GATE:** Only proceed to Steps 2-3 (API calls) when the user has **explicitly requested deployment**. Trigger phrases: "deploy", "create the rule", "push", "POST it", "make it live". If the user asked to "author", "write", "create a manifest", "prepare", or "draft" a detection — stop after validation (Step 1) and manifest generation. Present the manifest JSON for review and wait for explicit deployment confirmation.
+> **🔴 DEPLOYMENT GATE:** Only proceed to Steps 2-3 (API calls) when the user has **explicitly requested deployment**. Trigger phrases: "deploy", "create the rule", "push", "POST it", "make it live". If the user asked to "author", "write", "create a manifest", "prepare", or "draft" a detection — stop after validation (Step 1) and manifest generation. Present the manifest JSON for review, **offer the [wizard link](#deployment-paths--graph-api-vs-detection-wizard-link) (it changes no tenant state, so it is allowed in author mode)**, and wait for explicit deployment confirmation before any Graph call.
 
 ### Single Rule Deployment
 
@@ -1023,6 +1072,19 @@ Invoke-MgGraphRequest -Method PATCH -Uri "/beta/security/rules/detectionRules/<i
 ```
 
 > Not an API change — `entityMappings` was always the binding; it only surfaces when auto-derivation fails on an unrecognized table.
+
+### Pitfall 20: The Detection Wizard Link Format Is Observed, Not Documented
+
+`https://security.microsoft.com/v2/custom_detection?tid=<tenant>#customDetectionRule=<token>` (token = base64url of gzip of a flat JSON rule definition) is how Microsoft Perception's Detection Authoring Agent hands out rules. It is **not a documented contract**, so it can change without notice.
+
+- **Fails loudly:** `wizard_link.py` refuses payloads that don't decode or lack `name`/`queryText`, and re-decodes every token it builds. If a link stops opening prefilled, fall back to path A and re-run `selftest`.
+- **Provenance:** never copy Perception's `source: DaaReport` / `reportId` / `candidateId` / `sessionId` into repo-authored rules. Verified: a payload without them (and without frequency keys) opens and saves. `?tid=` is optional (links without it also opened).
+- **Size:** Perception links are 1.5–3 KB; a ~14 KB link was verified to open and save (lab tenant, 2026-11-19), so the helper warns above 14,000 characters (`MAX_URL_CHARS`) and recommends path A.
+- **Verified in the wizard (lab tenant, 2026-11-19):** minimal payload without provenance keys; frequencies 1H/3H/12H/24H (`frequencyInMinutes` + `intervalHours`); **NRT = `frequencyInMinutes: 0` and `intervalHours: 0`** (a `schedule: "0"` key is ignored and defaults to hourly); **dynamic alert text uses `alertTitle` / `alertDescription`** (plain `title` / `description` keys are ignored and the alert title defaults to the rule name); links up to ~14 KB. The wizard may also *recommend* NRT for a query it considers well optimized; that is only a suggestion. **NRT + `let` (E-NRT, 2026-11-20):** a link with `frequencyInMinutes: 0` / `intervalHours: 0` **and a `let` query silently opens as "Every hour"** (no error; it saves as an hourly rule), and a link with the frequency keys omitted also opens hourly. Only the same rule with the `let` inlined opened as NRT. So a Perception candidate that is NRT in intent but uses `let` (and omits the frequency keys) will not be NRT in the wizard: inline the `let` values and add the 0/0 keys, or accept hourly and say so.
+- **Still unverified** (kept as data at the top of `wizard_link.py`): `User.Name` / `User.NTDomain`, `Mailbox.DisplayName`, and entity types beyond IP / URL / MailMessage / CloudApplication. The helper notes them at generation time and skips unmapped ones, never guessing.
+- **Run the KQL in Advanced Hunting first.** A query with a bad column (or one that otherwise does not compile) still opens the wizard, but its **Alert settings page shows "Supported entities could not be loaded"** and no entity mapping, which looks like a link-format failure but is not. (Seen in testing when a column that is not in the table was projected.) Verify every projected column against the table schema before generating the link.
+- **Verified end to end** (manifest → `from-manifest` → wizard → Save): a 12-hour mailbox rule (`MailboxPrimaryAddress` = `RecipientEmailAddress`), and an NRT rule with dynamic alert text and entities Device (`HostName`, `DeviceId`), User (`UPN`) and related-evidence IP (`Address`), each mapped to the right query column.
+- **One rule per link;** use the manifest + Graph script for batches.
 
 ---
 

@@ -16,7 +16,74 @@ export const DOMAIN_ICONS = {
     admin: "🔑",
     cloud: "☁️",
     exposure: "🛡️",
+    perception: "🧠",
 };
+
+// Per-skill card UI metadata: an entity placeholder matching what the skill
+// actually takes (the default hint is UPN / IP / device / incident #, which is
+// wrong for an article or session). Keeping it here means a new skill with an
+// unusual entity needs one entry, not UI code.
+const SKILL_UI = {
+    "perception-investigate-attack": { portal: { playbook: 'Investigate attack', desc: 'Prepare a detailed report about an attack. This playbook outlines the full attack story, providing timelines, attack techniques, indicators, and affected assets.' }, entityHint: "incident # (Defender XDR incident ID)…" },
+    "perception-triage-alert": { portal: { playbook: 'Triage alert', desc: 'Validate an alert for false positives, so real threats get further attention. This playbook returns a verdict with supporting evidence.' }, entityHint: "Defender alert ID or alert link…" },
+    "perception-protect-against-threat": { portal: { playbook: 'Protect against a threat', desc: 'Gather threat intelligence and map possible attack paths. This playbook provides prioritized posture fixes and new custom detections.' }, entityHint: "article ID + title, or article URL…" },
+    "perception-tune-detection": { portal: { playbook: 'Detection reports (no playbook)', desc: 'Tunes the custom detections proposed by an existing Protect against a threat or Detect emerging threats session; starts no session.' }, entityHint: "Perception session ID or article…" },
+    "perception-extract-threat-intel": { portal: { playbook: 'Extract threat intelligence', desc: 'Extract threats, indicators, and next steps from a Microsoft threat article.' }, entityHint: "threat topic, article title, article URL, or portal link (or tick recent articles)…" },
+};
+
+// Microsoft Perception bills per agent outcome (USD), separately from the
+// GitHub Copilot AI credits the Costing tab tracks. Ranges are a snapshot of the
+// Defender portal's Perception "Estimate Costs" page — Microsoft states they are
+// not a quote and actual costs may be higher. Update this table when the page changes.
+export const PERCEPTION_PRICE_SNAPSHOT = "2026-11-19";
+const PERCEPTION_UNIT_COSTS = {
+    investigation: { label: "Investigation completed (Attack Investigation Agent)", low: 2.69, high: 18.82 },
+    triage: { label: "Alert triaged (Triage Agent)", low: 0.33, high: 0.44 },
+    ti: { label: "Threat intelligence report", low: 3.89, high: 6.8 },
+    recon: { label: "Reconnaissance report", low: 87.5, high: 325.0 },
+    detection: { label: "Detection report", low: 63.0, high: 95.37 },
+    posture: { label: "Posture report", low: 55.0, high: 99.64 },
+};
+const PROTECT_PARTS = ["ti", "recon", "detection", "posture"];
+const sumCost = (keys, f) => keys.reduce((a, k) => a + PERCEPTION_UNIT_COSTS[k][f], 0);
+const usd = (n) => "$" + n.toFixed(2);
+
+/** Per-skill Perception cost badge. low/high are USD (formatted client-side into the active AIC / currency display), approx adds "~", note is the chip suffix, tip the tooltip. */
+const PERCEPTION_COST_BADGES = {
+    "perception-investigate-attack": {
+        low: 0, high: PERCEPTION_UNIT_COSTS.investigation.high, approx: false, note: "reuse free · new run opt-in",
+        tip: `Reusing an existing session costs $0 on the Perception side. A NEW investigate-incident run (explicit confirmation only) is estimated at ${usd(PERCEPTION_UNIT_COSTS.investigation.low)}–${usd(PERCEPTION_UNIT_COSTS.investigation.high)} per investigation. Not a quote — actual cost may be higher. Snapshot ${PERCEPTION_PRICE_SNAPSHOT}. Separate from the ⚡ Copilot AI credits. The badge converts USD at 1 AIC = $0.01 / the display-only FX rates.`,
+    },
+    "perception-triage-alert": {
+        low: 0, high: PERCEPTION_UNIT_COSTS.triage.high, approx: false, note: "reuse free · new run opt-in",
+        tip: `Reusing an existing Perception triage session costs $0 on the Perception side. A NEW Triage alert run (explicit confirmation only) is estimated at ${usd(PERCEPTION_UNIT_COSTS.triage.low)}–${usd(PERCEPTION_UNIT_COSTS.triage.high)} per alert (~4 min). Only a documented subset of alert types is supported; the skill warns when an alert is not on the list. Not a quote — actual cost may be higher. Snapshot ${PERCEPTION_PRICE_SNAPSHOT}. Separate from the ⚡ Copilot AI credits.`,
+    },
+    "perception-protect-against-threat": {
+        low: 0, high: Math.round(sumCost(PROTECT_PARTS, "high")), approx: false, note: "reuse free · new run opt-in",
+        tip: `Reusing a finished session costs $0 on the Perception side. A NEW proactive-protection run (explicit confirmation only; 4 agents, one report each) is estimated at ≈ ${usd(sumCost(PROTECT_PARTS, "low"))}–${usd(sumCost(PROTECT_PARTS, "high"))}: ` +
+            PROTECT_PARTS.map((k) => `${PERCEPTION_UNIT_COSTS[k].label} ${usd(PERCEPTION_UNIT_COSTS[k].low)}–${usd(PERCEPTION_UNIT_COSTS[k].high)}`).join("; ") +
+            `. Recon is the largest share. Not a quote — actual cost may be higher. Snapshot ${PERCEPTION_PRICE_SNAPSHOT}. Separate from the ⚡ Copilot AI credits. The badge converts USD at 1 AIC = $0.01 / the display-only FX rates.`,
+    },
+    "perception-extract-threat-intel": {
+        low: 0, high: PERCEPTION_UNIT_COSTS.ti.high, approx: false, note: "reuse free · new run opt-in",
+        tip: `Reads threat-intelligence reports Perception has already produced: no Perception charge. A NEW analyze-article run for an article or URL not yet analyzed (explicit confirmation only) is estimated at ${usd(PERCEPTION_UNIT_COSTS.ti.low)}–${usd(PERCEPTION_UNIT_COSTS.ti.high)} (~4 min); a free-form URL is best-effort and may return an empty report. Not a quote. Snapshot ${PERCEPTION_PRICE_SNAPSHOT}. Separate from the ⚡ Copilot AI credits.`,
+    },
+    "perception-tune-detection": {
+        low: 0, high: 0, approx: false, note: "reuses runs",
+        tip: "This skill never starts a Perception session: it reads a finished Protect against a threat or Detect emerging threats session, so there is no Perception charge. Its Copilot AI credits are still tracked (⚡).",
+    },
+};
+
+/** Skills that must always be a human click: never chased by autopilot. Perception
+ * sessions consume agent capacity and run for up to an hour, so a recommendation
+ * from a finding must not launch one unattended. */
+export const NO_AUTOPILOT = new Set([
+    "perception-investigate-attack",
+    "perception-protect-against-threat",
+    "perception-tune-detection",
+    "perception-extract-threat-intel",
+    "perception-triage-alert",
+]);
 
 // Skills that have no canned prompt in the manifest but are still worth
 // surfacing as launchable cards. Maps skill name -> friendly card metadata.
@@ -55,6 +122,10 @@ const HIDDEN_SKILLS = new Set([
 // single source of truth — the UI reads `fleet` off each skill, and composePrompt
 // substitutes the phrase, so the two never drift.
 const FLEET_SCOPE = {
+    "perception-extract-threat-intel": {
+        label: "recent articles",
+        phrase: "recent articles. List the threat-intelligence articles Perception already analyzed (title, latest run, who ran it, report available) and let me pick one",
+    },
     "scope-drift-detection-device": {
         label: "all devices",
         phrase: "the entire device fleet — analyze every device, rank by drift score, and surface the highest-drift outliers",
@@ -75,6 +146,11 @@ export function fleetScope(name) {
  * Each skill: { name, path, domains[], prompt? }.
  * Each query: { title, path, domains[], mitre[] }.
  */
+/** PyYAML single-quotes any scalar containing ": "; strip that quoting so prompts reach chat without literal quotes. */
+function unquoteYaml(val) {
+    return val.length >= 2 && val.startsWith("'") && val.endsWith("'") ? val.slice(1, -1).replaceAll("''", "'") : val;
+}
+
 export function parseManifest(text) {
     const lines = text.split(/\r?\n/);
     const result = { skills: [], queries: [] };
@@ -124,7 +200,7 @@ export function parseManifest(text) {
                 listKey = key;
                 current[key] = current[key] || [];
             } else {
-                current[key] = val;
+                current[key] = unquoteYaml(val);
                 listKey = null;
             }
         }
@@ -423,6 +499,9 @@ export async function loadCanvasData(repoRoot) {
             prompt: s.prompt || null,
             hasEntity: needsEntity(s),
             fleet: FLEET_SCOPE[s.name] ? { label: FLEET_SCOPE[s.name].label } : null,
+            entityHint: (SKILL_UI[s.name] && SKILL_UI[s.name].entityHint) || "",
+            portal: (SKILL_UI[s.name] && SKILL_UI[s.name].portal) || null,
+            perceptionCost: PERCEPTION_COST_BADGES[s.name] || null,
             launchPrompt: composePrompt(s, ""),
             // Query count per domain overlap for a light "coverage" signal.
         }))

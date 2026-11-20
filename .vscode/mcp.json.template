@@ -10,6 +10,7 @@
   //   - Sentinel Data Lake, Graph, Triage: Browser-based Azure AD login
   //   - KQL Search: GitHub PAT with public_repo scope
   //   - Microsoft Learn: No authentication required
+  //   - Perception (optional): Browser-based Microsoft Entra login
   // ============================================================
 
   "inputs": [
@@ -77,6 +78,18 @@
     "microsoft-learn": {
       "type": "http",
       "url": "https://learn.microsoft.com/api/mcp"
+    },
+
+    // ── Optional MCP Server ────────────────────────────────────
+
+    // 6. Microsoft Perception — agentic security in the Defender portal (playbooks, sessions, reports).
+    //    Used only by the perception-* skills; delete this entry if you don't use them.
+    //    Prerequisites: Perception enabled in the tenant (Limited Public Preview, invitation-only),
+    //    Defender URBAC, Security Reader role or higher. Sign in when prompted, then reload MCP servers.
+    //    Docs: https://learn.microsoft.com/en-us/security/agentic-security/agentic-security-mcp
+    "perception-mcp": {
+      "type": "http",
+      "url": "https://perception.microsoft.com/mcp"
     },
 
     // ── MCP Apps: Local Custom Servers ────────────────────────

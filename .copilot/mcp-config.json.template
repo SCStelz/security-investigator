@@ -30,6 +30,11 @@
       "type": "http",
       "url": "https://learn.microsoft.com/api/mcp"
     },
+    "perception-mcp": {
+      "tools": ["*"],
+      "type": "http",
+      "url": "https://perception.microsoft.com/mcp"
+    },
     "azure-mcp-server": {
       "tools": ["*"],
       "type": "stdio",

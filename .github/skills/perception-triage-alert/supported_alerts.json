@@ -1,0 +1,97 @@
+{
+ "source": "https://learn.microsoft.com/en-us/security/agentic-security/triage-agent#supported-alerts",
+ "snapshotDate": "2026-11-20",
+ "categories": {
+  "Email and collaboration alerts, including phishing": {
+   "scope": "",
+   "alerts": [
+    "Email reported by user as malware or phish"
+   ]
+  },
+  "Cloud alerts, including containers": {
+   "scope": "View all cloud alerts",
+   "alerts": [
+    "Potential Backdoor Utilities or Proxy Binaries Detected",
+    "Potential backdoor installations from running processes",
+    "Possible executable detected in a command line, encoded in Base64",
+    "Potential base64 encoded shell script execution",
+    "Unusual access to Bash profile file",
+    "SSH server is running inside a container",
+    "Suspicious Cron operations in command line detected",
+    "Process associated with digital currency mining detected",
+    "Possible Cryptocoinminer download detected",
+    "Kubernetes crypto-miner process kills detected",
+    "Possible access to a cryptocurrency mining pool detected",
+    "Digital currency mining related behavior detected",
+    "Possible web service exploitation by using path traversal",
+    "Detected possible disabling of security tools",
+    "Blocked binary drift executing in the container",
+    "A drift binary detected executing in the container",
+    "Suspicious file attribute changes using chattr detected",
+    "Docker build operation detected on a Kubernetes node",
+    "Access to cloud metadata service detected",
+    "Possible Impairing of Command History Logging",
+    "Possible attack tool detected",
+    "Possible credential access tool detected",
+    "Access to kubelet kubeconfig file detected",
+    "Attempt to create a new Linux namespace from a container detected",
+    "Network Scanning Tool Detected",
+    "Account added to sudo group",
+    "Usage of OAST domain detected",
+    "Kubernetes penetration testing tool detected",
+    "Possible exploitation of java based program has been detected",
+    "Command within a container running with high privileges",
+    "Suspicious Proxyware or Traffic monetizers detected in command line",
+    "Potential React2Shell command injection detected",
+    "Unusual access to bash history file",
+    "Potential reverse shell detected",
+    "Possible Secret Reconnaissance Detected",
+    "Detected possible tampering of security configurations",
+    "Detected suspicious termination of security process",
+    "Sensitive Files Access Detected",
+    "Sha1-Hulud Campaign Detected: Possible command injection to exfiltrate credentials",
+    "Process seen accessing the SSH authorized keys file in an unusual way",
+    "An uncommon connection attempt detected",
+    "Detected file download from a known malicious source",
+    "Suspicious PHP execution detected",
+    "Potential port forwarding to external IP address",
+    "Process Invocation By a DB Process Detected",
+    "Suspicious Netcat activity detected on a Kubernetes node",
+    "Possible Log Tampering Activity Detected",
+    "Suspicious file timestamp modification",
+    "Possible malicious web shell detected",
+    "Suspicious request to Kubernetes API",
+    "Possible Web Shell Activity Detected",
+    "Suspicious access to workload identity token or service account token detected",
+    "Permissions to run a binary from a suspicious folder has been granted after download",
+    "A command line executed within a container contains a suspicious DNS",
+    "A command line executed within a container contains a suspicious IP address",
+    "Microsoft Defender for Cloud Kubernetes Malware execution detected",
+    "Microsoft Defender for Cloud Kubernetes Malware execution blocked"
+   ]
+  },
+  "Identity alerts": {
+   "scope": "View all identity alerts",
+   "alerts": [
+    "Password spray",
+    "Possible BEC-related inbox rule",
+    "Account compromised following a password-spray attack"
+   ]
+  },
+  "Endpoint alerts": {
+   "scope": "",
+   "alerts": [
+    "Suspicious PowerShell command line"
+   ]
+  },
+  "Cloud App alerts": {
+   "scope": "View all Microsoft Defender for Cloud Apps alerts",
+   "alerts": [
+    "Suspicious OAuth app registration",
+    "Suspicious OAuth app registered through Azure CLI or PowerShell",
+    "Malicious OAuth application added by a compromised user",
+    "Suspicious OAuth app-related activity by a compromised user"
+   ]
+  }
+ }
+}

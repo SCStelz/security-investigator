@@ -1,6 +1,6 @@
 # 🔒 Security Investigation Automation System
 
-**Comprehensive, automated security investigations powered by Microsoft Sentinel, Defender XDR, Graph API, and threat intelligence — with 25 specialized Agent Skills**
+**Comprehensive, automated security investigations powered by Microsoft Sentinel, Defender XDR, Graph API, and threat intelligence — with 33 specialized Agent Skills**
 
 > 🎛️ **Walkthrough using GitHub Copilot (15 min):** See the new Mission Control canvas app in action — [Watch on LinkedIn](https://lnkd.in/p/gm4yB-9Y). A guided tour of the launchable skills dashboard: filter investigation skills by domain, search, and one-click launch skills or route an entity to the right investigation.
 
@@ -48,12 +48,12 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 "Investigate user@domain.com for the last 7 days"    → user-investigation
 "Analyze incident 12345"                              → incident-investigation
 "Is this IP malicious? 203.0.113.42"                  → ioc-investigation
-"What skills do you have access to?"                  → lists all 25 skills
+"What skills do you have access to?"                  → lists all 33 skills
 ```
 
 **For detailed workflows and KQL queries:**
 → [.github/copilot-instructions.md](.github/copilot-instructions.md) (universal patterns, skill detection)
-→ [.github/skills/](.github/skills/) (25 specialized investigation workflows)
+→ [.github/skills/](.github/skills/) (33 specialized investigation workflows)
 → [queries/](queries/) (verified KQL query library)
 
 ---
@@ -68,7 +68,7 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 │            (Skill detection, universal patterns, routing)          │
 ├────────────────────────────────────────────────────────────────────┤
 │                     .github/skills/*.md                            │
-│       (25 specialized workflows with KQL, risk assessment)         │
+│       (33 specialized workflows with KQL, risk assessment)         │
 ├────────────────────────────────────────────────────────────────────┤
 │                     MCP Servers (Platform)                         │
 │  ┌─────────────┐  ┌──────────────┐  ┌───────────────────────────┐  │
@@ -79,10 +79,10 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 │  │ KQL Search  │  │ Microsoft    │  │ Azure MCP Server          │  │
 │  │ (Schema)    │  │ Learn (Docs) │  │ (ARM + Monitor)           │  │
 │  └─────────────┘  └──────────────┘  └───────────────────────────┘  │
-│  ┌─────────────┐                                                   │
-│  │ Sentinel    │                                                   │
-│  │ Graph (Rel) │                                                   │
-│  └─────────────┘                                                   │
+│  ┌─────────────┐  ┌──────────────┐                                 │
+│  │ Sentinel    │  │ Perception   │                                 │
+│  │ Graph (Rel) │  │ (optional)   │                                 │
+│  └─────────────┘  └──────────────┘                                 │
 ├────────────────────────────────────────────────────────────────────┤
 │               MCP Apps (Local Custom Servers)                      │
 │  ┌─────────────┐  ┌──────────────┐  ┌───────────────────────────┐  │
@@ -96,8 +96,8 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 ```
 
 **Key Components:**
-- **25 Agent Skills** — Modular investigation workflows for incidents, users, devices, IoCs, authentication, scope drift (SPN/User/Device), MCP monitoring, exposure management, AI agent posture, app registration posture, identity posture, data security analysis, email threat posture, MITRE ATT&CK coverage, ingestion analysis, detection authoring, threat pulse scanning, SVG dashboards, and more
-- **6 MCP Server Integrations** — Sentinel Data Lake (incl. Exposure Graph tools), Graph API, Defender XDR Triage, KQL Search, Microsoft Learn, Azure MCP Server
+- **33 Agent Skills** — Modular investigation workflows for incidents, users, devices, IoCs, authentication, scope drift (SPN/User/Device), MCP monitoring, exposure management, AI agent posture and runtime activity, app registration posture, identity posture, data security analysis, email threat posture, MITRE ATT&CK coverage, ingestion analysis, detection authoring, threat pulse scanning, threat-intel hunting campaigns, tenant-context memory review, SVG dashboards, optional Microsoft Perception skills (threat intel, protection, attack investigation, alert triage, detection tuning), and more
+- **7 MCP Server Integrations** — Sentinel Data Lake (incl. Exposure Graph tools), Graph API, Defender XDR Triage, KQL Search, Microsoft Learn, Azure MCP Server, and the optional Microsoft Perception MCP
 - **3 Local MCP Apps** — Interactive heatmaps, geographic attack maps, incident commenting
 - **Python Utilities** — HTML report generation with IP enrichment (geolocation, VPN detection, abuse scores, Shodan port/service/CVE intelligence)
 
@@ -107,7 +107,7 @@ copy .vscode\mcp.json.template .vscode\mcp.json
 
 This system uses **[VS Code Agent Skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills)** to provide modular, domain-specific investigation workflows. Skills are automatically detected based on keywords in your prompts.
 
-### Available Skills (25)
+### Available Skills (33)
 
 | Category | Skill | Description | Trigger Keywords |
 |----------|-------|-------------|------------------|
@@ -124,6 +124,7 @@ This system uses **[VS Code Agent Skills](https://code.visualstudio.com/docs/cop
 | 📈 Behavioral Analysis | **[scope-drift-detection/user](/.github/skills/scope-drift-detection/user/SKILL.md)** | User scope drift: 90-day baseline vs 7-day comparison, dual Drift Scores (7-dim interactive + 6-dim non-interactive), correlated with AuditLogs, SecurityAlert, Identity Protection, CloudAppEvents, EmailEvents | "user drift", "user scope drift", "user behavioral change", "UPN drift" |
 | 🛡️ Posture & Exposure | **[exposure-investigation](/.github/skills/exposure-investigation/SKILL.md)** | Vulnerability & Exposure Management reporting: CVE assessment with exploit/CVSS data, security configuration compliance, end-of-support software, ExposureGraph critical assets, attack paths, Defender health, certificate status | "vulnerability report", "exposure report", "CVE assessment", "security posture", "TVM" |
 | 🛡️ Posture & Exposure | **[ai-agent-posture](/.github/skills/ai-agent-posture/SKILL.md)** | AI agent security posture audit for Copilot Studio and M365 Copilot agents: agent inventory, authentication gaps, access control misconfigurations, MCP tool proliferation, knowledge source exposure, XPIA risk, credential detection, Agent Security Score | "AI agent posture", "agent security audit", "Copilot Studio agents", "agent inventory", "unauthenticated agents", "agent sprawl" |
+| 🛡️ Posture & Exposure | **[ai-agent-activity](/.github/skills/ai-agent-activity/SKILL.md)** | AI agent **runtime** activity (the runtime companion to `ai-agent-posture`) for Agent 365, Copilot Studio, M365 Copilot and Work IQ: agents used, tools/connectors invoked, users and channels, token usage, prompt/reply content, and Prompt Shield jailbreak / XPIA verdicts. Auto-detects the available data planes (`UnifiedAgentObservability` in the Data Lake, `CloudAppEvents`, `CopilotActivity`); tenant-wide, single-agent or single-user scope | "agent activity", "AI agent usage", "who is using agents", "agent runtime", "agent tool usage", "jailbreak activity", "Agent 365 activity", "UnifiedAgentObservability" |
 | 🛡️ Posture & Exposure | **[app-registration-posture](/.github/skills/app-registration-posture/SKILL.md)** | App registration and service principal security posture: Graph API permission inventory (dangerous grants, permission concentration), app ownership risk, credential hygiene (stale secrets, multi-credential apps), cross-tenant SPN exposure, KQL attack chain detection (AuditLogs, AADServicePrincipalSignInLogs, MicrosoftGraphActivityLogs), App Permission Risk Score with 5 dimensions | "app registration posture", "app registration abuse", "service principal permissions", "dangerous app permissions", "app ownership", "overprivileged apps" |
 | 🛡️ Posture & Exposure | **[email-threat-posture](/.github/skills/email-threat-posture/SKILL.md)** | Email threat protection posture report for Microsoft Defender for Office 365: inbound mail flow overview, threat composition (phishing/spam/malware), email authentication (DMARC/DKIM/SPF/CompAuth), ZAP post-delivery remediation, Safe Links click protection, attachment analysis, detection method breakdown, MDO security incidents, Email Protection Score with 5 dimensions. Inline chat, markdown file, and SVG dashboard output | "email threat report", "email security posture", "phishing report", "MDO report", "Defender for Office 365 report", "ZAP effectiveness", "Safe Links report", "DMARC report" |
 | 🛡️ Posture & Exposure | **[identity-posture](/.github/skills/identity-posture/SKILL.md)** | Identity security posture report using IdentityAccountInfo (MDI/Advanced Hunting): multi-provider account inventory (Entra ID, AD, Okta, SailPoint, CyberArk, Ping), privileged account audit with role distribution, stale/disabled/deleted account hygiene, password posture, risk distribution, multi-provider identity linking, MDI tag analysis, Identity Posture Score with 5 dimensions. Inline chat and markdown file output | "identity posture", "identity security report", "account hygiene", "stale accounts", "privileged accounts", "password posture", "identity providers", "honeytoken" |
@@ -131,11 +132,18 @@ This system uses **[VS Code Agent Skills](https://code.visualstudio.com/docs/cop
 | 📊 Visualization | **[geomap-visualization](/.github/skills/geomap-visualization/SKILL.md)** | Interactive world map visualization for Sentinel data: attack origin maps, geographic threat distribution, IP geolocation with enrichment drill-down | "geomap", "world map", "geographic", "attack map", "attack origins" |
 | 📊 Visualization | **[heatmap-visualization](/.github/skills/heatmap-visualization/SKILL.md)** | Interactive heatmap visualization for Sentinel data: attack patterns by time, activity grids, IP vs hour matrices, threat intel drill-down | "heatmap", "show heatmap", "visualize patterns", "activity grid" |
 | 📊 Visualization | **[svg-dashboard](/.github/skills/svg-dashboard/SKILL.md)** | SVG data visualization dashboards: dual-mode renderer supporting manifest-driven structured dashboards (from skill reports) and freeform adaptive visualizations from ad-hoc investigation data. 14-widget component library | "generate SVG dashboard", "create a visual dashboard", "visualize this report", "SVG from this data" |
-| 🔧 Tooling & Monitoring | **[detection-authoring](/.github/skills/detection-authoring/SKILL.md)** | Create, deploy, update, and manage Defender XDR custom detection rules via Graph API. Query adaptation from Sentinel KQL, manifest-driven batch deployment via PowerShell, lifecycle management | "create custom detection", "deploy detection", "detection rule", "custom detection", "deploy rule", "batch deploy" |
+| 🔧 Tooling & Monitoring | **[detection-authoring](/.github/skills/detection-authoring/SKILL.md)** | Create, deploy, update, and manage Defender XDR custom detection rules via Graph API. Query adaptation from Sentinel KQL, manifest-driven batch deployment via PowerShell, lifecycle management. Can instead hand you a prefilled **Detection Wizard link** to review and save yourself (`wizard_link.py`) | "create custom detection", "deploy detection", "detection rule", "custom detection", "deploy rule", "batch deploy", "wizard link" |
 | 🔧 Tooling & Monitoring | **[kql-query-authoring](/.github/skills/kql-query-authoring/SKILL.md)** | KQL query creation using schema validation, community examples, Microsoft Learn | "write KQL", "create KQL query", "help with KQL", "query [table]" |
 | 🔧 Tooling & Monitoring | **[mcp-usage-monitoring](/.github/skills/mcp-usage-monitoring/SKILL.md)** | MCP server usage monitoring and audit: Graph MCP endpoint analysis, Sentinel MCP auth events, Azure MCP ARM operations, workspace query governance, MCP Usage Score with 5 health/risk dimensions | "MCP usage", "MCP server monitoring", "MCP activity", "MCP audit", "Graph MCP", "Sentinel MCP", "Azure MCP" |
 | 🔧 Tooling & Monitoring | **[sentinel-ingestion-report](/.github/skills/sentinel-ingestion-report/SKILL.md)** | Sentinel workspace ingestion & cost analysis: table-level volume breakdown, tier classification (Analytics/Basic/Data Lake), SecurityEvent/Syslog/CommonSecurityLog deep dives, ingestion anomaly detection, analytic rule inventory via REST API, custom detection inventory via Graph API, rule health via SentinelHealth, data lake tier migration candidates, license benefit analysis (DfS P2, M365 E5) | "ingestion report", "usage report", "data volume", "cost analysis", "table breakdown", "data lake tier", "ingestion anomaly", "cost optimization" |
 | 🔧 Tooling & Monitoring | **[mitre-coverage-report](/.github/skills/mitre-coverage-report/SKILL.md)** | MITRE ATT&CK coverage analysis: YAML-driven PowerShell pipeline gathers analytic rule MITRE tags, custom detection techniques, SOC Optimization recommendations, alert/incident operational data. Tactic-level coverage matrix, technique-level drill-down with rule mapping, coverage gap identification, SOC Optimization threat scenario alignment, untagged rule remediation, MITRE Coverage Score (5 weighted dimensions). Inline chat and markdown file output | "MITRE coverage", "ATT&CK coverage", "MITRE report", "tactic coverage", "technique coverage", "coverage gaps", "MITRE score", "detection coverage report", "MITRE matrix" |
+| 🔧 Tooling & Monitoring | **[threat-intel-campaign](/.github/skills/threat-intel-campaign/SKILL.md)** | Turns a published threat-intelligence article into a **tested hunting campaign**: reads a platform-agnostic RSS/Atom feed (or a single article URL), applies a huntability relevance gate, writes/tests/tunes KQL hunts and publishes them as a campaign file under `queries/threat-intelligence/YYYY-MM/`. Side-effect-free (no git commits or PRs); used by the weekly automation | "threat intel campaign", "ingest threat intelligence", "TI feed", "write hunts from this article", "threat intelligence blog", "build a hunting campaign" |
+| 🔧 Tooling & Monitoring | **[context-memory-review](/.github/skills/context-memory-review/SKILL.md)** | Weekly, **propose-only** review of your tenant-context memory file against recent SOC scan reports (e.g. Threat Pulse) and the Mission Control findings log. Surfaces candidate ADD / MODIFY / FLAG changes for human approval; never edits the context file, commits or opens a PR (see [Persistent Tenant Context](#-optional-persistent-tenant-context)) | "review my context file", "review tenant context", "propose context updates", "compact findings to memory" |
+| 🧠 Perception (optional) | **[perception-extract-threat-intel](/.github/skills/perception-extract-threat-intel/SKILL.md)** | Find and read threat-intelligence reports Microsoft Perception **already produced** (free): recent articles, topic search ("has anything on LiteLLM been analyzed?"), TTPs with detection opportunities, indicators, threat-intel-platform gaps, hunting queries. Optionally verifies the hunting queries in your tenant, hands TTPs to detection authoring, and — only after an explicit yes, with the cost shown — starts a new *Extract threat intelligence* run for an article or URL | "perception threat intel", "has perception analyzed", "analyze this article with perception", "analyzed threat intelligence articles" |
+| 🧠 Perception (optional) | **[perception-protect-against-threat](/.github/skills/perception-protect-against-threat/SKILL.md)** | "Are we protected against threat X?" — reuses (or, on confirmation, runs) Perception's *Protect against a threat* playbook: threat intel, tenant-aware detection proposals (ready to deploy / requires tuning), recon scope and ranked posture priorities, then verifies against your tenant. Hands detections that need tuning to `perception-tune-detection` | "perception protect against a threat", "protect against this threat with perception", "perception detections for article" |
+| 🧠 Perception (optional) | **[perception-investigate-attack](/.github/skills/perception-investigate-attack/SKILL.md)** | Reuse or start Perception's *Investigate attack* playbook for a Defender incident: attack story, timeline, techniques, indicators, affected assets. Compares with this repo's own incident investigation and validates the run (a finished session is not necessarily a useful one) | "perception investigate incident", "ask perception about incident" |
+| 🧠 Perception (optional) | **[perception-triage-alert](/.github/skills/perception-triage-alert/SKILL.md)** | Triage a Defender alert with Perception's *Triage Alert* playbook: checks the alert type against Microsoft's documented (growing) supported list and warns instead of refusing, reuses an existing triage session (manual or automatic) or, only after an explicit yes with the cost shown, starts one. A `Not set` classification is treated as inconclusive, and the verdict is shown next to Defender's current classification with disagreements flagged for a human. Never changes the alert | "perception triage alert", "triage this alert with perception", "did perception triage this alert", "perception alert verdict" |
+| 🧠 Perception (optional) | **[perception-tune-detection](/.github/skills/perception-tune-detection/SKILL.md)** | Human-in-the-loop tuning of detections proposed by an existing Perception session (Protect against a threat or Detect emerging threats): replays the KQL against your tenant history, slices the noise, tunes with your approval, proves the result, and re-encodes a verified **Detection Wizard link**. Never deploys | "tune perception detection", "requires tuning", "perception detection noisy", "re-encode wizard link" |
 
 ### How Skills Work
 
@@ -172,6 +180,14 @@ You don't need to mention the skill name — keywords are detected automatically
 | "Generate a MITRE ATT&CK coverage report" | mitre-coverage-report |
 | "Run a threat pulse scan" | threat-pulse |
 | "Audit our app registration security posture" | app-registration-posture |
+| "Who is using AI agents, and were there any jailbreak attempts?" | ai-agent-activity |
+| "Build a hunting campaign from this threat intel article: <URL>" | threat-intel-campaign |
+| "Review my tenant context file against recent scans" | context-memory-review |
+| "Has Perception analyzed anything on LiteLLM?" | perception-extract-threat-intel |
+| "Use Perception to see if we're protected against LiteLLM attacks" | perception-protect-against-threat |
+| "Ask Perception to investigate incident 12345" | perception-investigate-attack |
+| "Did Perception triage this alert, and is it a false positive?" | perception-triage-alert |
+| "Tune the detections from that Perception session" | perception-tune-detection |
 
 ### Follow-ups and Chaining
 
@@ -215,6 +231,34 @@ Ad-hoc investigations naturally evolve into reusable assets. After completing an
 
 ---
 
+### 🧠 Microsoft Perception skills (optional)
+
+[Microsoft Perception](https://techcommunity.microsoft.com/blog/perception-blog/whats-new-with-microsoft-perception-at-ignite-2026/4571834) is agentic security in the Defender portal: playbooks that extract threat intelligence, propose tenant-aware detections and posture fixes, and investigate attacks. Five skills sit on top of its [MCP server](#7-microsoft-perception-mcp-server-optional). **Perception proposes; this repo verifies, tunes and hands you the result.** They need the Perception MCP (Perception is in Limited Public Preview) and stop with setup guidance if it isn't configured.
+
+| Skill | Defender portal playbook | Typical use | New run (estimate) |
+|-------|--------------------------|-------------|--------------------|
+| `perception-extract-threat-intel` | Extract threat intelligence | Find/read existing intel, search by topic, analyze a new article or URL | $0 to reuse; ≈ $3.89–$6.80 new |
+| `perception-protect-against-threat` | Protect against a threat | "Are we protected against X?": intel, detections, posture priorities | $0 to reuse; ≈ $209–$527 new |
+| `perception-investigate-attack` | Investigate attack | Attack story for a Defender incident | $0 to reuse; ≈ $2.69–$18.82 new |
+| `perception-triage-alert` | Triage alert | Verdict (true/false positive) for one Defender alert, checked against Defender's own classification | $0 to reuse; ≈ $0.33–$0.44 new |
+| `perception-tune-detection` | *(none: works on a finished session's detection report)* | Tune a proposed detection against your data | $0 (never starts a session) |
+
+*Costs are a snapshot (2026-11-19) of the Defender portal's estimate page, not a quote; actual costs can be higher and billing is not visible through the MCP.*
+
+**How they behave**
+- **Reuse before spend.** Perception sessions are often already run (and paid for) by a colleague. The skills search existing sessions first (the MCP cannot search, so a small local cache in `temp/` is built with `.github/skills/perception-shared/session_cache.py`). A new run needs an explicit yes after the cost, runtime and agent identity are shown — never from a bare keyword.
+- **Read-only playbooks only.** Active-testing playbooks (`red-web-pentest`, `find-fix-web-app-security-risks`) are refused outright; they must be launched by a human in the portal.
+- **Perception output is `[asserted]`, not `[verified]`.** Its detections are proposals. Hunting queries and indicator sweeps are re-run through this repo's KQL pre-flight against your tenant, and findings stay informational unless real tenant activity is found.
+- **Validated, not trusted.** A `succeeded` session can contain only an audit log, and a `failed/stopped` one can still hold a good report, so every candidate is checked with `list_outputs`.
+- **Nothing is deployed.** Detections leave as a prefilled **Detection Wizard link** that a person opens, reviews and saves.
+- **Traceable.** Every report opens with a clickable link to the Perception session it came from; `session_cache.py check-links <report.md>` enforces it.
+
+**Outputs** (gitignored, one subfolder per skill): `reports/perception/investigate-attack/`, `triage-alert/`, `protect-against-threat/`, `extract-threat-intel/`, `tune-detection/`. In [Mission Control](#️-mission-control-canvas-extension) the Perception cards show a 🧠 estimated-cost chip, reports open in the markdown preview (including Perception's verbatim detection reports) and tuned `.kql` files open in a built-in code viewer.
+
+Shared rules, input shapes and the session lookup/validation protocol live in [`.github/skills/perception-shared/REFERENCE.md`](.github/skills/perception-shared/REFERENCE.md).
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -235,12 +279,14 @@ security-investigator/
 │   ├── manifests/               # Auto-generated discovery indexes
 │   │   ├── discovery-manifest.yaml  # Query file + skill index (domains, MITRE, prompts)
 │   │   └── build_manifest.py        # Manifest generator script
-│   └── skills/                  # 25 Agent Skills (modular investigation workflows)
+│   └── skills/                  # 33 Agent Skills (modular investigation workflows)
+│       ├── ai-agent-activity/
 │       ├── ai-agent-posture/
 │       ├── app-registration-posture/
 │       ├── authentication-tracing/
 │       ├── ca-policy-investigation/
 │       ├── computer-investigation/
+│       ├── context-memory-review/
 │       ├── data-security-analysis/
 │       ├── detection-authoring/
 │       ├── email-threat-posture/
@@ -254,12 +300,19 @@ security-investigator/
 │       ├── kql-query-authoring/
 │       ├── mcp-usage-monitoring/
 │       ├── mitre-coverage-report/
+│       ├── perception-extract-threat-intel/   # Optional: Microsoft Perception skills
+│       ├── perception-investigate-attack/
+│       ├── perception-protect-against-threat/
+│       ├── perception-shared/                 # Shared reference + session_cache.py (not a skill)
+│       ├── perception-triage-alert/
+│       ├── perception-tune-detection/
 │       ├── scope-drift-detection/
 │       │   ├── spn/              # Service principal drift (5 dimensions)
 │       │   ├── user/             # User account drift (7+6 dimensions)
 │       │   └── device/           # Device process drift (5 dimensions)
 │       ├── sentinel-ingestion-report/
 │       ├── svg-dashboard/
+│       ├── threat-intel-campaign/
 │       ├── threat-pulse/
 │       └── user-investigation/
 ├── queries/                     # Verified KQL query library (grep-searchable, by data domain)
@@ -291,6 +344,7 @@ security-investigator/
 │   ├── honeypot/               # Honeypot executive reports
 │   ├── identity-posture/       # Identity security posture reports
 │   ├── mcp-usage/              # MCP usage monitoring reports
+│   ├── perception/             # Microsoft Perception outputs, one subfolder per perception-* skill
 │   ├── scope-drift/            # Scope drift analysis reports
 │   ├── sentinel/               # Sentinel ingestion & cost analysis reports
 │   ├── threat-pulse/           # Threat Pulse scan reports
@@ -435,6 +489,7 @@ copy .vscode/mcp.json.template .vscode/mcp.json
 The template includes inline documentation for each server. On first use, VS Code will prompt for:
 - **Entra ID login** — browser-based auth for Sentinel Data Lake, Graph, and Triage servers
 - **[GitHub PAT](https://github.com/settings/tokens/new)** — for KQL Search MCP (schema intelligence and query discovery). Needs `public_repo` scope.
+- **Entra ID login for Perception (optional)** — only if you use the `perception-*` skills. The template includes the `perception-mcp` server; delete the entry if your tenant doesn't have Perception.
 
 > **Using the GitHub Copilot app or CLI?** Use [`.copilot/mcp-config.json.template`](.copilot/mcp-config.json.template) instead — see [MCP config for the app](#mcp-config-for-the-app).
 
@@ -482,7 +537,7 @@ Just start a session and prompt:
 
 The panel opens with three tabs:
 
-- **🗂️ Skills** — every investigation skill as a launchable card. Filter by domain, search, and one-click launch — with optional fleet-wide scope and inline/markdown report toggles.
+- **🗂️ Skills** — every investigation skill as a launchable card. Filter by domain, search, and one-click launch — with optional fleet-wide scope and inline/markdown report toggles. Perception cards show a 🧠 estimated-cost chip so a billable run is never a surprise.
 - **📋 Queries** — all KQL query files, domain-filtered. Open any to read the markdown or hand it to the agent as context for a targeted hunt.
 - **📊 Findings** — when the agent finishes an investigation it records the result back into the canvas (severity, entities, evidence, and tailored one-click follow-ups). Click a severity pill to filter.
 
@@ -572,7 +627,7 @@ For **scheduled automations**, the workflow prompts in [`automations/`](automati
 
 ## 🔌 MCP Server Setup
 
-The system uses several Model Context Protocol (MCP) servers. All are **pre-configured** in [.vscode/mcp.json.template](.vscode/mcp.json.template) — copy it to `.vscode/mcp.json` to get started (see [Step 3 above](#3-configure-mcp-servers)). For the GitHub Copilot app / CLI, use [.copilot/mcp-config.json.template](.copilot/mcp-config.json.template) instead (see [MCP config for the app](#mcp-config-for-the-app)). The sections below document permissions, tools, and installation guides for each server.
+The system uses several Model Context Protocol (MCP) servers (the Perception server is optional). All are **pre-configured** in [.vscode/mcp.json.template](.vscode/mcp.json.template) — copy it to `.vscode/mcp.json` to get started (see [Step 3 above](#3-configure-mcp-servers)). For the GitHub Copilot app / CLI, use [.copilot/mcp-config.json.template](.copilot/mcp-config.json.template) instead (see [MCP config for the app](#mcp-config-for-the-app)). The sections below document permissions, tools, and installation guides for each server.
 
 ### At a Glance
 
@@ -584,6 +639,7 @@ The system uses several Model Context Protocol (MCP) servers. All are **pre-conf
 | 4 | **KQL Search** | `npx -y kql-search-mcp` (stdio) | [Setup](https://www.npmjs.com/package/kql-search-mcp) | [GitHub PAT](https://github.com/settings/tokens/new) (`public_repo`) |
 | 5 | **Microsoft Learn** | `https://learn.microsoft.com/api/mcp` | [Setup](https://github.com/MicrosoftDocs/mcp) | None (free) |
 | 6 | **Azure MCP Server** | VS Code extension (stdio) | [Setup](https://learn.microsoft.com/en-us/azure/developer/azure-mcp-server/overview) | Contributor or Reader on subscription |
+| 7 | **Microsoft Perception** *(optional)* | `https://perception.microsoft.com/mcp` | [Setup](https://learn.microsoft.com/en-us/security/agentic-security/agentic-security-mcp) | Perception enabled in tenant, Defender URBAC, Security Reader |
 
 ### 1. Microsoft Sentinel MCP Server
 
@@ -672,6 +728,18 @@ Install via VS Code extension: search "Azure MCP Server" in Extensions, or insta
 
 **Configuration:** Requires `azure_mcp` parameters in `config.json` (tenant, subscription, resource group, workspace name) to avoid cross-tenant auth errors. See [Configure Environment](#2-configure-environment).
 
+### 7. Microsoft Perception MCP Server (Optional)
+
+**📖 [Installation Guide](https://learn.microsoft.com/en-us/security/agentic-security/agentic-security-mcp)** · **Endpoint:** `https://perception.microsoft.com/mcp` (HTTP, browser-based Entra sign-in)
+
+Used only by the [`perception-*` skills](#-microsoft-perception-skills-optional). Already included in both MCP templates; delete the `perception-mcp` entry if you don't use them.
+
+**Tools (11):** `list_playbooks`, `start_session`, `list_sessions`, `get_session`, `list_agent_runs`, `get_agent_run`, `get_agent_run_messages`, `get_session_summary`, `list_outputs`, `read_output`, `stop_session`. Sessions can only be filtered by status (not searched), and reports are large, so the skills cache session metadata locally and read big outputs from saved files instead of pasting them into chat.
+
+**Prerequisites:** Perception enabled in the tenant (**Limited Public Preview**, invitation-only), Defender URBAC across all workloads, and the **Security Reader** role or higher.
+
+> Starting a Perception session consumes billable agent capacity. The skills always show the estimated cost and ask before starting anything, and never start the active-testing (pen test) playbooks.
+
 ### Verify Setup
 
 Open **Copilot Chat** (`Ctrl+Shift+I`) in **Agent mode** and try these prompts:
@@ -683,6 +751,7 @@ Open **Copilot Chat** (`Ctrl+Shift+I`) in **Agent mode** and try these prompts:
 | Sentinel Triage | `List recent security incidents` |
 | KQL Search | `What columns does the SigninLogs table have?` |
 | Microsoft Learn | `Search Microsoft docs for KQL query language` |
+| Perception (optional) | `List the Perception playbooks` |
 | All skills | `What investigation skills do you have access to?` |
 
 If any server fails, check the **MCP Servers** panel in VS Code (click the `{}` icon in the bottom status bar) to verify each server shows a green connected status.
@@ -732,6 +801,8 @@ Core packages: **requests** (HTTP client for enrichment APIs), **python-dateutil
 | **"No anomalies found"** | `Signinlogs_Anomalies_KQL_CL` table doesn't exist or has no data. See user-investigation skill docs. Wait 24h for initial population. |
 | **"IP enrichment failed"** | ipinfo.io rate limits (1K/day free). Add token to `config.json` for 50K/month. |
 | **"MCP server not available"** | Check VS Code MCP server config. Verify authentication tokens are valid. |
+| **Perception skill says the MCP isn't configured** | Add the `perception-mcp` entry from the MCP template (`https://perception.microsoft.com/mcp`), sign in, reload MCP servers. Needs Perception enabled in the tenant (Limited Public Preview) and Security Reader. |
+| **Perception session `succeeded` but no report** | Retrieval of the article failed (common with free-form URLs). The skills detect this via `list_outputs` and say so; use a Threat Analytics article (ID + exact title) or an existing session instead. |
 | **"User ID not found" (Graph)** | Verify UPN is correct. Check Graph permissions: User.Read.All. |
 | **"Sentinel query timeout"** | Reduce date range. Add `\| take 10` to limit results. |
 | **Report generation fails** | Validate JSON: `python -m json.tool temp/investigation_*.json`. Check required fields. |
@@ -798,6 +869,7 @@ This project is licensed under the [MIT License](LICENSE). Use it, fork it, adap
 - **[Microsoft Defender XDR](https://learn.microsoft.com/en-us/defender-xdr/)** — Advanced Hunting, device telemetry, vulnerability management
 - **[Microsoft Graph API](https://learn.microsoft.com/en-us/graph/)** — Entra ID identity data, user/group management, role assignments
 - **[Microsoft Entra ID Protection](https://learn.microsoft.com/en-us/entra/id-protection/)** — Risk detections, risky sign-ins, user risk states
+- **[Microsoft Perception](https://learn.microsoft.com/en-us/security/agentic-security/agentic-security-mcp)** — Agentic security playbooks (threat intelligence extraction, protection, attack investigation) used by the optional `perception-*` skills
 
 ### MCP Servers
 - **[Sentinel Data Lake MCP](https://learn.microsoft.com/en-us/azure/sentinel/datalake/)** — KQL query execution against Sentinel workspace

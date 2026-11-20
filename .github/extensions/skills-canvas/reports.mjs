@@ -16,13 +16,14 @@ import path from "node:path";
 // markdown the rendered page, and hands SVG/HTML to the browser with a real
 // content type; anything else would download rather than preview, so it is
 // left out of the listing entirely.
-const VIEWABLE = new Set([".md", ".markdown", ".svg", ".html", ".htm"]);
+const VIEWABLE = new Set([".md", ".markdown", ".svg", ".html", ".htm", ".kql"]);
 
 // Coarse type tag used by the client's type filter, so the UI never has to
 // re-derive a grouping from raw extensions.
 function kindOf(ext) {
     if (ext === ".md" || ext === ".markdown") return "md";
     if (ext === ".svg") return "svg";
+    if (ext === ".kql") return "kql";
     return "html";
 }
 

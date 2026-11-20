@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-09-25T18:48:31Z'
+generated: '2026-11-20T18:23:11Z'
 valid_domains:
 - admin
 - cloud
@@ -13,6 +13,7 @@ valid_domains:
 - exposure
 - identity
 - incidents
+- perception
 - spn
 skills:
 - name: ai-agent-activity
@@ -108,6 +109,31 @@ skills:
   domains:
   - incidents
   prompt: Run MITRE ATT&CK coverage report — tactic/technique coverage, gaps, SOC optimization
+- name: perception-extract-threat-intel
+  path: .github/skills/perception-extract-threat-intel/SKILL.md
+  domains:
+  - perception
+  prompt: Search existing Perception threat intel or run the Extract threat intelligence playbook for {entity}
+- name: perception-investigate-attack
+  path: .github/skills/perception-investigate-attack/SKILL.md
+  domains:
+  - perception
+  prompt: Search existing Perception investigations or run the Investigate attack playbook for incident {entity}
+- name: perception-protect-against-threat
+  path: .github/skills/perception-protect-against-threat/SKILL.md
+  domains:
+  - perception
+  prompt: Search existing Perception protect runs or run the Protect against a threat playbook for {entity}
+- name: perception-triage-alert
+  path: .github/skills/perception-triage-alert/SKILL.md
+  domains:
+  - perception
+  prompt: Search existing Perception triage verdicts or run the Triage alert playbook for alert {entity}
+- name: perception-tune-detection
+  path: .github/skills/perception-tune-detection/SKILL.md
+  domains:
+  - perception
+  prompt: Tune detections from an existing Perception session for {entity}
 - name: scope-drift-detection-device
   path: .github/skills/scope-drift-detection/device/SKILL.md
   domains:

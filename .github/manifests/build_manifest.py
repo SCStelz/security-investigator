@@ -41,7 +41,12 @@ VALID_DOMAINS = {
     "admin",
     "cloud",
     "exposure",
+    "perception",
 }
+
+# Domains that group launchable skills only (never Threat Pulse finding tags), so
+# they have no query files by design and are excluded from the query-coverage check.
+SKILL_ONLY_DOMAINS = {"perception"}
 
 # Fields extracted from query file markdown headers
 QUERY_HEADER_FIELDS = {
@@ -238,7 +243,7 @@ def validate(queries: list[dict], skills: list[dict], verbose: bool = False) -> 
         skill_domains.update(s.get("domains", []))
 
     for d in VALID_DOMAINS:
-        if d not in query_domains:
+        if d not in query_domains and d not in SKILL_ONLY_DOMAINS:
             warnings.append(f"COVERAGE  no query files tagged with domain '{d}'")
         if d not in skill_domains:
             warnings.append(f"COVERAGE  no skills tagged with domain '{d}'")

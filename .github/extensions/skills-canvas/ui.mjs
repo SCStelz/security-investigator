@@ -118,7 +118,8 @@ export function renderPage(prefs = {}) {
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; display: flex; flex-direction: column; gap: 8px; }
   .card .top { display: flex; align-items: flex-start; gap: 9px; }
   .card .ic { font-size: 18px; line-height: 1; margin-top: 1px; }
-  .card .nm { font-weight: 620; font-size: 13.5px; word-break: break-word; }
+  .card .nm { font-weight: 620; font-size: 13.5px; word-break: break-word; flex: 1 1 110px; min-width: 110px; }
+  .card > .entity { flex: 0 0 auto; }
   .fav-btn { margin-left: auto; background: none; border: none; cursor: pointer;
     font-size: 15px; line-height: 1; padding: 0 2px; filter: grayscale(1) opacity(.3);
     transition: filter .12s; align-self: flex-start; }
@@ -135,6 +136,12 @@ export function renderPage(prefs = {}) {
     border-radius: 6px; padding: 2px 6px; font-size: 10px; color: var(--muted); white-space: nowrap;
     font-variant-numeric: tabular-nums; cursor: default; }
   .cavg b { color: var(--text); font-weight: 620; }
+  .cper { background: rgba(139,92,246,.12); border: 1px solid #5b4a8a; color: #d6c8ff; border-radius: 6px;
+    padding: 2px 7px; font-size: 10.5px; white-space: nowrap; font-variant-numeric: tabular-nums; cursor: default; }
+  .cellcost { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  .cellcost .cavg, .cellcost .cper { margin-left: 0; }
+  .cellcost.cardcost { margin-left: auto; align-self: flex-start; flex: 0 1 auto; max-width: 58%; }
+  .cellcost.cardcost .cper, .cellcost.cardcost .cavg { white-space: normal; text-align: right; }
   .qpath { font-size: 10.5px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: right; opacity: .8; }
   .card .row { display: flex; gap: 7px; align-items: center; margin-top: 2px; flex-wrap: wrap; }
@@ -768,6 +775,7 @@ export function renderPage(prefs = {}) {
             <option value="md">📝 Markdown</option>
             <option value="svg">📊 SVG</option>
             <option value="html">🌐 HTML</option>
+            <option value="kql">🔎 KQL</option>
           </select>
           <button class="btn ghost" id="repRefresh" title="Re-scan the reports folder">⟳</button>
           <span class="repcount" id="repCount"></span>
@@ -1243,6 +1251,21 @@ function visibleSkills() {
   });
 }
 
+// Perception bills separately (USD per agent outcome) from the Copilot AI credits
+// shown by .cavg, so it gets its own badge; data comes from manifest.mjs.
+function perceptionBadge(s) {
+  const p = s && s.perceptionCost;
+  if (!p) return '';
+  // Perception prices are USD; convert through the same AIC/currency path as the Copilot badges.
+  const f = usd => {
+    if (!(usd > 0)) { const cur = costCur(); return cur ? cur.symbol + "0" : "0"; }
+    return fmtCostFine(usd / USD_PER_AIC);
+  };
+  const range = p.high > p.low ? f(p.low) + "\u2013" + f(p.high) : f(p.low);
+  const text = "\uD83E\uDDE0 " + (p.approx ? "~" : "") + range + (costUnit === "aic" ? " AIC" : "") + " \u00b7 " + p.note;
+  return '<span class="cper" title="' + esc(p.tip) + '">' + esc(text) + '</span>';
+}
+
 function renderSkillCards() {
   const grid = document.getElementById("grid");
   grid.innerHTML = "";
@@ -1260,12 +1283,12 @@ function renderSkillCards() {
       ? '<label class="fleetck"><input type="checkbox" class="fleetbox" /> 🌐 Fleet-wide (' + s.fleet.label + ')</label>'
       : '';
     card.innerHTML =
-      '<div class="top"><span class="ic">' + skillIcon(s) + '</span><span class="nm">' + s.name + '</span>' + avgHtml +
+      '<div class="top"><span class="ic">' + skillIcon(s) + '</span><span class="nm"' + (s.portal ? ' title="' + esc("Defender portal playbook: " + s.portal.playbook + " \u2014 " + s.portal.desc) + '"' : '') + '>' + s.name + '</span>' + ((avgHtml || perceptionBadge(s)) ? '<span class="cellcost cardcost">' + avgHtml + perceptionBadge(s) + '</span>' : '') +
       '<button class="fav-btn' + (favSkills.has(s.name) ? " on" : "") + '" title="Toggle favorite">⭐</button></div>' +
       '<div class="desc">' + skillDesc(s) + '</div>' +
       '<div class="chips">' + chips + '</div>' +
       fleetHtml +
-      '<input class="entity" placeholder="' + (s.hasEntity ? "entity (UPN / IP / device / #)…" : "optional target…") + '" />' +
+      '<input class="entity" placeholder="' + esc(s.entityHint || (s.hasEntity ? "entity (UPN / IP / device / #)…" : "optional target…")) + '" />' +
       '<div class="row skrow"><select class="lookback" title="Lookback window">' + lookbackOptionsHTML() + '</select>' +
       '<select class="output" title="Output format">' + outputOptionsHTML() + '</select>' +
       (s.path ? '<button class="btn ghost open" title="Open SKILL.md">📄</button>' : '') +
@@ -1290,7 +1313,7 @@ function renderSkillCards() {
         entity.disabled = on;
         entity.classList.toggle("dim", on);
         if (on) entity.value = "";
-        entity.placeholder = on ? "Fleet-wide — " + s.fleet.label : "entity (UPN / IP / device / #)…";
+        entity.placeholder = on ? "Fleet-wide — " + s.fleet.label : (s.entityHint || "entity (UPN / IP / device / #)…");
       };
     }
     runBtn.onclick = () => {
@@ -3596,7 +3619,7 @@ function renderSkillsTable() {
       { key: "cost", label: "Cost/run", w: 108, align: "right", sortable: true,
         sortVal: s => { const ca = avgMap.get(s.name); return ca ? ca.avg : -1; },
         title: s => { const ca = avgMap.get(s.name); return ca ? "Avg " + fmtCost(ca.avg) + " " + costUnitLabel() + " / run \u00b7 " + ca.n + " run" + (ca.n === 1 ? "" : "s") + " recorded" : "No costed runs recorded"; },
-        html: s => { const ca = avgMap.get(s.name); return ca ? '<span class="cavg">\u26A1 <b>' + fmtCostFine(ca.avg) + '</b> ' + esc(costUnitLabel()) + '/run</span>' : '<span style="opacity:.4">\u2014</span>'; } },
+        html: s => { const ca = avgMap.get(s.name); const avg = ca ? '<span class="cavg">\u26A1 <b>' + fmtCostFine(ca.avg) + '</b> ' + esc(costUnitLabel()) + '/run</span>' : '<span style="opacity:.4">\u2014</span>'; return '<div class="cellcost">' + avg + perceptionBadge(s) + '</div>'; } },
       { key: "actions", label: "", w: 290, build: (td, s) => {
           const wrap = document.createElement("div"); wrap.className = "lst-actions";
           const lb = document.createElement("select"); lb.className = "lst-sel"; lb.title = "Lookback window"; lb.innerHTML = lookbackOptionsHTML();
@@ -3722,19 +3745,19 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeRep
 let REPORTS = { files: [], dirs: [], total: 0, scannedAt: 0 };
 let repMode = "tree";        // "tree" | "recent"
 let repFilter = "";
-let repType = "all";         // all | md | svg | html
+let repType = "all";         // all | md | svg | html | kql
 let repSelected = null;      // { path, name }
 let repOpenDirs = new Set(); // expanded folders, by repo-relative dir path
 try {
   const m = localStorage.getItem("mc.reports.mode");
   if (m === "tree" || m === "recent") repMode = m;
   const t = localStorage.getItem("mc.reports.type");
-  if (t === "all" || t === "md" || t === "svg" || t === "html") repType = t;
+  if (t === "all" || t === "md" || t === "svg" || t === "html" || t === "kql") repType = t;
   const d = JSON.parse(localStorage.getItem("mc.reports.dirs") || "[]");
   if (Array.isArray(d)) repOpenDirs = new Set(d.map(String));
 } catch (e) {}
 
-const REP_ICON = { md: "\uD83D\uDCDD", svg: "\uD83D\uDCCA", html: "\uD83C\uDF10" };
+const REP_ICON = { md: "\uD83D\uDCDD", svg: "\uD83D\uDCCA", html: "\uD83C\uDF10", kql: "\uD83D\uDD0E" };
 
 function saveRepDirs() {
   try { localStorage.setItem("mc.reports.dirs", JSON.stringify([...repOpenDirs])); } catch (e) {}
@@ -4103,6 +4126,6 @@ load();</script>
 function domainIconsForClient() {
     return {
         incidents: "🔴", identity: "🔐", spn: "🤖", endpoint: "🖥️",
-        email: "📧", admin: "🔑", cloud: "☁️", exposure: "🛡️",
+        email: "📧", admin: "🔑", cloud: "☁️", exposure: "🛡️", perception: "🧠",
     };
 }
