@@ -83,6 +83,6 @@ If launched from Mission Control **and** a specific article's (or a topic's matc
 - Reading existing sessions needs no confirmation; **starting** a session always does (never automatic; cost shown; never from a bare keyword). Refuse `red-web-pentest` / `find-fix-web-app-security-risks` outright, without asking for a target (REFERENCE §1.4).
 - Cache answers must state their depth; never claim "no article covers X" without it. Never invent an article ID.
 - Sessions from other users are readable and fair game; name the initiator, don't speculate about them.
-- Perception output is AI-generated: `[asserted]` until re-queried here. Hunting queries are hypotheses until executed.
+- Perception output is `[perception: session …]` until re-queried here (then `[verified]`); apply the REFERENCE §6 claim split (tenant observation vs Perception's assessment). Hunting queries are hypotheses until executed.
 - No tenant identifiers in tracked files; cache, reports and index stay in gitignored paths (`temp/`, `reports/perception/extract-threat-intel/`).
 - Remediation as portal paths only (REFERENCE §8). Nothing is deployed by this skill.

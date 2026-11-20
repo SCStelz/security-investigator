@@ -4,7 +4,7 @@
 # Slim version: title, path, domains, mitre, prompt only.
 # Use --full flag to generate the verbose manifest with tables, keywords, platform, timeframe.
 
-generated: '2026-11-20T18:23:11Z'
+generated: '2026-11-20T21:23:20Z'
 valid_domains:
 - admin
 - cloud

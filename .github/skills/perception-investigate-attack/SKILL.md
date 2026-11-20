@@ -69,10 +69,10 @@ If one exists — or the user asks — do the comparison (no approval needed: it
 - Agreements: note briefly.
 - Perception-only claims: list them and **independently query** the relevant tables (follow the KQL pre-flight checklist) before citing them as `[verified]`.
 - Disagreements: highlight for the human; do not pick a winner.
-If none of the three exists, offer to run `incident-investigation` for the comparison rather than assuming (a full skill run: ask). A saved report is `[asserted]` context (not re-tested) unless you re-query its key claims.
+If none of the three exists, offer to run `incident-investigation` for the comparison rather than assuming (a full skill run: ask). A saved report is `[perception: session …]` context (not re-tested) unless you re-query its key claims; spot-check the key observations automatically (REFERENCE §6) and keep Perception's conclusions labelled as its assessment.
 
 ### Phase 8 — Record
-If launched from Mission Control, post a finding tagged `[perception: session <id8>]` (treated as `[asserted]`) — verdict, confidence, whether reused or fresh, and any partial/failed caveats.
+If launched from Mission Control, post a finding tagged `[perception: session <id8>]` (Perception-reported; say how many key claims you re-confirmed) — verdict, confidence, whether reused or fresh, and any partial/failed caveats.
 
 ---
 
