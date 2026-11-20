@@ -11,6 +11,7 @@
   "ipinfo_token": null,
   "abuseipdb_token": null,
   "vpnapi_token": null,
+  "vpndetection_token": null,
   "shodan_token": null,
   "output_dir": "reports",
   "memory_file": null,
