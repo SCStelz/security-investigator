@@ -164,6 +164,8 @@ CloudAppEvents
 | order by LakeQueries desc
 ```
 
+> ⚠️ **Coverage gaps in this query (found Nov 2026):** it filters `ActionType contains "Sentinel" or "KQL"`, so it **excludes KQL Job runs** (`JobRun*`), and its `Interface` map predates the `*ToolExecutorComponent` names — MCP-driven rows now surface as `Direct KQL (<display name>)`. For cost-spike triage use the **Cost-spike triage playbook** section below.
+
 **Notes & pitfalls (field-verified):**
 - **`contains`, not `has`** — Sentinel audit values (`SentinelAIToolRunCompleted`, `KQLQueryCompleted`) are CamelCase with no word boundaries, so `has "Completed"` returns **false** for all of them and silently drops MCP rows.
 - **`RawEventData` is a JSON string** — wrap in `parse_json(tostring(...))` and parse **once**.
@@ -232,6 +234,206 @@ CloudAppEvents
 - **`QueryContent` is trimmed to 500 chars** with `substring()` to keep the result readable — drop that line to capture the full query body (some are 2,000+ chars).
 - **Privacy note:** query bodies can embed indicators an analyst was hunting (domains, IPs, UPNs). Treat this output as sensitive and restrict who can run it.
 - **Per-user rollup of distinct queries:** swap the tail for `| summarize Queries = dcount(QueryContent), Samples = make_set(substring(QueryContent,0,200), 10), MaxDurationMs = max(ExecDurationMs) by Account | order by MaxDurationMs desc`.
+
+---
+
+## Cost-spike triage playbook — "Data lake query" meter jumped, who/what is driving it?
+
+**Use when:** the *Data lake query* meter spikes while other lake meters (ingestion, storage, retention) stay flat. That meter is driven by **queries and jobs that scan lake data** — so the question is *which channel, which identity, which job, which repeated query*.
+
+> **Validated Nov 2026 on a lab tenant.** All queries below are `RunAdvancedHuntingQuery` form (free, 30d max, `Timestamp`). For a window **> 30 days** (e.g. October baseline vs November), run the same query via the Data Lake with `Timestamp` → `TimeGenerated` (keep the `ActionType` filter first; counts/summaries are cheap).
+
+### Audit-schema facts that change how you count (read first)
+
+| Fact | Why it matters |
+|---|---|
+| **KQL Jobs are NOT `KQLQueryCompleted`.** They log as `JobRunScheduledCompleted` / `JobRunAdhocCompleted` (RecordType 377) with `JobName`, `JobType` (`KQL`, `GraphNotebook`, `WriteToLake`), `JobRunStatus`, `JobExecutionDurationInSecs`, and `Schedule` (JSON with `Recurrence.Frequency/Interval`). | The "Who is querying" filter above (`ActionType contains "Sentinel" or "KQL"`) **misses jobs entirely**. A job on a short cadence can out-run every human combined. |
+| **Job query text and tables are not audited** for KQL jobs (only name/schedule/duration). | To see *what a KQL job scans*, open it in Defender portal → Microsoft Sentinel → Data lake exploration → **Jobs**. |
+| **MCP calls produce two records**: a 403 `SentinelAIToolRunCompleted` (carries the caller **UPN**, `ToolName`) **and** a 379 `KQLQueryCompleted` whose `Interface` is the caller's **display name** and `UserId = "UserIdNotProvided"` (carries `TotalCPU`, `TablesRead`, `QueryText`). Row counts match 1:1 per caller. | Never add 403 + 379 together — you'll double count MCP. Count **379 + job events** for volume; use **403 only for identity (UPN) and tool name**. |
+| **403 is not only Data Lake.** It also logs Advanced Hunting / Defender tools (`RunAdvancedHuntingQuery`, `GetAlertById`, …) incl. Security Copilot agent identities. | Filter `ToolName in ("query_lake","search_tables","list_sentinel_workspaces")` for lake activity. |
+| **Interface names drifted**: older `IMcpToolTemplate` / `HttpMcpToolTemplate` are now `IMcpToolExecutorComponent` / `HttpMcpToolExecutorComponent`. | Hard-coded interface `case()` maps silently fall through to "Direct KQL (<name>)". |
+| `DataScanned` is **0** on every record observed; `TotalCPU` (ms, 379 only), `ExecutionDuration` (ms) and job `JobExecutionDurationInSecs` are the best in-audit cost proxies. | Billed GB is **not** in the audit log. Reconcile dollars in Cost Management; use these to **rank**, not to price. |
+| Failed queries are still logged (and frequently retried). | A looping/failing automation shows up as a high `Failed` count on one fingerprint (Query 7). |
+
+### Query 1 — Rollup by channel (is it jobs, MCP, portal, workbooks?)
+
+```kql
+CloudAppEvents
+| where Timestamp >= ago(30d)
+| where ActionType in ("KQLQueryCompleted", "JobRunScheduledCompleted", "JobRunAdhocCompleted")
+| extend R = parse_json(tostring(RawEventData))
+| extend Interface = tostring(R.Interface), JobType = tostring(R.JobType)
+| extend Source = case(
+    ActionType startswith "JobRun", strcat("Job: ", JobType),
+    Interface has "msglakeexplorer", "Portal: Lake Explorer",
+    Interface has "msgjobmanagement", "Portal: Jobs page",
+    Interface has "workbook", "Workbook",
+    Interface has "Medeina", "Security Copilot",
+    Interface has_any ("ipykernel", "PowerBI"), "Notebook/Power BI",
+    Interface in ("InterfaceNotProvided", ""), "Unattributed",
+    "MCP-driven (display-name interface)")
+| summarize Executions = count(), Last7d = countif(Timestamp >= ago(7d)),
+    Failed = countif(isnotempty(tostring(R.FailureReason)) or tostring(R.JobRunStatus) in ("Failed", "Error")),
+    CpuMin = round(sum(todouble(R.TotalCPU)) / 60000.0, 1),
+    JobRuntimeHrs = round(sum(todouble(R.JobExecutionDurationInSecs)) / 3600.0, 1)
+    by Source
+| order by Executions desc
+```
+
+### Query 2 — Daily trend by channel (find the day the spike starts)
+
+```kql
+CloudAppEvents
+| where Timestamp >= ago(30d)
+| where ActionType in ("KQLQueryCompleted", "JobRunScheduledCompleted", "JobRunAdhocCompleted")
+| extend R = parse_json(tostring(RawEventData))
+| extend Interface = tostring(R.Interface)
+| extend Source = case(
+    ActionType startswith "JobRun", "Job",
+    Interface has "msglakeexplorer" or Interface has "msgjobmanagement", "Portal",
+    Interface has "workbook", "Workbook",
+    Interface has "Medeina", "SecCopilot",
+    "MCP/Other")
+| summarize Total = count(), Jobs = countif(Source == "Job"), Portal = countif(Source == "Portal"),
+    Workbook = countif(Source == "Workbook"), SecCopilot = countif(Source == "SecCopilot"), McpOther = countif(Source == "MCP/Other"),
+    JobRuntimeHrs = round(sumif(todouble(R.JobExecutionDurationInSecs), Source == "Job") / 3600.0, 1),
+    InteractiveCpuMin = round(sumif(todouble(R.TotalCPU), Source != "Job") / 60000.0, 1),
+    FailedQueries = countif(Source != "Job" and isnotempty(tostring(R.FailureReason)))
+    by Day = bin(Timestamp, 1d)
+| order by Day asc
+```
+
+**Data Lake variant for > 30d (weekly, cheap — reads no wide columns):**
+
+```kql
+CloudAppEvents
+| where TimeGenerated >= datetime(2026-10-01) and TimeGenerated < datetime(2026-11-24)
+| where ActionType in ("KQLQueryCompleted", "JobRunScheduledCompleted", "JobRunAdhocCompleted")
+| summarize Executions = count() by Week = startofweek(TimeGenerated), ActionType
+| order by Week asc, ActionType asc
+```
+
+### Query 3 — KQL job inventory (the "must be a KQL job" suspect list)
+
+Per job: cadence, runs/day this week vs prior, runtime, failures. A cadence change (e.g., daily → hourly/by-minute) or a new job shows up as `RunsPerDay_Last7d` ≫ `RunsPerDay_Prev`. Runtime hours is the compute-weight proxy.
+
+```kql
+CloudAppEvents
+| where Timestamp >= ago(30d)
+| where ActionType in ("JobRunScheduledCompleted", "JobRunAdhocCompleted")
+| extend R = parse_json(tostring(RawEventData))
+| extend JobName = tostring(R.JobName), JobType = tostring(R.JobType), Status = tostring(R.JobRunStatus),
+    DurSecs = todouble(R.JobExecutionDurationInSecs), Sched = parse_json(tostring(R.Schedule)),
+    RunKind = iff(ActionType == "JobRunScheduledCompleted", "Scheduled", "AdHoc")
+| extend Cadence = strcat(tostring(Sched.Recurrence.Interval), " ", tostring(Sched.Recurrence.Frequency))
+| summarize Runs = count(), Last7d = countif(Timestamp >= ago(7d)), Prev23d = countif(Timestamp < ago(7d)),
+    Failed = countif(Status != "Succeeded"), TotalRuntimeHrs = round(sum(DurSecs) / 3600.0, 1),
+    AvgDurSecs = round(avg(DurSecs), 0), MaxDurSecs = max(DurSecs),
+    Cadences = make_set(Cadence, 3), RunKinds = make_set(RunKind, 2), FirstSeen = min(Timestamp), LastSeen = max(Timestamp)
+    by JobName, JobType
+| extend RunsPerDay_Last7d = round(Last7d / 7.0, 1), RunsPerDay_Prev = round(Prev23d / 23.0, 1)
+| order by TotalRuntimeHrs desc
+```
+
+### Query 4 — Job lifecycle changes (who created / edited / re-enabled / hand-ran a job)
+
+```kql
+CloudAppEvents
+| where Timestamp >= ago(30d)
+| where ActionType in ("JobCreated", "JobUpdated", "JobEnabled", "JobDisabled", "JobDeleted", "JobRunAdhoc", "JobRunStopped")
+| extend R = parse_json(tostring(RawEventData))
+| project Timestamp, ActionType, JobName = tostring(R.JobName), JobType = tostring(R.JobType),
+    ChangedBy = tostring(R.UserId), Interface = tostring(R.Interface)
+| order by Timestamp desc
+```
+
+> Beware: **editing a one-time job immediately re-executes it**, and a scheduled job's `LastModifiedAt` (inside `Schedule`) changes on every run — so use this query, not `LastModifiedAt`, to find real edits.
+
+### Query 5 — MCP callers by UPN (Data Lake MCP tools only)
+
+```kql
+CloudAppEvents
+| where Timestamp >= ago(30d)
+| where ActionType == "SentinelAIToolRunCompleted"
+| extend R = parse_json(tostring(RawEventData))
+| extend ToolName = tostring(R.ToolName)
+| where ToolName in ("query_lake", "search_tables", "list_sentinel_workspaces")
+| summarize Calls = count(), Last7d = countif(Timestamp >= ago(7d)), Failed = countif(isnotempty(tostring(R.FailureReason))),
+    ExecMin = round(sum(todouble(R.ExecutionDuration)) / 60000.0, 1), MaxExecSec = round(max(todouble(R.ExecutionDuration)) / 1000.0, 0),
+    Tools = make_set(ToolName, 3), ActiveDays = dcount(bin(Timestamp, 1d)), LastSeen = max(Timestamp)
+    by Caller = tostring(R.UserId)
+| top 25 by Calls desc
+```
+
+### Query 6 — Portal / workbook callers by UPN (engine-side, with CPU)
+
+```kql
+CloudAppEvents
+| where Timestamp >= ago(30d)
+| where ActionType == "KQLQueryCompleted"
+| extend R = parse_json(tostring(RawEventData))
+| extend Caller = tostring(R.UserId), Interface = tostring(R.Interface)
+| where Caller !in ("UserIdNotProvided", "Unknown", "")   // those rows are the MCP duplicates (see facts table)
+| summarize Queries = count(), Last7d = countif(Timestamp >= ago(7d)), Failed = countif(isnotempty(tostring(R.FailureReason))),
+    CpuMin = round(sum(todouble(R.TotalCPU)) / 60000.0, 1), MaxExecSec = round(max(todouble(R.ExecutionDuration)) / 1000.0, 0),
+    Interfaces = make_set(Interface, 4), ActiveDays = dcount(bin(Timestamp, 1d))
+    by Caller
+| top 25 by CpuMin desc
+```
+
+### Query 7 — Repeated/looping queries (automation or a retry storm)
+
+Normalizes literals/datetimes so the same query with a sliding window groups together. Many runs from many callers with a high `FailedRuns` is a script/agent retry loop.
+
+```kql
+CloudAppEvents
+| where Timestamp >= ago(30d)
+| where ActionType == "KQLQueryCompleted"
+| extend R = parse_json(tostring(RawEventData))
+| extend Interface = tostring(R.Interface), UserId = tostring(R.UserId), QueryText = tostring(R.QueryText)
+| where isnotempty(QueryText)
+| extend Caller = iff(UserId in ("UserIdNotProvided", "Unknown", ""), Interface, UserId)
+| extend Fingerprint = hash(replace_regex(replace_regex(QueryText, @"datetime\([^)]*\)", "datetime(?)"), @"\b\d+\b", "N"))
+| summarize Runs = count(), Last7d = countif(Timestamp >= ago(7d)), Callers = dcount(Caller), ActiveDays = dcount(bin(Timestamp, 1d)),
+    CpuMin = round(sum(todouble(R.TotalCPU)) / 60000.0, 1), AvgExecSec = round(avg(todouble(R.ExecutionDuration)) / 1000.0, 1),
+    FailedRuns = countif(isnotempty(tostring(R.FailureReason))), Sample = take_any(substring(QueryText, 0, 140))
+    by Fingerprint
+| where Runs >= 5
+| top 20 by Runs desc
+```
+
+> Do **not** add `TablesRead` to this output — for MCP-driven rows it can list hundreds of tables and bloats results.
+
+### Query 8 — Which tables are being hit, weighted by table size (MCP `query_lake`)
+
+`LakeQueries × IngestGB30d` is a **ranking weight, not dollars** — it surfaces large tables (sign-in, Graph activity, firewall) that are queried often. The inner join to `Usage` also discards the stray column names that appear in `TablesRead`.
+
+```kql
+let tableSize = Usage
+    | where TimeGenerated >= ago(30d)
+    | summarize IngestGB30d = round(sum(Quantity) / 1024.0, 1) by Table = DataType;
+CloudAppEvents
+| where Timestamp >= ago(30d)
+| where ActionType == "SentinelAIToolRunCompleted"
+| extend R = parse_json(tostring(RawEventData))
+| where tostring(R.ToolName) == "query_lake"
+| mv-expand Table = R.TablesRead
+| extend Table = tostring(Table)
+| summarize LakeQueries = count(), Last7d = countif(Timestamp >= ago(7d)), Callers = dcount(tostring(R.UserId)),
+    AvgExecSec = round(avg(todouble(R.ExecutionDuration)) / 1000.0, 1) by Table
+| join kind=inner tableSize on Table
+| extend ScanWeight = round(LakeQueries * IngestGB30d, 0)
+| top 15 by ScanWeight desc
+```
+
+### How to read the results
+
+1. **Query 1/2** — which channel's count (or job runtime) steps up when the bill does? If `Job:*` is flat but cost jumped, jobs are not the *count* driver — look at what a job scans (below).
+2. **Query 3/4** — a new job, a cadence change (daily → hourly), or a re-enabled job near the spike date. Compare `RunsPerDay_Last7d` vs `RunsPerDay_Prev`. Jobs that **fail every run** (`Failed == Runs`) still consume schedule/compute — fix or disable.
+3. **Query 5/6** — heaviest identities; a single caller with high `MaxExecSec`/`CpuMin` is a wide-scan suspect.
+4. **Query 7** — identical queries repeated across days/callers (agents, workbooks refreshing, retry loops).
+5. **Query 8 + the job's own definition (portal)** — a job's *scan size* = rows in the table × its lookback window. Daily jobs with a `ago(90d)`/`ago(180d)` lookback over a large table are the classic culprit — apply [best practices 1–3, 9](#the-best-practices-ordered-by-cost-impact) and use Rule #0 to estimate before changing anything.
+6. **Reconcile** against the Azure cost meter for the spike dates; the audit log ranks activity, it does not bill it.
 
 ---
 
