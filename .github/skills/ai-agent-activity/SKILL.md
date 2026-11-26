@@ -151,7 +151,7 @@ Every report MUST open with a plane banner so the analyst knows what was and was
 ### Phase 1 — Volume & inventory
 - ActionType volume breakdown (events, distinct users, first/last seen).
 - Daily event trend (for the volume mermaid chart).
-- **Agent inventory** — every named agent with event count, distinct users, channels.
+- **Agent inventory** — every named agent with event count, distinct users, channels. Split out `Global.Microsoft.Defender.*` (Perception) rows first — see [Perception platform agents](#microsoft-perception-platform-agents--classify-dont-hide).
 - **If Plane A is present: run [C0](#c0--prompt--reply-content-extraction-plane-a-mandatory-when-plane-a-is-present) now** to confirm content coverage and capture the prompt/reply corpus. Do this *before* writing any "content not available" statement.
 
 ### Phase 2 — Tool / connector usage
@@ -196,6 +196,8 @@ Ask which scope at the start. All three share Phases 0–1; they differ in depth
 Full-fleet inventory + clustering + safety + risk signals. Uses the [tenant-wide template](#template-1-tenant-wide).
 
 ### Single-agent drill-down
+> If the agent is a Perception platform agent (`Global.Microsoft.Defender.*`), don't run this scope: telemetry has no content for it. Report the platform summary and point to the Perception MCP instead ([rule 4](#microsoft-perception-platform-agents--classify-dont-hide)).
+
 Filter every query to one agent name. Include:
 - Agent inventory row (events, users, channels, first/last seen).
 - Tool inventory for the agent; per-tool call counts.
@@ -232,6 +234,16 @@ Uses the [single-user template](#template-3-single-user).
 **For each material cluster, produce:** a short table (agents, primary users, channels, representative tools) + a **user→agent→tool** mermaid diagram ([templates below](#mermaid-diagram-templates)).
 
 > **Volume concentration is common and usually benign:** one autonomous/background agent frequently dominates total tool-call volume (single user, single IP, steady 24/7 cadence). Call it out explicitly and separate it from the human-interactive long tail so it doesn't drown the analysis.
+
+### Microsoft Perception platform agents — classify, don't hide
+
+Where Microsoft Perception is enabled, its agents show up in Plane A/B as **`Global.Microsoft.Defender.*`** (an orchestrator `MainAgent` plus specialists such as `ReconAgent`, `WebAppRedAgent`, `InvestigationAgent`, `DetectionAuthoringAgent`, `PosturePrioritizationAgent`, `ThreatIntelligenceAgent`, `DefenderActionAgent`, `TriageAgent` — the set changes), on channel **`PerceptionPlatform`** (Plane B `ChannelName`). They are Microsoft-managed and session-driven; specialists run under `ActorUsername = N/A` and humans appear mainly on the orchestrator and on the Recon / WebAppRed / Action agents. They commonly account for **>90 % of events, tool calls and tokens**, with a low-single-digit tool-error rate fleet-wide (higher on individual tools, notably Advanced Hunting), and their content fields are redacted (see rule 4).
+
+1. **Detect and separate.** `Agent startswith "Global.Microsoft.Defender."`. Keep them in the totals, but report them once in a **"Platform agents (Microsoft Perception)"** sub-section of §5 (events, sessions, distinct initiators, which agents ran) and **leave them out of the agent inventory ranking and customer-agent clusters** so they don't bury the long tail. Always state the share, so nothing is silently dropped.
+2. **Don't score the expected noise.** Volume concentration (signal 6), tool-failure rate (signal 7 — includes platform-level Advanced Hunting quota errors, see the [shared reference §10](../perception-shared/REFERENCE.md#10-reading-a-session-transcript-mcp-vs-telemetry-unifiedagentobservability)) and runtime-protection coverage (signal 8 — Perception tools are not evaluated) are stated once as context, not as findings.
+3. **Still surface deviations.** Flag as *new*: a Perception agent calling a tool outside its usual set, a handoff into or out of a non-Perception agent, a new `ClientIP`, or a new initiator on an **active-testing** agent (`WebAppRedAgent`, `DefenderActionAgent`). Count those sessions explicitly.
+4. **Content is not in this table.** Prompts, tool arguments and results are the literal string `Internal`; do not report that as a telemetry gap and do **not** suggest "run an AI agent activity report for agent `Global.Microsoft.Defender.*`" — it yields nothing. For targets, transcripts or reports, use the Perception MCP (`list_sessions` → `get_agent_run_messages`, `list_outputs` / `read_output`); `EventSessionId` equals the Perception session GUID, so the two can be joined.
+5. **If Perception isn't enabled,** none of this applies; do not mention it.
 
 ---
 
@@ -743,10 +755,11 @@ Every report ends with a **Suggested Follow-Up Prompts** section — copy-paste-
 <xychart-beta>
 
 ## 4. Agent Inventory
-<top-N table: agent, events, users, channels; note the long tail>
+<top-N table: agent, events, users, channels; note the long tail. Exclude Perception platform agents here and state their share>
 
 ## 5. Agent Clusters
 <for each derived cluster: short table + user→agent→tool mermaid>
+<if Perception is present: one "Platform agents (Microsoft Perception)" sub-section — events, sessions, initiators, active-testing sessions, deviations; no per-agent mermaid>
 
 ## 6. Tool / Connector Usage
 <tool-type distribution table + notable sensitive-tool usage>
@@ -886,6 +899,7 @@ Every report ends with a **Suggested Follow-Up Prompts** section — copy-paste-
 | **`CopilotActivity` uses `TimeGenerated`, not `Timestamp`, in both AH and Data Lake** | Unlike `CloudAppEvents` (which needs `Timestamp` in AH), `CopilotActivity` is consistent — always `TimeGenerated`. |
 | **Security for AI native alerts don't reliably sync to Sentinel `SecurityIncident`/`SecurityAlert`** | Validated on a live multi-stage incident: 2 of 4 correlated alerts were native `ServiceSource == "Security for AI"` alerts (`AlertId` prefixed `ai...`) — neither resolved via a Sentinel `SecurityAlert.SystemAlertId` lookup. Use `GetIncidentById(includeAlertsData=true)` or [C12](#c12--security-for-ai-native-alerts-identify--gather-context) above — not a Sentinel-side join — to pivot into these alerts. |
 | **`BehaviorInfo` jailbreak rows are a subset of the turn-level signal** | `BehaviorInfo` (`ActionType == "BehaviorPromptShieldJailbreakDetect"`) undercounts relative to `CloudAppEvents`/`CopilotActivity` `Messages[].JailbreakDetected` (validated: 6 vs. 17 hits, same 30d window). Treat `CloudAppEvents`/`CopilotActivity` as authoritative for jailbreak counts; use `BehaviorInfo` only as a supplementary agent/user correlation signal. |
+| **Perception platform agents dominate the table and have no content** | `Global.Microsoft.Defender.*` agents (channel `PerceptionPlatform`) can be >90 % of Plane A/B volume, with request/result fields redacted to the literal `Internal` and a steady tool-error rate. Separate and summarize them once; never rank them with customer agents, treat the redaction as a gap, or recommend an activity drill-down on them. Content lives in the Perception MCP — see [Perception platform agents](#microsoft-perception-platform-agents--classify-dont-hide). |
 | **Agent-to-agent handoffs have no dedicated event** | Neither plane emits an "Agent A invoked Agent B" event, and `AgentsInfo` config doesn't declare sub-agents as callable actions — a handoff is a Copilot Studio runtime routing decision. Detect it via the **compound `ConversationId`** (`<parent>_<child>`) on the sub-agent's `InvokeAgent` rows (C13). The parent keeps emitting its own root-`ConversationId` rows throughout — it stays the orchestrating shell. In `CloudAppEvents` the sub-agent's `AgentName`/`AgentId` are **blank** (both look like ordinary user-prompt rows — only the `ConversationId` structure reveals the handoff); in `UnifiedAgentObservability` the sub-agent gets a **real** `SrcAgentId`/`SrcAgentName` on its `AISpanOutput` rows and shares the parent's `SrcAgentBlueprintId` (C14). |
 
 ---
@@ -903,6 +917,7 @@ Every report ends with a **Suggested Follow-Up Prompts** section — copy-paste-
 - [ ] Agent clusters are **derived from the data** and named for this tenant (not a fixed taxonomy)
 - [ ] Each material cluster has a **user→agent→tool mermaid** diagram
 - [ ] Volume-concentration (dominant single agent) is called out and separated from the interactive long tail
+- [ ] If `Global.Microsoft.Defender.*` agents are present: reported once as **platform agents** (with their share), kept out of the inventory ranking, deviations flagged, and **no** activity drill-down recommended for them
 - [ ] Risk signals presented as **flexible 🟢/🟡/🔴 verdicts with evidence** — **no** composite /100 score
 - [ ] Notable IPs enriched via `enrich_ips.py` (JSON parsed, not `.txt` read); Azure-VPN FP considered
 - [ ] Zero-result sections use the explicit absence pattern (`✅ No … detected`)
