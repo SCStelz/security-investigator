@@ -468,7 +468,7 @@ Use these exact patterns with appropriate MCP tools. Replace `<IOC_VALUE>`, `<St
 
 ---
 
-### 1. Threat Intelligence Indicator Match (Advanced Hunting only — not available in Data Lake; limited to first 20 IoCs)
+### 1. Threat Intelligence Indicator Match (Sentinel - limited to first 20 IoCs)
 ```kql
 let start = datetime(<StartDate>);
 let end = datetime(<EndDate>);
