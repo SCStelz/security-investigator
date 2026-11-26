@@ -156,3 +156,25 @@ All `security.microsoft.com` URLs carry `?tid=<tenant_id>` (or `&tid=` when a qu
 - **Check before you present:** run `python .github/skills/perception-shared/session_cache.py check-links <report.md> --fix`. It fails if the header session line is missing, a session link has no `?tid=`, or a backticked session id is not a link (`--fix` links those from the cache). Exit code 0 is required.
 - The evidence tag `[perception: session <id8>]` stays a plain tag (it marks provenance); the session it refers to must be linked at least once in the header.
 - Entity identifiers (service principals, apps, blobs, hashes) are not portal objects here — leave them as code text.
+
+## 10. Reading a session: transcript (MCP) vs telemetry (`UnifiedAgentObservability`)
+
+Where the Agent 365 observability connector is enabled, Perception agents (`Global.Microsoft.Defender.*`, channel `PerceptionPlatform`) also appear in the Sentinel Data Lake table `UnifiedAgentObservability` (UAO; query it with `workspaceId: "default"`, `TimeGenerated`). Use the two sources for different jobs. *(Observed in one tenant; not a documented Microsoft contract — re-check when the MCP or connector changes.)*
+
+| Question | Use | Why |
+|---|---|---|
+| What did the agent see, run, say and conclude? | **MCP**: `get_agent_run_messages`, `read_output`, `get_session_summary` | UAO carries **no content**: every request/result field is the literal string `Internal` (including replies on `AISpanOutput`). Never answer a content question from UAO or report "no content captured" as a telemetry gap. |
+| Did the transcript omit or invent steps? | **UAO** as an integrity check | `EventSessionId` equals the Perception **session GUID**. Per agent, UAO `ExecuteToolBySDK` rows matched the transcript's tool calls one-to-one (names, order, ±1 s). A mismatch is worth flagging. |
+| Tenant-wide volume, tokens, model, error rates, which agents ran | **UAO** | One query covers every session; the MCP is per session/run. Per-call input/output tokens and `ModelName` exist only here (the MCP's `Usage` messages are empty). |
+| Sub-agent work | MCP `task` calls and results | Sub-tasks are **not** separate agent runs in `list_agent_runs`; in UAO they show only as extra `InferenceCall` rows under the parent agent. |
+
+**Transcript handling (MCP)**
+- `get_agent_run_messages` is **newest-first** with a default page of **200** messages; re-sort by `timestamp` and follow `continuationToken` for long runs. A long investigation run can be hundreds of KB — the tool saves large replies to a file; parse them with PowerShell/Python (group by `type`, tally `toolRequest` names) instead of printing them.
+- Tool-call **arguments are truncated** (~200 characters, long KQL ends in `...`), so full queries are not recoverable from the transcript; tool **results** are returned in full.
+- `list_agent_runs` only lists top-level runs, and its `durationMs` can disagree with the run's own completion message (seen: 7 s listed vs. ~2 h in the transcript). Trust the run's final message and the message timestamps.
+- A session can be `succeeded` while the last agent message is a failure (e.g. an authentication error). Read the final messages before trusting status alone.
+
+**Failures**
+- UAO records a failed tool call only as `EventErrorDetails` = `Agent operation failed.`; the **real error text is only in the transcript** (`[Tool Error] …`).
+- Advanced Hunting calls through the `perception_context` MCP server share a **per-tenant** API quota (observed error: `TooManyRequests … Maximum allowed 45 per 00:01:00 for the key Destination+TenantID`). Because the key is the tenant, concurrent sessions and other Advanced Hunting callers compete; parallel calls inside one session do not predict failure. In one tenant the failure rate was ~15 % at ≤ 35 calls/min tenant-wide, ~23 % at 36–45 and ~36 % at 46–60, plus a ~15 % floor at low load whose cause was not established. Do not call a high `perception_context-RunAdvancedHuntingQuery` failure rate "quota" without sampling transcript error text, and treat a failed query as "no data", never as "no findings".
+- When validating or tuning detections, expect the same quota (§5): rerun later rather than concluding a query is broken.
